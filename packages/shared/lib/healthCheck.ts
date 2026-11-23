@@ -22,14 +22,14 @@ async function checkDatabase(): Promise<Check> {
     // ยิงถาม "ตารางจริง" ไม่ใช่หน้าแรกของบริการ — ต้องพิสูจน์ว่าฐานข้อมูลตอบได้จริง
     //   (เคยลองยิง /rest/v1/ เฉย ๆ แล้วได้ 401 ตลอด เพราะปลายทางนั้นต้องการสิทธิ์เพิ่ม
     //    ผลคือหน้าเช็กสุขภาพรายงานว่า "ไม่ไหว" ทั้งที่ระบบใช้งานได้ปกติ — 7 ส.ค. 69)
-    // ผู้ไม่ล็อกอินจะได้ 0 แถวกลับมาตามกฎความปลอดภัย ซึ่งไม่เป็นไร — เราดูแค่ว่า "ตอบ 200 ไหม"
+    // ใบ 0297 (23 พ.ย. 69): คนนอกแตะตารางไม่ได้แล้ว → ถามคำสั่ง health_ping (อ่านตารางจริงในฐาน · คืนแค่ true)
+    //   ฐานยังไม่มีคำสั่ง (404 · เว็บขึ้นก่อนลงใบ) = ถอยไปอ่าน dealers แบบเดิม (ได้ 0 แถวตามกฎความปลอดภัย · ดูแค่ "ตอบ 200 ไหม")
     // ตั้งเวลาไว้ 5 วินาที: นานกว่านี้ถือว่าไม่ไหวแล้ว ผู้ใช้ก็คงรอไม่ไหวเหมือนกัน
-    const res = await fetch(`${url}/rest/v1/dealers?select=code&limit=1`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
-    return { name: "database", ok: res.ok, ms: Date.now() - started };
+    const หัว = { apikey: key, Authorization: `Bearer ${key}`, "content-type": "application/json" };
+    const res = await fetch(`${url}/rest/v1/rpc/health_ping`, { method: "POST", body: "{}", headers: หัว, signal: AbortSignal.timeout(5_000), cache: "no-store" });
+    if (res.status !== 404) return { name: "database", ok: res.ok && (await res.json().catch(() => false)) === true, ms: Date.now() - started };
+    const เดิม = await fetch(`${url}/rest/v1/dealers?select=code&limit=1`, { headers: หัว, signal: AbortSignal.timeout(5_000), cache: "no-store" });
+    return { name: "database", ok: เดิม.ok, ms: Date.now() - started };
   } catch {
     return { name: "database", ok: false, ms: Date.now() - started };
   }

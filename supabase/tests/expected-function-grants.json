@@ -1,5 +1,5 @@
 {
- "migration": "0296",
+ "migration": "0297",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -1057,6 +1057,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "health_ping()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "hook_send_email(event jsonb)",

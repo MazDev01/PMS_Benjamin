@@ -51,6 +51,25 @@ test("คนที่ยังไม่ล็อกอิน ต้องอ่�
   ).toEqual([]);
 });
 
+// ใบ 0297 (คนรวมงานสั่ง 23 พ.ย. 69): ไม่ใช่แค่ "ได้ 0 แถว" — คนนอกต้องถูกปฏิเสธที่สิทธิ์ตารางเลย (ไม่พึ่งเงื่อนไขในกฎ RLS)
+//   ตัวตรวจสุขภาพที่ทำงานก่อนเข้าระบบใช้ health_ping แทนการอ่านตาราง
+test("[security] คนที่ยังไม่ล็อกอิน: ทุกตาราง/วิวถูกปฏิเสธที่สิทธิ์ (ไม่ใช่ 0 แถว) · health_ping เรียกได้", async ({ request }) => {
+  const names = await exposedObjects();
+  expect(names.length, `ต้องอ่านรายชื่อตาราง/วิวได้ (ได้ ${names.length} รายการ)`).toBeGreaterThan(5);
+  const ไม่ปฏิเสธ: string[] = [];
+  for (const name of names) {
+    if (PUBLIC_BY_DESIGN.includes(name)) continue;
+    const r = await fetch(`${SUPABASE_URL}/${"rest/v1"}/${name}?select=*&limit=1`, { headers: { apikey: SUPABASE_ANON } });
+    if (r.status !== 401 && r.status !== 403) ไม่ปฏิเสธ.push(`${name} (${r.status})`);
+  }
+  expect(ไม่ปฏิเสธ, `ตาราง/วิวที่คนนอกยังไม่ถูกปฏิเสธที่สิทธิ์: ${ไม่ปฏิเสธ.join(" · ")}`).toEqual([]);
+  const ping = await fetch(`${SUPABASE_URL}/rest/v1/rpc/health_ping`, { method: "POST", body: "{}", headers: { apikey: SUPABASE_ANON, "content-type": "application/json" } });
+  expect(ping.status, "health_ping เรียกได้ด้วยกุญแจสาธารณะ").toBe(200);
+  expect(await ping.json()).toBe(true);
+  const health = await request.get(`${HQ_ORIGIN}/api/health`);
+  expect(JSON.stringify(await health.json().catch(() => ({}))), "/api/health ฐานข้อมูลตอบได้ (ผ่าน health_ping)").toMatch(/"name":"database","ok":true/);
+});
+
 test("กุญแจสาธารณะเขียนข้อมูลไม่ได้เลย", async () => {
   // อ่านไม่ได้อย่างเดียวไม่พอ — ถ้าเขียนได้ คนนอกจะยัดลูกค้าเป้าหมาย/ใบเสนอราคาปลอมเข้าระบบได้
   const targets = ["leads", "quotations", "customers", "dealers", "profiles", "audit_log"];

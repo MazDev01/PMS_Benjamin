@@ -1,11 +1,11 @@
 {
- "migration": "0296",
+ "migration": "0297",
  "relations": [
   {
    "r": "appointments",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -13,7 +13,7 @@
    "r": "audit_log",
    "kind": "r",
    "rls": true,
-   "anon": "REFERENCES,SELECT,TRIGGER",
+   "anon": "",
    "authenticated": "REFERENCES,SELECT,TRIGGER",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -45,7 +45,7 @@
    "r": "customer_notes",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -61,7 +61,7 @@
    "r": "customers",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -69,7 +69,7 @@
    "r": "dealer_account_changes",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -85,7 +85,7 @@
    "r": "dealer_account_requests",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -101,7 +101,7 @@
    "r": "dealer_lead_rules",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -213,7 +213,7 @@
    "r": "dealer_settings",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -237,7 +237,7 @@
    "r": "dealers",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -269,7 +269,7 @@
    "r": "entity_counters",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -277,7 +277,7 @@
    "r": "files",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -293,7 +293,7 @@
    "r": "hq_company",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -309,7 +309,7 @@
    "r": "hq_notif_rules",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -317,7 +317,7 @@
    "r": "hq_policy",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -349,7 +349,7 @@
    "r": "hq_sales_journey",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -357,7 +357,7 @@
    "r": "hq_targets",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -381,7 +381,7 @@
    "r": "leads",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -389,7 +389,7 @@
    "r": "master_catalog",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -485,7 +485,7 @@
    "r": "profiles",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -549,7 +549,7 @@
    "r": "quotations",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -557,7 +557,7 @@
    "r": "quote_counters",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -621,7 +621,7 @@
    "r": "rate_limits",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
@@ -629,7 +629,7 @@
    "r": "responsible_persons",
    "kind": "r",
    "rls": true,
-   "anon": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
+   "anon": "",
    "authenticated": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE",
    "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
   },
