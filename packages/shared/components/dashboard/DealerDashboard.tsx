@@ -4,6 +4,7 @@
 // ขอบเขตข้อมูล: ลูกค้าเป้าหมายของดีลเลอร์รายนี้เท่านั้น (กติกาเดียวกับหน้า /leads และ /calendar)
 // S1: 4 KPI (ทั้งใบกดได้) · S2: 2 กราฟใหญ่ (แท่งคู่จำนวน + เส้นยอดขาย) · S3: ผลงาน + ขั้นตอนการขาย
 // S4: 4 การ์ดรายการ (ปิดท้ายด้วยกิจกรรมล่าสุด) · stack เดิม (SVG charts, ไม่ลง Recharts)
+import { useOptionList } from "@pms/shared/lib/useOptionList";
 import { useMemo } from "react";
 import { มูลค่าลีด, ชื่อกิจกรรมใบ } from "@pms/shared/lib/mock";
 import { วันที่ขายของใบ } from "@pms/shared/lib/salesDate";   // ยอดขายตามวันลูกค้าตอบรับ (ใบ 0260)   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
@@ -28,7 +29,7 @@ import {
   หัวกราฟรายเดือน, เดือนตามช่วง, monthKey, monthKeyOf, ป้ายเดือนปี,
 } from "@pms/shared/components/ui/MonthRangeToggle";
 import {
-  ป้ายประเภทนัด, fmtISOToThai,
+  fmtISOToThai,
   quotationStatusLabel, quotationStatusColor, DEFAULT_DEALER_CODE, QUOTED_UP,
 } from "@pms/shared/lib/mock";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
@@ -67,6 +68,7 @@ function localISO(d: Date): string {
 }
 
 export default function DealerDashboard() {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const router = useRouter();
   const { leads: allLeads, quotations, appointments, salesVersion } = useSales();
   const { timeRange, passes } = useFilters();
@@ -484,11 +486,11 @@ export default function DealerDashboard() {
             <div style={listWrap}>
               {todayTasks.map(a => (
                 <button key={a.id} className="dash-row" onClick={() => router.push("/calendar?view=today")} title={`เปิดปฏิทินวันนี้ · ${a.company}`} data-today-task={a.id} style={rowBtn}>
-                  <IconBox Icon={a.type === "follow_up" ? PhoneCall : a.type === "presentation" ? Mail : CalendarClock}
-                    color={a.type === "follow_up" ? "#2563EB" : a.type === "presentation" ? "#EA580C" : "#7C3AED"}
-                    bg={a.type === "follow_up" ? "#E8F0FE" : a.type === "presentation" ? "#FEF0E6" : "#F0EBFB"} />
+                  <IconBox Icon={(a.type === "follow_up" || a.type === "call") ? PhoneCall : a.type === "presentation" ? Mail : CalendarClock}
+                    color={(a.type === "follow_up" || a.type === "call") ? "#2563EB" : a.type === "presentation" ? "#EA580C" : "#7C3AED"}
+                    bg={(a.type === "follow_up" || a.type === "call") ? "#E8F0FE" : a.type === "presentation" ? "#FEF0E6" : "#F0EBFB"} />
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ป้ายประเภทนัด(a.type)} {a.company}</span>
+                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ประเภทนัดกลาง.ป้าย(a.type)} {a.company}</span>
                     <span style={{ display: "block", fontSize: "0.76rem", color: SUB, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.project}</span>
                   </span>
                   <span style={{ fontSize: "0.82rem", fontWeight: 700, color: SUB, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{a.time}</span>

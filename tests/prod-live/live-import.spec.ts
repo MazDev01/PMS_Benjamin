@@ -121,7 +121,9 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   // จำลองคำตอบเส้นทางดึงชีต (ในเบราว์เซอร์นี้เท่านั้น) — ตารางจากไฟล์ปลอม แปลงด้วยตัวอ่านเดียวกับเซิร์ฟเวอร์ · ไม่ดึง Google Sheets จริง
   const ไบต์ = readFileSync(ไฟล์);
   const ตาราง = [...(await แยกสมุดงานจากXlsx(ไบต์.buffer.slice(ไบต์.byteOffset, ไบต์.byteOffset + ไบต์.byteLength) as ArrayBuffer)).entries()];
-  await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
+  // จำลองเฉพาะ POST (ดึงชีต) — GET = สถานะดึงอัตโนมัติ (ใบ 0295) ไปฐานจริง
+  await page.route("**/api/v1/prospect-sheet", r => r.request().method() !== "POST" ? r.continue()
+    : r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
   await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
   await expect(กล่อง.locator('input[type="file"]'), "ในหน้าต่างมีช่องเลือกไฟล์ 1 ตัว (บอสสั่ง 23 พ.ย. 69 · บนหน้ายังไม่มี)").toHaveCount(1);
@@ -140,7 +142,10 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(กล่อง.getByLabel("คอลัมน์ แหล่งที่มา")).toHaveValue("9");
   await expect(กล่อง.locator("#pi-year"), "ค่าตั้งต้น = ปีนี้ (พ.ศ.)").toHaveValue(String(ปี + 543));
   await กล่อง.locator("#pi-year").selectOption(String(ปี + 543));   // ใส่ปี (ครั้งเดียวทั้งไฟล์)
-  await expect(กล่อง.getByLabel("แหล่งที่มาของ FB")).toHaveValue("Facebook");
+  // แหล่งที่มา (รายการกลาง · บอสตัดสิน 19 พ.ย. 69 · ไม่เดา): ค่าในไฟล์ที่ไม่ตรงชื่อในรายการ = ยังไม่ระบุ → HQ เลือกเองในตารางแปลงช่องทาง
+  await expect(กล่อง.getByLabel("แหล่งที่มาของ FB", { exact: true }), "FB ไม่ตรงชื่อในรายการ = ยังไม่ระบุ").toHaveValue("");
+  for (const [ในไฟล์, ในรายการ] of [["FB", "Facebook"], ["Direct", "โทรเข้ามาเอง"], ["Line Pu", "LINE ส่วนตัว"], ["Line OA", "LINE OA"]] as const)
+    await กล่อง.getByLabel(`แหล่งที่มาของ ${ในไฟล์}`, { exact: true }).selectOption(ในรายการ);
   await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
 
   // ── 3) หน้าตรวจ ──

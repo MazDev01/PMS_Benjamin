@@ -14,13 +14,13 @@ import { Check, Lock, Store, XCircle, RotateCcw, Trophy } from "lucide-react";
 import type { DealerProspect, DealerProspectStatus } from "@pms/shared/lib/data/types";
 import { prospectStatusLabel, prospectStatusColor } from "@pms/shared/lib/dealerProspects";
 import { งานมาตรฐาน, งานเสร็จแล้ว, ความคืบหน้า, ติ๊กงาน, ยกเลิกงาน, ลำดับขั้น } from "@pms/shared/lib/prospectJourney";
-import type { HQRecruitSettings } from "@pms/shared/lib/recruitSettings";
 import { ถามเหตุผล } from "@pms/shared/components/ui/ConfirmToast";
 import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
+import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
 
 const PRIMARY = "#003366";
 
-export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ค่าตั้ง, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting, onUndo, onOpenDone }: {
+export function ProspectJourney({ prospect, ขั้นก่อนปิด, มีบันทึกการติดต่อ, มีใบส่งแล้ว, editable, busy, onStage, onLost, onNeedContact, onNeedProposal, onConvert, ตั้งไม่ได้เพราะ, ป้ายสถานะ, onLinkExisting, onUndo, onOpenDone }: {
   /** กดงานที่ติ๊กแล้ว = เปิดดูรายละเอียดของงานนั้น (บันทึกการติดต่อ / ใบค่าแฟรนไชส์) — ไม่ถอนติ๊ก */
   onOpenDone?: (key: string) => void;
   /** ยกเลิกงานล่าสุด = ถอย 1 ขั้น ทางคำสั่งฐาน prospect_undo_last_task (ใบ 0278) — ไม่ส่ง = ใช้ onStage แบบเดิม (โหมดตัวอย่าง) */
@@ -32,8 +32,6 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
   ป้ายสถานะ?: string;
   /** ผูกกับดีลเลอร์เดิม (สาขาเดิมจาก Excel) — กดได้เสมอ ไม่ต้องรอชำระครบ (บอสตัดสิน 5 พ.ย. 69 ข้อ ด) */
   onLinkExisting?: () => void;
-  /** ชื่องาน + รายการเหตุผลที่ไม่สำเร็จ ที่ตั้งไว้ (หน้าตั้งค่า › หาดีลเลอร์) — ไม่ส่ง = ชื่อเดิม/พิมพ์เหตุผลเอง */
-  ค่าตั้ง?: Pick<HQRecruitSettings, "taskLabels" | "lostReasons">;
   /** รายที่ไม่สำเร็จ: ขั้นก่อนปิด (ใช้แสดงงานที่ทำไปแล้ว + เปิดติดตามใหม่) */
   ขั้นก่อนปิด: DealerProspectStatus;
   มีบันทึกการติดต่อ: boolean;
@@ -49,11 +47,12 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
 }) {
   const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสสั่ง 6 พ.ย. 69)
   const [hint, setHint] = useState("");
-  // ไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) · มีรายการเหตุผลตั้งไว้ = เลือกจากรายการ (มี "อื่นๆ" ให้พิมพ์เอง) · ไม่มี = พิมพ์เอง
+  // ไม่สำเร็จ = กล่องเหตุผลกลาง (บอสสั่ง 28 ต.ค. 69) · ตัวเลือก = รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0296 · เก็บรหัส · อื่น ๆ (ระบุ) พิมพ์เอง)
+  const เหตุผลกลาง = useOptionList("prospect_lost_reason");
   const ไม่สำเร็จ = () => void ถามเหตุผล({
     หัวข้อ: `ปิด “${prospect.name}” ว่าไม่สำเร็จ ?`,
     รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง",
-    ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ", ตัวเลือก: ค่าตั้ง?.lostReasons ?? [],
+    ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ", ตัวเลือกรหัส: ตัวเลือกกล่องเหตุผล(เหตุผลกลาง.items),
     ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
     ทำ: เหตุผล => onLost(เหตุผล),
   });
@@ -177,7 +176,7 @@ export function ProspectJourney({ prospect, ขั้นก่อนปิด, �
               <XCircle size={18} color="#dc2626" />
               <div>
                 <div style={{ fontSize: "0.86rem", fontWeight: 800, color: "#dc2626" }}>ปิดไม่สำเร็จ</div>
-                {prospect.lostReason && <div style={{ fontSize: "0.72rem", color: "#991b1b" }}>เหตุผล: {prospect.lostReason}</div>}
+                {prospect.lostReason && <div style={{ fontSize: "0.72rem", color: "#991b1b" }}>เหตุผล: {เหตุผลกลาง.ป้าย(prospect.lostReason)}</div>}
               </div>
             </div>
             {editable && (

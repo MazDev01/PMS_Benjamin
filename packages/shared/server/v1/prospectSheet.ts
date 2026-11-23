@@ -7,7 +7,7 @@
 //     · เพดานขนาด 10 MB (เช็กทั้ง content-length และระหว่างอ่าน) · หมดเวลา 20 วินาที · เพดานคำขอเหมือนทางอื่น (handler)
 //     · สิทธิ์เดียวกับนำเข้า (can_write_master) — ตรวจก่อนดึง · ไม่เก็บไฟล์ · ไม่ลงบันทึกเนื้อหา/ลิงก์
 import type { NextRequest } from "next/server";
-import { handler, ok, fail } from "./_ctx";
+import { handler, ok, fail, dbFail } from "./_ctx";
 import { แยกสมุดงานจากXlsx } from "../../lib/importSheet";
 
 export { runtime } from "./_ctx";
@@ -97,8 +97,20 @@ export async function ตารางจากชีต(รหัส: string, fe
   catch { throw new ดึงชีตไม่ได้("อ่านชีตไม่ได้ — ดาวน์โหลดเป็น .xlsx แล้วนำเข้าจากไฟล์แทน", 422); }
 }
 
+// ดึงอัตโนมัติ (ใบ 0295): GET = สถานะ (ลิงก์ · เปิด/ปิด · ดึงล่าสุด · ตัวตั้งเวลา) · POST op=settings = ตั้งลิงก์/เปิดปิด — ในนามผู้เรียก ฐานตรวจสิทธิ์
+export const prospectSheetGET = handler("prospectSheet.sync", async (_req: NextRequest, sb) => {
+  const { data, error } = await sb.rpc("hq_prospect_sheet_sync");
+  if (error) return dbFail("prospectSheet.sync", error);
+  return ok(data);
+});
+
 export const prospectSheetPOST = handler("prospectSheet.fetch", async (req: NextRequest, sb) => {
-  const b = (await req.json().catch(() => null)) as { url?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { url?: unknown; op?: unknown; enabled?: unknown } | null;
+  if (b?.op === "settings") {
+    const { data, error } = await sb.rpc("hq_prospect_sheet_sync_set", { p_url: String(b.url ?? ""), p_enabled: b.enabled === true });
+    if (error) return dbFail("prospectSheet.settings", error);
+    return ok(data);
+  }
   const รหัส = รหัสชีต(b?.url);
   if (!รหัส) return fail(400, "ลิงก์ต้องเป็นลิงก์ Google Sheets (https://docs.google.com/spreadsheets/d/…)");
   // สิทธิ์เดียวกับนำเข้า (hq_prospects_import ตรวจ can_write_master) — ตรวจก่อนออกไปดึงของภายนอก

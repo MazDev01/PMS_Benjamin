@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-11-23 11:06:30",
- "รอบ": "2026-11-23-10-09-55",
- "จำนวน": 292,
+ "บันทึกเมื่อ": "2026-11-23 15:43:39",
+ "รอบ": "2026-11-23-14-38-23",
+ "จำนวน": 296,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -295,6 +295,10 @@
   "0290_request_items.sql": "966868ebf8b5ab54b862f7a8612520f7d1c7eac2a69bac05b0677ec7c3db155c",
   "0291_dealer_extra_lines.sql": "8a370f3c76778235589c6b5fa993bfd2c1e2b1c6f803a31e83484888139abb68",
   "0292_prospect_import_facebook.sql": "fdac98982052b1eb98fe2dacbb52037422ce696de277762197532fc6d2ae789d",
-  "0293_prospect_import_entered_time.sql": "638cf6075f2b9344ce9728981d1171ba19086e82241768d957dbf96844919339"
+  "0293_prospect_import_entered_time.sql": "638cf6075f2b9344ce9728981d1171ba19086e82241768d957dbf96844919339",
+  "0294_prospect_import_cancel_notifications.sql": "2221f8f6cd1dbd03c4acaed07b8cc773fd5d4cc85e3a3e94ffecd16fdfe747c7",
+  "0295_prospect_sheet_auto_import.sql": "d39febf65e0373bc03897d0f68934a4843d41b4d1c16ed7ad3597857132548ef",
+  "0296_option_lists.sql": "aefa02a7b308eb8c584ddc927a0a33c351fcbb5442c493fc252c2bf704d95d01",
+  "0297_revoke_anon_tables.sql": "c1f6a3c85a068f230e1a98de2e048c40b5ff31d39863602b091373dec0f7a723"
  }
 }

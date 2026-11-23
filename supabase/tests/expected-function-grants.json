@@ -1,5 +1,5 @@
 {
- "migration": "0285",
+ "migration": "0297",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -28,6 +28,13 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_cron_prospect_sheet()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_cron_send_email()",
@@ -310,6 +317,27 @@
    "definer": false
   },
   {
+   "f": "_option_in_use(p_list text, p_code text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_option_key(p text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_option_label(p_list text, p_value text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_phone_digits(p text)",
    "anon": false,
    "authenticated": false,
@@ -324,10 +352,38 @@
    "definer": false
   },
   {
+   "f": "_prospect_import_key(p_name text, p_digits text, p_entered timestamp with time zone)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_prospect_province_cleanup(p_ids bigint[])",
    "anon": false,
    "authenticated": false,
    "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_prospect_sheet_claim(p_manual boolean)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "_prospect_sheet_finish(p_ok boolean, p_result text, p_batch bigint, p_manual boolean)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "_prospect_sheet_import(p_file text, p_rows jsonb, p_actor text, p_notify boolean)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": true,
    "definer": true
   },
   {
@@ -870,6 +926,13 @@
    "definer": true
   },
   {
+   "f": "dealers_hq_direct_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "dealers_hq_row_guard()",
    "anon": false,
    "authenticated": false,
@@ -996,6 +1059,13 @@
    "definer": false
   },
   {
+   "f": "health_ping()",
+   "anon": true,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "hook_send_email(event jsonb)",
    "anon": false,
    "authenticated": false,
@@ -1109,6 +1179,27 @@
   },
   {
    "f": "hq_prospect_import_batches()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospect_import_keys()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospect_sheet_sync()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "hq_prospect_sheet_sync_set(p_url text, p_enabled boolean)",
    "anon": false,
    "authenticated": true,
    "service_role": false,
@@ -1577,6 +1668,27 @@
    "definer": true
   },
   {
+   "f": "option_lists_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "option_lists_save(p_list text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "option_lists_used()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "package_annual_target(p text, r text)",
    "anon": false,
    "authenticated": true,
@@ -1941,7 +2053,7 @@
    "definer": false
   },
   {
-   "f": "quote_request_reprice(p_id bigint, p_reason text, p_spec text)",
+   "f": "quote_request_reprice(p_id bigint, p_reason text, p_spec text, p_estimate jsonb)",
    "anon": false,
    "authenticated": true,
    "service_role": false,

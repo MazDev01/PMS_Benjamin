@@ -3,7 +3,7 @@
 // ── คำสั่งของใบค่าแฟรนไชส์: พิมพ์ · เปลี่ยนสถานะ · ลบใบร่าง ──
 //   ชุดเดียวใช้ทั้งหน้ารวมใบเสนอ (ปุ่มในแถว/แผงรายละเอียด) และแผงใบในหน้าต่างลูกค้าเป้าหมาย
 //   ⚠️ ห้ามเขียนซ้ำที่อื่น — ข้อความยืนยัน/การบันทึกการใช้งานต้องเหมือนกันทุกหน้า
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { proposals as proposalsRepo, hqCompany as hqCompanyRepo, settings as settingsRepo } from "@pms/shared/lib/data";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import type { DealerPackageProposal, DealerProposalStatus, DealerProspect } from "@pms/shared/lib/data/types";
@@ -11,8 +11,15 @@ import { proposalStatusLabel, ต้องมีเหตุผล } from "@pms/
 import { เขียนใบเสนอลงหน้าต่าง } from "@pms/shared/lib/dealerProposalPrint";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
 
 export function useProposalActions() {
+  // เหตุผลที่ปฏิเสธ = รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" ชุดเดียวกับปิดผู้สนใจไม่สำเร็จ (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296 · เก็บรหัส)
+  const เหตุผลกลาง = useOptionList("prospect_lost_reason");
+  const ตัวเลือกปฏิเสธ = useMemo(() => ตัวเลือกกล่องเหตุผล(เหตุผลกลาง.items), [เหตุผลกลาง.items]);
+  /** เหตุผลที่ปิดใบ: ปฏิเสธ = ชื่อจากรายการกลาง · หมดอายุ/ถูกแทน = ข้อความที่ระบบเขียน */
+  const ป้ายเหตุผลปิด = useCallback((p: Pick<DealerPackageProposal, "status" | "closeReason">) =>
+    p.status === "rejected" ? เหตุผลกลาง.ป้าย(p.closeReason, "") : (p.closeReason ?? ""), [เหตุผลกลาง]);
 
   const พิมพ์ = useCallback(async (p: DealerPackageProposal, prospect: DealerProspect) => {
     // เปิดหน้าต่างทันทีตอนกด — เปิดหลังรอโหลดข้อมูลบริษัท เบราว์เซอร์จะบล็อกเป็นป๊อปอัป
@@ -42,7 +49,7 @@ export function useProposalActions() {
       ? await ถามเหตุผล({
           หัวข้อ: `ปฏิเสธใบ ${p.proposalNo ?? ""} ?`,
           รายละเอียด: "ปิดใบแล้วย้อนกลับไม่ได้ — ถ้าจะเจรจาต่อ ทำฉบับใหม่จากใบนี้ได้",
-          ป้ายช่อง: "เหตุผลที่ปฏิเสธ", ปุ่มตกลง: "ปฏิเสธใบนี้", ปุ่มกำลังทำ: "กำลังปฏิเสธใบ…", อันตราย: true,
+          ป้ายช่อง: "เหตุผลที่ปฏิเสธ", ตัวเลือกรหัส: ตัวเลือกปฏิเสธ, ปุ่มตกลง: "ปฏิเสธใบนี้", ปุ่มกำลังทำ: "กำลังปฏิเสธใบ…", อันตราย: true,
           ทำ: async เหตุผล => { saved = await proposalsRepo.setStatus(p.id, status, เหตุผล); },
         })
       : await ยืนยัน({
@@ -54,7 +61,7 @@ export function useProposalActions() {
           ทำ: async () => { saved = await proposalsRepo.setStatus(p.id, status); },
         });
     return ทำแล้ว ? saved : null;
-  }, []);
+  }, [ตัวเลือกปฏิเสธ]);
 
   /** ส่งแล้วแก้ไม่ได้ → ทำเวอร์ชันใหม่ (ร่าง) · คืนใบใหม่ · ยกเลิก/ไม่สำเร็จ = null */
   const ทำเวอร์ชันใหม่ = useCallback(async (p: DealerPackageProposal, ชื่อราย: string) => {
@@ -89,5 +96,5 @@ export function useProposalActions() {
     }
   }, []);
 
-  return { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ };
+  return { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ, ป้ายเหตุผลปิด };
 }

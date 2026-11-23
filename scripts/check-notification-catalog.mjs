@@ -80,7 +80,7 @@ const ใบตารางกลาง = ใบ.map(f => readFileSync(join(ร�
 const ก้อนทั้งหมด = [...ใบตารางกลาง.matchAll(/insert\s+into\s+public\.notification_kinds\s*\([^)]*\)\s*values([\s\S]*?);\s*\n/gi)];
 const ตาราง = new Map();
 if (!ก้อนทั้งหมด.length) ผิด.push("ไม่พบตารางกลาง notification_kinds ในใบแก้ฐานข้อมูล");
-for (const ก้อน of ก้อนทั้งหมด) for (const r of ก้อน[1].matchAll(/\(\s*'([a-z_]+)'\s*,\s*'([DH]\d)'\s*,\s*'(dealer|hq)'\s*,\s*(true|false)\s*,\s*(true|false)/g))
+for (const ก้อน of ก้อนทั้งหมด) for (const r of ก้อน[1].matchAll(/\(\s*'([a-z_]+)'\s*,\s*'([DH]\d+)'\s*,\s*'(dealer|hq)'\s*,\s*(true|false)\s*,\s*(true|false)/g))
   ตาราง.set(r[1], { แถว: r[2], กระดิ่ง: r[4] === "true", อีเมล: r[5] === "true" });
 const flow = อ่าน("docs/FLOW.html");
 const ในFLOW = new Map();

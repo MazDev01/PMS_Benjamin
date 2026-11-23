@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { ยืนยัน, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
-  seedLeadTasks, apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
+  seedLeadTasks, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
   DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
@@ -31,6 +31,7 @@ import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonP
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
+import { useOptionList } from "@pms/shared/lib/useOptionList";
 import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
@@ -85,15 +86,12 @@ import { ชื่อผู้ทำ } from "@pms/shared/lib/systemActor";
 // Lead Source ตามสเปก: Facebook / Website / LINE / Walk-in / Referral / Exhibition / Other
 // สีของแต่ละแหล่งที่มา (โดนัท) — วนใช้ตามลำดับจำนวนมาก→น้อย
 const SOURCE_COLORS = ["#2563EB", "#16A34A", "#F59E0B", "#7C3AED", "#EA580C", "#0D9488", "#94A3B8"];
-// ⚠️ "Walk-in" → "ลูกค้าเข้ามาเอง" (แก้ 10 ส.ค. 69) — เหลือคำอังกฤษคำเดียวในลิสต์ที่เป็นไทยหมด
-//    และไม่ใช่ชื่อแบรนด์อย่าง Facebook/LINE จึงแปลได้ (ดู legacySource ข้างล่าง — ลูกค้าเป้าหมายเก่าที่บันทึก
-//    ค่าเดิมไว้ต้องยังเห็นค่าตัวเองในช่องเลือก ไม่ใช่ถูกเบราว์เซอร์สลับไปตัวเลือกแรกเงียบ ๆ)
-const SOURCES = ["Facebook","เว็บไซต์","LINE","ลูกค้าเข้ามาเอง","แนะนำต่อ","งานแสดงสินค้า","อื่นๆ"];
+// ช่องทางที่มา = รายการกลางที่ HQ ตั้ง (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296 · useOptionList("lead_source")) — เก็บรหัส
+//   ฟอร์ม: ตัวที่ไม่ซ่อน + ค่าเดิมของลีด (ซ่อนแล้ว/ไม่ตรงรายการ = "‹ค่า› (ตามที่บันทึกไว้)" ยังเลือกค้างได้ ไม่หายเงียบ)
+//   ตัวกรอง: ทุกตัว + ค่านอกรายการที่พบในข้อมูล · ตาราง/ส่งออก: ชื่อจากรายการ
 
 // ── จังหวัดที่เลือกได้ = จังหวัดใน "ภาค" ของสาขาที่ล็อกอิน (บอสสั่ง 17 ส.ค. 69) ──
 // เดิมเป็นรายการตายตัว 10 จังหวัดเหมือนกันทุกสาขา — สาขาใต้ก็ยังเห็นเชียงใหม่/เชียงราย
-/** ค่าที่บันทึกไว้แต่ไม่อยู่ในลิสต์มาตรฐาน (ลูกค้าเป้าหมายเก่า/ข้อมูลนำเข้า) → แทรกเป็นตัวเลือกเพิ่ม ห้ามทำค่าเดิมหาย */
-const legacySource = (v: string) => (v && !SOURCES.includes(v) ? [v] : []);
 // ช่วงมูลค่าใน FilterRow — เดิมเป็นช่องกรอก "มูลค่าขั้นต่ำ/สูงสุด (M฿)" สองช่องในแผงตัวกรอง
 // เก็บเป็นสตริงหน่วยล้านบาท เพราะตัวกรองจริง (fValueMin/fValueMax) อ่านค่าแบบนั้นอยู่แล้ว
 const VALUE_BANDS = [
@@ -271,6 +269,7 @@ function OverviewEditor({ lead, persons, onSave }: {
 }) {
   const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
+  const ช่องทางกลาง = useOptionList("lead_source");
   const seed = () => ({
     company: lead.company ?? "", contact: lead.contact ?? "", phone: lead.phone ?? "",
     email: lead.email ?? "", province: lead.province ?? "", address: lead.address ?? "",
@@ -387,7 +386,7 @@ function OverviewEditor({ lead, persons, onSave }: {
         <Cell icon={Target}  label={ช่อง.ช่องทาง}>
           <select aria-label={ช่อง.ช่องทาง} value={f.source} onChange={e=>set("source",e.target.value)} style={inp}>
             <option value="">— ยังไม่ระบุ —</option>
-            {[...legacySource(f.source), ...SOURCES].map(x=><option key={x}>{x}</option>)}
+            {ช่องทางกลาง.ตัวเลือกฟอร์ม(f.source).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </Cell>
         <Cell icon={Users}   label={ช่อง.ผู้รับผิดชอบ}>
@@ -455,6 +454,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
   const { customers, leads: existingLeads, quotations: ใบทั้งหมด } = useSales();
   const myDealer = useCurrentDealer();
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
+  const ช่องทางกลาง = useOptionList("lead_source");
   const [form, setForm] = useState({
     company: initial?.company ?? "", contact: initial?.contact ?? "",
     phone: initial?.phone ?? "", email: initial?.email ?? "",
@@ -696,7 +696,7 @@ function LeadFormModal({ onClose, onSave, persons, initial }: {
                 <label style={labelStyle}>{ช่อง.ช่องทาง}</label>
                 <select aria-label={ช่อง.ช่องทาง} value={form.source} onChange={e=>set("source",e.target.value)} style={inputStyle}>
                   <option value="">— ยังไม่ระบุ —</option>
-                  {[...legacySource(form.source), ...SOURCES].map(s=><option key={s}>{s}</option>)}
+                  {ช่องทางกลาง.ตัวเลือกฟอร์ม(form.source).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div data-form-pair="การดูแล">
@@ -925,11 +925,21 @@ export default function LeadsPage() {
   // Persons registry — พนักงานขายของสาขานี้ ผ่าน repository (local: localStorage · supabase: DB)
   // ยังไม่มีพนักงานในทะเบียน = รายการว่าง (ไปเพิ่มที่ ตั้งค่า › ผู้รับผิดชอบ)
   // ห้ามใส่ค่าตั้งต้นปลอม และห้ามใช้ `if (names.length)` — ทะเบียนว่างต้องแปลว่าว่างจริง
+  // รายการกลาง (ใบ 0296): ช่องทางที่มา · ประเภทนัดหมาย — ฟอร์ม/ตัวกรอง/ป้ายอ่านชุดเดียวที่ HQ ตั้ง
+  const ช่องทางกลาง = useOptionList("lead_source");
+  const ประเภทนัดกลาง = useOptionList("appointment_type");
   const [personsList, setPersonsList] = useState<string[]>([]);
+  // ตัวกรองผู้รับผิดชอบ = ทุกคนในทะเบียน รวมคนที่ปิดใช้งานแล้ว (บอสสั่ง 19 พ.ย. 69 · ลีดของเขายังต้องกรองดูได้)
+  //   ฟอร์มมอบหมายยังเลือกได้เฉพาะคนที่ใช้งานอยู่ (personsList)
+  const [ผู้รับผิดชอบที่ปิดแล้ว, setผู้รับผิดชอบที่ปิดแล้ว] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     personsRepo.list({ dealerCode: currentDealer.code, isHQ: false })
-      .then(arr => { if (alive) setPersonsList(arr.filter(p => p.active).map(p => p.name)); })
+      .then(arr => {
+        if (!alive) return;
+        setPersonsList(arr.filter(p => p.active).map(p => p.name));
+        setผู้รับผิดชอบที่ปิดแล้ว(arr.filter(p => !p.active).map(p => p.name));
+      })
       .catch(e => logRepoRead("persons.list", e));
     return () => { alive = false; };
   }, [currentDealer.code]);
@@ -1292,7 +1302,7 @@ export default function LeadsPage() {
           <FilterBar dims={[]} />
           <ExportMenu filename="leads" title="รายชื่อลูกค้าเป้าหมาย"
             headers={["รหัส","ชื่อ",ช่อง.ผู้ติดต่อ,ช่อง.จังหวัด,ช่อง.ช่องทาง,ช่อง.พื้นที่,ช่อง.ขั้นตอน,"มูลค่า",ช่อง.ผู้รับผิดชอบ,"กิจกรรมล่าสุด"]}
-            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,l.source??"—",l.area ?? "—",ข้อความขั้น(l),fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
+            rows={filtered.map(l=>[l.id,l.name,l.contact,l.province,ช่องทางกลาง.ป้าย(l.source),l.area ?? "—",ข้อความขั้น(l),fmtมูลค่าย่อ(มูลค่าลีด(l)),l.assigned,lastActivity(l)])} />
           <button onClick={() => setShowAddForm(true)} className="btn btn-primary btn-sm">
             <Plus size={15} /> เพิ่มลูกค้าเป้าหมาย
           </button>
@@ -1336,11 +1346,12 @@ export default function LeadsPage() {
           <FilterSelect caption="กำลังดำเนินการ" all="OPEN" label={ช่อง.ขั้นตอน} value={filterStatus} onChange={setFilterStatus}
             options={[{ v: "6", l: ชื่อขั้น(6) }, { v: "7", l: ชื่อขั้น(7) }, { v: "ALL", l: "ทั้งหมด" }]} />
           <FilterSelect caption="ทุกผู้รับผิดชอบ" value={fAssignee} onChange={setFAssignee} all=""
-            options={personsList.map(p=>({v:p,l:p}))} />
+            options={[...personsList.map(p=>({v:p,l:p})),
+              ...ผู้รับผิดชอบที่ปิดแล้ว.filter(p => !personsList.includes(p)).map(p=>({v:p,l:`${p} (ปิดใช้งาน)`}))]} />
           <FilterSelect caption="ทุกจังหวัด" value={fProvince} onChange={setFProvince} all=""
             options={จังหวัดของสาขา.map(p=>({v:p,l:p}))} />
           <FilterSelect caption="ทุกช่องทางที่มา" value={fSource} onChange={setFSource} all=""
-            options={SOURCES.map(s=>({v:s,l:s}))} />
+            options={ช่องทางกลาง.ตัวเลือกตัวกรอง(allLeads.map(l => l.source)).map(o=>({v:o.value,l:o.label}))} />
           <FilterSelect caption="ทุกช่วงมูลค่า" value={valueBand} onChange={pickValueBand}
             options={VALUE_BANDS.map(b=>({v:b.v,l:b.l}))} />
           {/* ค้างติดต่อเกิน N วัน — เกณฑ์วันอย่างเดียว (จำนวนอยู่บนการ์ด "เกิน 7 วัน" ด้านบนแล้ว ไม่ซ้ำ) */}
@@ -1419,7 +1430,7 @@ export default function LeadsPage() {
                           <td style={{ fontSize:"0.72rem", color:"#374151" }}>{l.province || "—"}</td>
                         )}
                         {!hiddenCols.includes("source") && (
-                          <td style={{ fontSize:"0.72rem", color:"#374151", overflowWrap:"anywhere" }}>{l.source || "—"}</td>
+                          <td style={{ fontSize:"0.72rem", color:"#374151", overflowWrap:"anywhere" }}>{ช่องทางกลาง.ป้าย(l.source)}</td>
                         )}
                         {!hiddenCols.includes("project") && (
                           <td data-cell="project" style={{ fontSize:"0.72rem", color:"#374151", overflowWrap:"anywhere" }}>{l.project || "—"}</td>
@@ -1717,7 +1728,7 @@ export default function LeadsPage() {
             id: await newAppointmentId(), // เลขจาก DB แบบ atomic — เดิมใช้ max+1 ของชุดที่โหลดมา
             leadId: c.numId,
             company: c.company, contact: c.contact ?? "", phone: c.phone ?? "", province: c.province ?? "",
-            project: apptForm.title.trim() || apptTypeLabel[apptForm.type as ApptType],
+            project: apptForm.title.trim() || ประเภทนัดกลาง.ป้าย(apptForm.type),
             buildingType: "", // ไม่คัดลอกแม่แบบเก่าของลูกค้าเป้าหมาย (เอาแม่แบบออกทั้งระบบ 16 ต.ค. 69)
             // ⚠️ เดิมใส่ 0 ตายตัว ทั้งที่ช่องอื่นคัดลอกจากลูกค้าเป้าหมายหมด (แก้ 10 ส.ค. 69)
             //   นัดหมายจึงบันทึกพื้นที่เป็น 0 เสมอ แม้ลูกค้าเป้าหมายจะระบุไว้ 800 ตร.ม. ก็ตาม
@@ -1748,7 +1759,7 @@ export default function LeadsPage() {
                 <FieldLabel htmlFor="la-type" required className="" style={aLbl}>ประเภทนัดหมาย</FieldLabel>
                 <select id="la-type" aria-label="ประเภทนัดหมาย" value={apptForm.type} onChange={e => { นัดบังคับ.ล้าง("apptType"); setApptForm(f => ({ ...f, type: e.target.value as ApptType | "" })); }} {...ผูกนัด("apptType")}>
                   <option value="">— ยังไม่ระบุ —</option>
-                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                  {ประเภทนัดกลาง.ตัวเลือกฟอร์ม(apptForm.type).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <FieldError>{นัดบังคับ.ผิด.apptType}</FieldError>
               </div>
@@ -1759,7 +1770,7 @@ export default function LeadsPage() {
                 <input id="la-time" aria-label="เวลานัดหมาย" type="time" value={apptForm.time} onChange={e => { นัดบังคับ.ล้าง("apptTime"); setApptForm(f => ({ ...f, time: e.target.value })); }} {...ผูกนัด("apptTime")} />
                 <FieldError>{นัดบังคับ.ผิด.apptTime}</FieldError></div>
               <div className="col-full"><label style={aLbl}>หัวข้อ</label>
-                <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? apptTypeLabel[apptForm.type] : "หัวข้อนัดหมาย"} style={aInp} /></div>
+                <input value={apptForm.title} onChange={e => setApptForm(f => ({ ...f, title: e.target.value }))} placeholder={apptForm.type ? ประเภทนัดกลาง.ป้าย(apptForm.type) : "หัวข้อนัดหมาย"} style={aInp} /></div>
               <div className="col-full"><label style={aLbl}>รายละเอียด</label>
                 <input value={apptForm.note} onChange={e => setApptForm(f => ({ ...f, note: e.target.value }))} placeholder="บันทึกเพิ่มเติม" style={aInp} /></div>
             </div>
@@ -1792,7 +1803,7 @@ export default function LeadsPage() {
                     <span style={{ width:32, height:32, borderRadius:"50%", background:"#e7eef7", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Calendar size={15} color="#003366" /></span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:"0.8rem", fontWeight:700, color:"#2D2D2D" }}>{a.project}</div>
-                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{ป้ายประเภทนัด(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
+                      <div style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2 }}>{ประเภทนัดกลาง.ป้าย(a.type)} · {fmtISOToThai(a.date)} · {a.time} น.</div>
                       {/* สถานที่นัด (ฟอร์มนัดใหม่ในปฏิทิน · 19 พ.ย. 69 เดิมบันทึกแล้วไม่มีที่แสดง) · ไม่มี = ไม่แสดงบรรทัด */}
                       {a.location?.trim() && <div data-appt-location style={{ fontSize:"0.65rem", color:"#6b7280", marginTop:2, overflowWrap:"anywhere" }}>สถานที่: {a.location.trim()}</div>}
                     </div>

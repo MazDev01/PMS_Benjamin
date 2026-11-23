@@ -18,6 +18,7 @@ import { เตรียมบันทึก } from "@pms/shared/lib/dealerPros
 import type { DealerProspect, ProspectActivity, AppNotification, NotificationPref, NotifyRecipient } from "@pms/shared/lib/data/types";
 import { เตรียมบันทึกการติดต่อ } from "@pms/shared/lib/prospectJourney";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
+import { จากแถว as ตัวเลือกจากแถว, type รายการกลาง } from "@pms/shared/lib/optionLists";
 import { accountRemote } from "../accountRemote";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard, QuoteBoardRow } from "../../quoteRequests";
 import type { MaterialTemplate } from "../../materialTemplates";
@@ -753,6 +754,24 @@ export const SupabaseAdapter: DataAdapter = {
       const { data, error } = await sb().rpc("transfer_hq_leads", { p_province: province, p_to: to });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return Number(data ?? 0);
+    },
+  },
+  // รายการกลางของเครือ (ใบ 0296) — อ่าน: ทุกคน (กฎรายแถว) · บันทึก: option_lists_save (HQ · ฐานกันลบตัวที่มีข้อมูลใช้)
+  optionLists: {
+    list: async () => {
+      const { data, error } = await sb().from("option_lists").select("*").order("list").order("sort").order("code").limit(500);
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return ((data ?? []) as Row[]).map(ตัวเลือกจากแถว);
+    },
+    save: async (list, rows) => {
+      const { data, error } = await sb().rpc("option_lists_save", { p_list: list, p_rows: rows });
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return ((data ?? []) as Row[]).map(ตัวเลือกจากแถว);
+    },
+    used: async () => {
+      const { data, error } = await sb().rpc("option_lists_used");
+      if (error) throw new DbError(error.message, (error as { code?: string }).code);
+      return ((data ?? []) as Row[]).map(r => ({ list: String(r.list) as รายการกลาง, code: String(r.code) }));
     },
   },
   hqCompany: {

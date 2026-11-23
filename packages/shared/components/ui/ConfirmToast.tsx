@@ -23,7 +23,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Toaster, toast } from "sonner";
 import { AlertTriangle } from "lucide-react";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
-import { OTHER_LOST_REASON, OTHER_REASON_OPTION } from "@pms/shared/lib/mock";
+import { OTHER_REASON_OPTION } from "@pms/shared/lib/mock";
 import { ดาวบังคับ } from "@pms/shared/components/ui/FieldLabel";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 
@@ -170,6 +170,9 @@ export type ตัวเลือกถามเหตุผล = Omit<ตัว
   /** ชื่อช่องเหตุผล เช่น "เหตุผลที่ยกเลิก" (โปรแกรมอ่านหน้าจออ่านชื่อนี้) */
   ป้ายช่อง: string;
   ตัวเลือก?: readonly string[];
+  /** ตัวเลือกจากรายการกลาง (ใบ 0296) — ส่งค่าเป็นรหัส · ตัวเลือก "พิมพ์เอง" ส่ง "รหัส:ข้อความ"
+   *  ใช้แทน ตัวเลือก · ไม่เติมปุ่ม "อื่นๆ (ระบุเอง)" ให้ (รายการกำหนดเองว่ามีตัวพิมพ์เองไหม) */
+  ตัวเลือกรหัส?: readonly ตัวเลือกในกล่อง[];
   /** ช่องข้อความเพิ่ม (ไม่บังคับ) เช่น สเปกตอนขอแก้ราคา */
   ช่องเพิ่ม?: { ป้าย: string; ค่าตั้งต้น?: string };
   /** ตารางรายการในคำขอ (ขอแก้ราคา · ใบ 0290 · 20 พ.ย. 69) — รายการ + จำนวน + หน่วย · ไม่มีราคา · ไม่บังคับ */
@@ -178,19 +181,31 @@ export type ตัวเลือกถามเหตุผล = Omit<ตัว
   ทำ: (เหตุผล: string, เพิ่ม: string, รายการ?: รายการคำขอ[]) => Promise<unknown>;
 };
 
+export type ตัวเลือกในกล่อง = { ค่า: string; ป้าย: string; พิมพ์เอง?: boolean };
+type ปุ่มในกล่อง = ตัวเลือกในกล่อง & { เส้นประ?: boolean };
+
 const ช่องในกล่อง: React.CSSProperties = { width: "100%", marginTop: 6, padding: "7px 9px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: "0.82rem", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", background: "#fff" };
 
 function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัวเลือกถามเหตุผล; ตอบ: (สำเร็จ: boolean) => void; กำลังทำRef: { current: boolean } }) {
-  const รายการ = o.ตัวเลือก ?? [];
+  // รายการเดิม (ข้อความ): "อื่นๆ (ระบุเอง)" = โหมดพิมพ์ เก็บข้อความที่พิมพ์ (ค่า "") · ไม่มีในรายการ = เติมปุ่มเส้นประท้าย
+  // รายการกลาง (ตัวเลือกรหัส): ค่า = รหัส · ตัวพิมพ์เอง เก็บ "รหัส:ข้อความ"
+  const เดิม = o.ตัวเลือก ?? [];
+  const รายการ: ปุ่มในกล่อง[] = o.ตัวเลือกรหัส
+    ? [...o.ตัวเลือกรหัส]
+    : [...เดิม.map(r => r === OTHER_REASON_OPTION ? { ค่า: "", ป้าย: r, พิมพ์เอง: true } : { ค่า: r, ป้าย: r }),
+       ...(เดิม.length && !เดิม.includes(OTHER_REASON_OPTION) ? [{ ค่า: "", ป้าย: OTHER_REASON_OPTION, พิมพ์เอง: true, เส้นประ: true }] : [])];
   const ใช้รายการ = รายการ.length > 0;
-  const [เลือก, setเลือก] = useState("");
+  const [เลือก, setเลือก] = useState("");   // ป้ายของปุ่มที่เลือก (ป้ายในรายการไม่ซ้ำกัน)
   const [พิมพ์, setพิมพ์] = useState("");
   const [เพิ่ม, setเพิ่ม] = useState(o.ช่องเพิ่ม?.ค่าตั้งต้น ?? "");
   const [รายการขอ, setรายการขอ] = useState<รายการคำขอ[]>(o.รายการคำขอ?.ค่าตั้งต้น ?? []);
   const [กำลังทำ, setกำลังทำ] = useState(false);
   const [ผิด, setผิด] = useState("");
-  const พิมพ์เอง = !ใช้รายการ || เลือก === OTHER_LOST_REASON;
-  const เหตุผล = (พิมพ์เอง ? พิมพ์ : เลือก).trim();
+  const ที่เลือก = รายการ.find(x => x.ป้าย === เลือก);
+  const พิมพ์เอง = !ใช้รายการ || !!ที่เลือก?.พิมพ์เอง;
+  const ข้อความพิมพ์ = พิมพ์.trim();
+  const เหตุผล = !พิมพ์เอง ? (ที่เลือก?.ค่า ?? "").trim()
+    : ที่เลือก?.ค่า ? (ข้อความพิมพ์ ? `${ที่เลือก.ค่า}:${ข้อความพิมพ์}` : "") : ข้อความพิมพ์;
   const ว่าง = เหตุผล === "";
   const idคำบอก = useRef(`reason-hint-${Math.random().toString(36).slice(2, 8)}`).current;
 
@@ -224,8 +239,7 @@ function ReasonDialog({ o, ตอบ, กำลังทำRef }: { o: ตัว
       <div data-reason-label style={{ marginTop: 10, fontSize: "0.74rem", fontWeight: 700, color: "#4b5563" }}>{o.ป้ายช่อง}<ดาวบังคับ /></div>
       {ใช้รายการ && !พิมพ์เอง && (
         <div data-lost-picker style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6, marginTop: 6 }}>
-          {รายการ.map(r => ปุ่มเลือก(r, เลือก === r, () => setเลือก(r === OTHER_REASON_OPTION ? OTHER_LOST_REASON : r)))}
-          {!รายการ.includes(OTHER_REASON_OPTION) && ปุ่มเลือก(OTHER_REASON_OPTION, false, () => setเลือก(OTHER_LOST_REASON), true)}
+          {รายการ.map(r => ปุ่มเลือก(r.ป้าย, เลือก === r.ป้าย, () => setเลือก(r.ป้าย), r.เส้นประ))}
         </div>
       )}
       {พิมพ์เอง && (

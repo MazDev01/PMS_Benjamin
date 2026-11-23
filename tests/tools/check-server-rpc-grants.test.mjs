@@ -15,6 +15,7 @@ const ค่าสิทธิ์ = {
   functions: [
     { f: "fn_user(p int)", anon: false, authenticated: true, service_role: false },
     { f: "fn_server()", anon: false, authenticated: false, service_role: true },
+    { f: "health_ping()", anon: true, authenticated: true, service_role: false },   // ข้อยกเว้นคนนอกตัวจริง (ใบ 0297) — ตัวตรวจเช็กว่ารายการยกเว้นยังมีอยู่
   ],
 };
 const เขียน = (root, f, s) => { mkdirSync(dirname(join(root, f)), { recursive: true }); writeFileSync(join(root, f), s); };

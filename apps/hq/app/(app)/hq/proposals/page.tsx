@@ -61,7 +61,7 @@ export default function HQProposalsPage() {
   const ชื่อของ = useDealerNames();   // ชื่อแสดง ไม่มีรหัส · ชื่อซ้ำ = "ชื่อ (รหัส)" (บอสตอบ 6 พ.ย. 69)
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
-  const { พิมพ์ } = useProposalActions();
+  const { พิมพ์, ป้ายเหตุผลปิด } = useProposalActions();
 
   const [ใบ, setใบ] = useState<DealerPackageProposal[]>([]);
   const [ราย, setราย] = useState<DealerProspect[]>([]);
@@ -317,7 +317,7 @@ export default function HQProposalsPage() {
                 {/* ป้ายสถานะ/เวอร์ชัน/ค่าแรกเข้า ย้ายไปแถบสรุปที่เดียว (บอสสั่ง 9 พ.ย. 69) · เหตุผลที่ปิดไม่มีในแถบสรุป จึงคงไว้ */}
                 {p.closeReason && (
                   <div data-close-reason style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
-                    <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {p.closeReason}</span>
+                    <span style={{ padding: "2px 10px", borderRadius: 99, fontSize: "0.65rem", fontWeight: 700, background: "#fee2e2", color: "#991b1b" }}>เหตุผล: {ป้ายเหตุผลปิด(p)}</span>
                   </div>
                 )}
               </div>

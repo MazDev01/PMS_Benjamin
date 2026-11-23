@@ -364,7 +364,9 @@ export async function นำเข้าผู้สนใจผ่านชี�
   const b = readFileSync(ไฟล์);
   const sheets = [...(await แยกสมุดงานจากXlsx(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer)).entries()];
   await page.unroute("**/api/v1/prospect-sheet");
-  await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: basename(ไฟล์), sheets }) }));
+  // จำลองเฉพาะ POST (ดึงชีต) — GET = สถานะดึงอัตโนมัติ (ใบ 0295) ไปฐานจริง (เดิมจำลองทุกวิธี หน้าต่างได้ตารางแทนสถานะ = หน้าพัง · deploy31)
+  await page.route("**/api/v1/prospect-sheet", r => r.request().method() !== "POST" ? r.continue()
+    : r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: basename(ไฟล์), sheets }) }));
   await เปิดนำเข้าจากชีต(page);
   await page.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill("https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit");
   await page.getByRole("button", { name: "ดึงข้อมูลจากชีต", exact: true }).click();

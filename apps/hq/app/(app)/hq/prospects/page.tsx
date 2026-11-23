@@ -70,6 +70,7 @@ import { RowPanelShell } from "@pms/shared/components/ui/RowPanel";
 import { TablePagination, pageSlice, pageCountOf, ROWS_PER_PAGE } from "@pms/shared/components/ui/TablePagination";
 import { ClickableRow } from "@pms/shared/components/ui/ClickableRow";
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
 import { formatPhone } from "@pms/shared/lib/format";
 import { fileToResizedDataURL } from "@pms/shared/lib/imageResize";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
@@ -83,13 +84,13 @@ import { ช่องทางติดต่อเริ่มต้น } from 
 import { อีเมลเข้าระบบของสาขา } from "@pms/shared/lib/dealerLogin";
 import { สร้างชื่อแสดง } from "@pms/shared/lib/dealerDisplayName";
 import { อีเมลซ้ำ } from "@pms/shared/lib/emailTaken";
-import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
+import { FilterSelect, type FilterOption } from "@pms/shared/components/filters/FilterSelect";
+import { ProspectDataTags } from "@pms/shared/components/hq/ProspectDataTags";
+import { ข้อมูลไม่ครบของราย, แผนที่เบอร์ซ้ำ } from "@pms/shared/lib/prospectSheetSync";   // ช่องเลือกตัวกลาง (บอสสั่ง 11 พ.ย. 69 แทนช่องเลือกของเบราว์เซอร์)
 
 const PRIMARY = "#003366";
 const MUTED = "#6b7280";
 const HQ_CODE = "HQ";
-// ช่องทางที่เข้ามา / ประเภทธุรกิจ / ช่องทางติดต่อ / เหตุผลที่ไม่สำเร็จ / ชื่องาน มาจากหน้าตั้งค่า › หาดีลเลอร์ (0176)
-//   เดิมเขียนตายตัวที่นี่ — ทีมเพิ่มตัวเลือกเองไม่ได้ (บอสสั่งให้ตั้งเองได้ 14 ก.ย. 69)
 
 const ร่างว่าง = (): Partial<DealerProspect> => ({ name: "", status: "new", firstContact: APP_NOW_ISO });
 
@@ -109,6 +110,8 @@ export default function HQProspectsPage() {
   const { can } = useRole();
   const จัดการได้ = can("dealers:manage");
   const ค่าตั้ง = useRecruitSettings();
+  // เหตุผลที่ไม่สำเร็จ = รายการกลาง (ใบ 0296 · ตั้งค่า › รายการกลาง) — เก็บรหัส · ป้ายอ่านจากรายการ
+  const เหตุผลกลาง = useOptionList("prospect_lost_reason");
   // นำเข้าจากไฟล์ทำงานจริงของทีม (ใบ 0275 · บอสสั่ง 3 พ.ย. 69)
   const [เปิดนำเข้า, setเปิดนำเข้า] = useState(false);
   // "อื่น ๆ" ต่อท้ายให้เสมอ — ช่องทางที่ไม่อยู่ในรายการยังเลือกได้
@@ -343,6 +346,8 @@ export default function HQProspectsPage() {
   // เป็นดีลเลอร์แล้ว (ครบ 100%) = ไปอยู่หน้าดีลเลอร์ ไม่แสดงในหน้านี้ (บอสสั่ง 15 ก.ย. 69)
   //   ตาราง · ตัวกรอง · ส่งออก · การ์ดตัวเลข ใช้รายการนี้ทั้งหมด — ข้อมูลยังอยู่ครบในฐานข้อมูล (ประวัติ/ใบเสนอไม่หาย)
   const รายที่แสดงได้ = useMemo(() => list.filter(p => p.status !== "won"), [list]);
+  // ป้ายข้อมูลไม่ครบ/เบอร์ซ้ำ (บอสสั่ง 23 พ.ย. 69 · นำเข้า Facebook เอาทุกข้อมูล) — เทียบเบอร์กับทุกราย (รวมที่เป็นดีลเลอร์แล้ว)
+  const เบอร์ซ้ำ = useMemo(() => แผนที่เบอร์ซ้ำ(list), [list]);
   const จังหวัดในข้อมูล = useMemo(
     () => [...new Set(รายที่แสดงได้.map(p => (p.province ?? "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th")),
     [list],
@@ -462,7 +467,7 @@ export default function HQProspectsPage() {
   /** ไม่สำเร็จ = เหตุผลบังคับ (คอลัมน์ปิดแล้ว › ไม่สำเร็จ) */
   async function ปิดไม่สำเร็จ(p: DealerProspect) {
     await ถามเหตุผล({ หัวข้อ: `ปิด “${p.name}” ว่าไม่สำเร็จ ?`, รายละเอียด: "เปิดติดตามใหม่ได้ภายหลัง", ป้ายช่อง: "เหตุผลที่ไม่สำเร็จ",
-      ตัวเลือก: ค่าตั้ง.lostReasons ?? [], ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
+      ตัวเลือกรหัส: ตัวเลือกกล่องเหตุผล(เหตุผลกลาง.items), ปุ่มตกลง: "ยืนยันไม่สำเร็จ", ปุ่มกำลังทำ: "กำลังบันทึก…", อันตราย: true,
       ทำ: เหตุผล => เปลี่ยนขั้นของ(p, "lost", เหตุผล, true) });
   }
   /** วางการ์ดในคอลัมน์ (ลาก · ปุ่ม "ย้ายไปขั้น…") — ปิดแล้ว = ให้เลือกผล · อื่น ๆ = เริ่มฟอร์มแรกที่ขาด */
@@ -799,7 +804,7 @@ export default function HQProspectsPage() {
           headers={["ชื่อ", "ชื่อบนโซเชียล", "เบอร์โทร", "อีเมล", "ภาค", "จังหวัด", "ประเภทธุรกิจ", "แหล่งที่มา", "เริ่มติดต่อ", "ติดตามครั้งถัดไป", "สถานะ", "เหตุผลที่ไม่สำเร็จ", "ผู้ดูแล", "รหัสดีลเลอร์", "หมายเหตุ"]}
           rows={filtered.map(p => [
             p.name, p.social ?? "", p.phone ?? "", p.email ?? "", p.region ?? "", p.province ?? "", p.businessType ?? "", p.channel ?? "",
-            p.firstContact ?? "", p.followUp ?? "", ป้ายขั้น(p), p.lostReason ?? "", p.assigned ?? "",
+            p.firstContact ?? "", p.followUp ?? "", ป้ายขั้น(p), เหตุผลกลาง.ป้าย(p.lostReason, ""), p.assigned ?? "",
             p.dealerCode ?? "", p.note ?? "",
           ])}
         />
@@ -820,7 +825,7 @@ export default function HQProspectsPage() {
         onImported={() => { void prospectsRepo.list().then(setList).catch(() => {}); }}
         เบอร์ที่มีอยู่={list.map(p => p.phone ?? "").filter(Boolean)}
         รายที่มีอยู่={list.filter(p => p.phone).map(p => ({ phone: p.phone ?? "", name: p.name ?? "" }))}
-        แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={ค่าตั้ง.lostReasons} />
+        แหล่งที่มา={ค่าตั้ง.channels} เหตุผลไม่สำเร็จ={เหตุผลกลาง.items} />
 
       {/* การ์ด KPI 4 ใบ (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ตัวเลขคิดที่ฐาน (kpi_cards) · เดินตามตัวกรองจังหวัด/คำค้น (บอสตัดสิน 27 ต.ค. 69)
             หน้านี้ไม่มีตัวกรองช่วงเวลา → "เป็นดีลเลอร์แล้ว" นับเดือนนี้ (บอสตัดสิน 27 ต.ค. 69) · กดการ์ด = ไปรายการที่ตรงเรื่อง */}
@@ -921,6 +926,7 @@ export default function HQProspectsPage() {
             const ผู้ดูแล = p.assigned?.trim() ? ผู้ใช้HQ.find(u => u.name === p.assigned) : undefined;
             return (
               <div data-prospect-card={p.id}>
+                <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(p)} ซ้ำกับ={เบอร์ซ้ำ.get(p.id)} style={{ marginBottom: 4 }} />
                 <BoardCard ชื่อ={p.name} ป้ายชื่อ={p.social} ป้ายชื่อคือ="ชื่อบนโซเชียล"
                   โทรศัพท์={p.phone ? formatPhone(p.phone) || p.phone : null} อีเมล={p.email} จังหวัด={p.province}
                   เริ่มติดต่อ={p.firstContact ? fmtISOToThai(p.firstContact) : null}
@@ -998,6 +1004,7 @@ export default function HQProspectsPage() {
                         </span>
                         <div style={{ minWidth: 0 }}>
                           <div title={p.name} style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                          <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(p)} ซ้ำกับ={เบอร์ซ้ำ.get(p.id)} style={{ maxWidth: "100%", overflow: "hidden" }} />
                           {p.businessType && (
                             <div title={p.businessType} style={{ fontSize: "0.7rem", color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.businessType}</div>
                           )}
@@ -1080,6 +1087,7 @@ export default function HQProspectsPage() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <h2 style={{ margin: 0, fontSize: "1.08rem", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{ราย.name}</h2>
+                      <ProspectDataTags ไม่ครบ={ข้อมูลไม่ครบของราย(ราย)} ซ้ำกับ={เบอร์ซ้ำ.get(ราย.id)} บนพื้นเข้ม style={{ marginTop: 4 }} />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "0.72rem", color: "rgba(255,255,255,.72)", marginTop: 4 }}>
                         {ราย.phone && <a href={`tel:${ราย.phone.replace(/[^\d+]/g, "")}`} style={{ color: "inherit", display: "flex", alignItems: "center", gap: 3 }}><Phone size={11} /> {formatPhone(ราย.phone) || ราย.phone}</a>}
                         {ราย.province && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><MapPin size={11} /> {ราย.province}</span>}
@@ -1183,7 +1191,6 @@ export default function HQProspectsPage() {
                           : "ออกใบค่าแฟรนไชส์แล้วเปลี่ยนเป็น “ส่งแล้ว” ระบบจะทำให้เอง");
                       }}
                       onConvert={() => เปิดตั้งดีลเลอร์(ราย)}
-                      ค่าตั้ง={ค่าตั้ง}
                     />
                   )}
 

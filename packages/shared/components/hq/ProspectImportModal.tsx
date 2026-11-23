@@ -4,6 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
+import { ตัวเลือกฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
@@ -18,25 +19,28 @@ import { อ่านสมุดงานจากไฟล์ } from "@pms/sha
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import {
-  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
+  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, คีย์ช่องทาง, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
-import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, หัวไฟล์เฟซบุ๊ก, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
+import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, ข้อมูลไม่ครบ, หัวไฟล์เฟซบุ๊ก, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
 import { apiFetch } from "@pms/shared/lib/data/http/HttpAdapter";
+import { เตือนตัวตั้งเวลา, วันเวลาไทย, type สถานะดึงชีต } from "@pms/shared/lib/prospectSheetSync";
+import { ดึงชีตผู้สนใจตอนนี้ } from "@pms/shared/lib/adminApi";
 
 const ที่จำ = "bpms_prospect_import_map";
-const ที่จำลิงก์ชีต = "bpms_prospect_sheet_link";   // ลิงก์ Google Sheets ล่าสุด (เครื่องนี้เท่านั้น · ไม่ส่งไปเก็บที่ไหน)
-const อ่านลิงก์ชีต = () => { try { return localStorage.getItem(ที่จำลิงก์ชีต) ?? ""; } catch { return ""; } };
-const จำลิงก์ชีต = (v: string) => { try { localStorage.setItem(ที่จำลิงก์ชีต, v); } catch { /* จำไม่ได้ = ครั้งหน้าวางใหม่ */ } };
+// ลิงก์ Google Sheets เก็บที่ฐาน (ตั้งค่าดึงอัตโนมัติแถวเดียว · ใบ 0295 · คนรวมงานสั่ง 23 พ.ย. 69 ไม่ใช่ localStorage)
 /** แบบฟอร์มตัวอย่าง = หัวตารางเดียวกับไฟล์ Facebook (บอสสั่ง 20 พ.ย. 69 · ย้ายจากเมนูเข้ามาในหน้าต่าง) */
 const ดาวน์โหลดแบบฟอร์ม = () => ดาวน์โหลดไฟล์(สร้างไฟล์Xlsx([{ ชื่อ: "ผู้สนใจ", หัวตาราง: [...หัวไฟล์เฟซบุ๊ก], แถว: [] }]), "แบบฟอร์มนำเข้าผู้สนใจ.xlsx");
 const ขั้นที่นำเข้าได้: { k: ขั้นนำเข้า; label: string }[] = [
   { k: "new", label: "รอติดต่อ" }, { k: "contacted", label: "ติดต่อแล้ว" }, { k: "profile_sent", label: "ส่งข้อมูลบริษัทแล้ว" }, { k: "lost", label: "ไม่สำเร็จ" },
 ];
-type กลุ่มเฟซบุ๊ก = "import" | "dup" | "short" | "noprov" | "skip";
-const เป็นซ้ำ = เป็นแถวซ้ำ;
+// กลุ่มหน้าตัวอย่าง (บอสสั่ง 23 พ.ย. 69 · ใบ 0295): เบอร์ซ้ำ/ข้อมูลไม่ครบ = นำเข้าด้วย · เคยนำเข้าแล้ว = ข้าม (แถวเดิมของชีต)
+type กลุ่มเฟซบุ๊ก = "import" | "dup" | "short" | "noprov" | "already" | "skip";
 const ในกลุ่มเฟซบุ๊ก = (r: แถวเฟซบุ๊ก, g: กลุ่มเฟซบุ๊ก) =>
-  g === "import" ? !r.ข้าม : g === "dup" ? เป็นซ้ำ(r) : g === "short" ? !r.ข้าม && r.เบอร์ไม่ครบ : g === "noprov" ? !r.ข้าม && !r.province : !!r.ข้าม && !เป็นซ้ำ(r);
+  g === "import" ? !r.ข้าม : g === "dup" ? เป็นแถวซ้ำ(r) : g === "short" ? ข้อมูลไม่ครบ(r) : g === "noprov" ? !r.ข้าม && !r.province
+    : g === "already" ? r.ชนิดข้าม === "เคยนำเข้า" : !!r.ข้าม && r.ชนิดข้าม !== "เคยนำเข้า";
+const ป้ายเล็ก = (สี: "amber" | "red"): React.CSSProperties => ({ marginLeft: 6, fontSize: "0.66rem", fontWeight: 700, borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap",
+  ...(สี === "amber" ? { color: "#b45309", background: "#fff8e6", border: "1px solid #f5d78e" } : { color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca" }) });
 const ป้ายกลุ่ม: Record<กลุ่มแถว, string> = { ready: "พร้อม", review: "ต้องตรวจ", skip: "ข้าม" };
 const ปีพศนี้ = () => new Date(Date.now() + 7 * 3_600_000).getUTCFullYear() + 543;
 const อ่านที่จำ = (): Record<string, การจับคู่> => { try { return JSON.parse(localStorage.getItem(ที่จำ) ?? "{}"); } catch { return {}; } };
@@ -48,15 +52,17 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   เบอร์ที่มีอยู่: string[];
   /** ผู้สนใจที่มีอยู่ เบอร์ + ชื่อ — หน้าตัวอย่างไฟล์ Facebook บอกว่าซ้ำกับใคร (บอส 20 พ.ย. 69 "ซ้ำยังไง") · ไม่ส่ง = ใช้เบอร์อย่างเดียว */
   รายที่มีอยู่?: { phone: string; name: string }[];
-  /** รายการแหล่งที่มาของหน้าตั้งค่า (ตารางแปลงช่องทางเลือกจากนี้) */
+  /** รายการแหล่งที่มาของหน้าตั้งค่า (จับคู่ค่าในไฟล์จากชื่อ · ตารางแปลงช่องทางเลือกจากนี้) */
   แหล่งที่มา: string[];
-  เหตุผลไม่สำเร็จ: string[];
+  /** รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0296 · เก็บรหัส) */
+  เหตุผลไม่สำเร็จ: ตัวเลือกกลาง[];
 }) {
   const [ไฟล์, setไฟล์] = useState<{ ชื่อ: string; ตาราง: string[][] } | null>(null);
   const [แถวหัว, setแถวหัว] = useState(-1);
   const [คู่, setคู่] = useState<การจับคู่>({});
   const [ปี, setปี] = useState(ปีพศนี้());
-  const [ช่องทาง, setช่องทาง] = useState<Record<string, string>>({ ...แปลงช่องทางตั้งต้น });
+  // ตารางแปลงช่องทาง: เริ่มว่าง — ค่าในไฟล์ที่ตรงชื่อในรายการจับคู่เอง · ไม่ตรง = HQ เลือกเอง หรือปล่อยไม่ระบุ (แถวขึ้นเตือนให้ตรวจ)
+  const [ช่องทาง, setช่องทาง] = useState<Record<string, string>>({});
   const [แถว, setแถว] = useState<แถวนำเข้า[] | null>(null);
   const [หัวข้อที่ข้าม, setหัวข้อที่ข้าม] = useState(0);
   const [ดู, setดู] = useState<กลุ่มแถว>("review");
@@ -69,7 +75,17 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const [ดูเฟซบุ๊ก, setดูเฟซบุ๊ก] = useState<กลุ่มเฟซบุ๊ก>("import");
   const [ลิงก์ชีต, setลิงก์ชีต] = useState("");
   const [กำลังดึงชีต, setกำลังดึงชีต] = useState(false);
-  useEffect(() => { if (open) setลิงก์ชีต(v => v || อ่านลิงก์ชีต()); }, [open]);
+  // ดึงอัตโนมัติทุกชั่วโมง (ใบ 0295): สถานะจากฐาน · สวิตช์ · บันทึก · ดึงตอนนี้ (ทางเดียวกับตัวตั้งเวลา)
+  const [ซิงก์, setซิงก์] = useState<สถานะดึงชีต | null>(null);
+  const [อัตโนมัติ, setอัตโนมัติ] = useState(false);
+  const [กำลังตั้ง, setกำลังตั้ง] = useState(false);
+  const [กำลังดึงตอนนี้, setกำลังดึงตอนนี้] = useState(false);
+  const โหลดซิงก์ = () => apiFetch<สถานะดึงชีต>("/prospect-sheet").then(s => {
+    // คำตอบไม่ใช่สถานะ (ไม่มี url) = ไม่แสดงส่วนดึงอัตโนมัติ ไม่ใช่หน้าพัง (deploy31: ได้ตารางชีตแทนสถานะ → .trim ของ undefined)
+    if (!s || typeof s.url !== "string") { setซิงก์(null); return; }
+    setซิงก์(s); setอัตโนมัติ(!!s.enabled); setลิงก์ชีต(v => v || s.url);
+  }).catch(() => setซิงก์(null));
+  useEffect(() => { if (open) void โหลดซิงก์(); }, [open]);
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));
   useEffect(() => { if (open) void โหลดชุด(); }, [open]);
   const ล้าง = () => { setไฟล์(null); setเฟซบุ๊ก(null); setแถว(null); setผล(null); setพลาด(""); setแถวหัว(-1); setคู่({}); };
@@ -80,14 +96,13 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (!ไฟล์ || คู่.channel === undefined) return [];
     return [...new Set(ไฟล์.ตาราง.slice(แถวหัว + 1).map(r => String(r[คู่.channel!] ?? "").trim()).filter(Boolean))];
   }, [ไฟล์, คู่.channel, แถวหัว]);
-  const คีย์ช่องทาง = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
   // อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 "ทำปุ่มอัพไฟล์ในนี้ด้วย" · ทับ 20 พ.ย. เฉพาะในหน้าต่าง — ปุ่มบนหน้ายังไม่มี)
   //   ตัวอ่าน .xlsx/.csv ตัวเดียวกับเดิม → รับสมุดงาน → หน้าตัวอย่าง Facebook / หน้าจับคู่คอลัมน์เดิม (ไม่มีทางที่สอง)
   async function เลือกไฟล์(f: File | undefined) {
     if (!f) return;
     ล้าง();
-    try { รับสมุดงาน(f.name, await อ่านสมุดงานจากไฟล์(f)); }
+    try { await รับสมุดงาน(f.name, await อ่านสมุดงานจากไฟล์(f)); }
     catch (e) { setพลาด(`อ่านไฟล์ไม่ได้: ${friendlyError(e)}`); }
   }
   // ดึงจากลิงก์ Google Sheets (บอสสั่ง 20 พ.ย. 69) — เซิร์ฟเวอร์ดึงให้ (/api/v1/prospect-sheet) แล้วเข้าตัวอ่านเดียวกับไฟล์ (ไม่มีทางที่สอง)
@@ -97,16 +112,17 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     ล้าง(); setกำลังดึงชีต(true);
     try {
       const r = await apiFetch<{ fileName: string; sheets: [string, string[][]][] }>("/prospect-sheet", { method: "POST", body: JSON.stringify({ url: ลิงก์ }) });
-      จำลิงก์ชีต(ลิงก์);
-      รับสมุดงาน(r.fileName, new Map(r.sheets));
+      await รับสมุดงาน(r.fileName, new Map(r.sheets));
     } catch (e) { setพลาด(friendlyError(e)); }
     finally { setกำลังดึงชีต(false); }
   }
-  function รับสมุดงาน(ชื่อ: string, เล่ม: Map<string, string[][]>) {
+  async function รับสมุดงาน(ชื่อ: string, เล่ม: Map<string, string[][]>) {
     {
       const ตาราง = [...เล่ม.values()][0] ?? [];
       if (เป็นไฟล์เฟซบุ๊ก(เล่ม)) {
-        const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, รายที่มีอยู่ ?? เบอร์ที่มีอยู่, APP_NOW_ISO);
+        // แถวที่เคยนำเข้าแล้ว (กุญแจจากฐาน · ใบ 0295) — อ่านไม่ได้ = แสดงเป็นจะนำเข้า (ฐานข้ามให้อีกชั้นตอนบันทึก)
+        const กุญแจ = await apiFetch<string[]>("/prospect-import?view=keys").catch(() => [] as string[]);
+        const ได้ = เตรียมแถวเฟซบุ๊ก(เล่ม, รายที่มีอยู่ ?? เบอร์ที่มีอยู่, APP_NOW_ISO, กุญแจ);
         setไฟล์({ ชื่อ, ตาราง }); setเฟซบุ๊ก(ได้); setดูเฟซบุ๊ก("import");
         if (!ได้.length) setพลาด("ไฟล์ Facebook นี้ไม่มีแถวข้อมูล");
         return;
@@ -123,7 +139,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (คู่.phone === undefined) { setพลาด("ต้องเลือกคอลัมน์เบอร์โทร (ใช้กันรายซ้ำ)"); return; }
     setพลาด("");
     จำ(ลายเซ็นหัว(หัว), คู่);
-    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, วันนี้: APP_NOW_ISO, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
+    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, วันนี้: APP_NOW_ISO, แหล่งที่มา, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
     setแถว(ได้.แถว); setหัวข้อที่ข้าม(ได้.หัวข้อที่ข้าม);
     setดู(ได้.แถว.some(r => r.กลุ่ม === "review") ? "review" : "ready");
   }
@@ -161,7 +177,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (พร้อมเฟซบุ๊ก.length > นำเข้าได้สูงสุด) { setพลาด(`นำเข้าได้ครั้งละไม่เกิน ${นำเข้าได้สูงสุด.toLocaleString()} แถว — แบ่งไฟล์ก่อน`); return; }
     setกำลัง(true); setพลาด("");
     try {
-      // ฐานตรวจซ้ำอีกชั้นตอนบันทึก (กดซ้ำ/สองแท็บ = ข้าม ไม่สร้างซ้ำ · ใบ 0277/0292)
+      // ฐานข้ามแถวที่เคยนำเข้าแล้วอีกชั้นตอนบันทึก (กดซ้ำ/สองแท็บ/ตัวดึงอัตโนมัติพร้อมกัน = ไม่สร้างซ้ำ · ใบ 0295)
       const r = await prospectsRepo.importRows(ไฟล์.ชื่อ, พร้อมเฟซบุ๊ก.map(แถวเฟซบุ๊กส่งฐาน));
       setผล(r); แจ้งสำเร็จ(`นำเข้าแล้ว ${r.inserted.toLocaleString()} ราย`); onImported(); void โหลดชุด();
     } catch (e) { setพลาด(`นำเข้าไม่สำเร็จ (ไม่มีแถวใดถูกบันทึก): ${friendlyError(e)}`); }
@@ -189,6 +205,24 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
       ปุ่มตกลง: "ยกเลิกทั้งชุด", อันตราย: true }))) return;
     try { const r = await prospectsRepo.cancelImport(b.id); แจ้งสำเร็จ(`ยกเลิกแล้ว · ลบ ${r.deleted.toLocaleString()} ราย`); onImported(); void โหลดชุด(); }
     catch (e) { แจ้งพลาด(friendlyError(e)); }
+  }
+
+  async function บันทึกซิงก์() {
+    setกำลังตั้ง(true); setพลาด("");
+    try {
+      const s = await apiFetch<สถานะดึงชีต>("/prospect-sheet", { method: "POST", body: JSON.stringify({ op: "settings", url: ลิงก์ชีต.trim(), enabled: อัตโนมัติ }) });
+      setซิงก์(s); setอัตโนมัติ(s.enabled);
+      แจ้งสำเร็จ(s.enabled ? "เปิดดึงอัตโนมัติทุกชั่วโมงแล้ว" : "บันทึกแล้ว · ดึงอัตโนมัติปิดอยู่");
+    } catch (e) { setพลาด(friendlyError(e)); }
+    finally { setกำลังตั้ง(false); }
+  }
+  async function ดึงตอนนี้() {
+    setกำลังดึงตอนนี้(true); setพลาด("");
+    const r = await ดึงชีตผู้สนใจตอนนี้();
+    setกำลังดึงตอนนี้(false);
+    if (!r.ok) { setพลาด(r.error); return; }
+    if (r.สำเร็จ) { แจ้งสำเร็จ(r.ข้อความ); onImported(); void โหลดชุด(); } else setพลาด(r.ข้อความ);
+    void โหลดซิงก์();
   }
 
   if (!open) return null;
@@ -228,15 +262,47 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                 <span style={{ flexBasis: "100%", fontSize: "0.68rem", color: "#6b7280" }}>วางลิงก์ Google Sheets (ต้องเปิดแชร์ &quot;ทุกคนที่มีลิงก์ดูได้&quot;) หรือเลือกไฟล์ .xlsx / .csv จากเครื่อง · อ่านทุกชีต (หัวตารางเดียวกับไฟล์ Facebook) · ระบบไม่เก็บไฟล์</span>
               </div>
             )}
+            {/* ดึงอัตโนมัติทุกชั่วโมง (บอสสั่ง 23 พ.ย. 69 · ใบ 0295) — ลิงก์เก็บที่ฐาน · นำเข้าเลยไม่มีหน้าตัวอย่าง · แต่ละรอบ = 1 ชุด ยกเลิกได้ด้านล่าง */}
+            {ซิงก์ && (() => {
+              const เตือน = เตือนตัวตั้งเวลา(ซิงก์);
+              const เปลี่ยน = อัตโนมัติ !== ซิงก์.enabled || ลิงก์ชีต.trim() !== ซิงก์.url;
+              return (
+                <section aria-label="ดึงอัตโนมัติจาก Google Sheets" data-sheet-sync style={{ display: "grid", gap: 6, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 10, background: "#f9fafb" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "0.8rem", fontWeight: 700, cursor: "pointer" }}>
+                      <input type="checkbox" role="switch" aria-checked={อัตโนมัติ} checked={อัตโนมัติ} onChange={e => setอัตโนมัติ(e.target.checked)} />
+                      ดึงอัตโนมัติทุกชั่วโมง
+                    </label>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={กำลังตั้ง || !เปลี่ยน} onClick={() => void บันทึกซิงก์()}>
+                      {กำลังตั้ง ? "กำลังบันทึก…" : "บันทึกการตั้งค่า"}
+                    </button>
+                    <button type="button" className="btn btn-secondary btn-sm" data-act="sheet-run-now" disabled={กำลังดึงตอนนี้ || !ซิงก์.url || เปลี่ยน} onClick={() => void ดึงตอนนี้()}
+                      title={เปลี่ยน ? "บันทึกการตั้งค่าก่อน" : undefined}>
+                      {กำลังดึงตอนนี้ ? "กำลังดึง…" : "ดึงตอนนี้"}
+                    </button>
+                  </div>
+                  <div data-sheet-sync-status style={{ fontSize: "0.72rem", color: "#4b5563" }}>
+                    {ซิงก์.lastRunAt
+                      ? <>ดึงล่าสุดเมื่อ {วันเวลาไทย(ซิงก์.lastRunAt)} · ผล: <span style={{ color: ซิงก์.lastOk ? "#047857" : "#b91c1c", fontWeight: 600 }}>{ซิงก์.lastResult || "—"}</span></>
+                      : "ยังไม่เคยดึงจากชีตที่ตั้งไว้"}
+                    {ซิงก์.running && " · กำลังดึงอยู่"}
+                    {ซิงก์.url && <> · ตั้งโดย {ซิงก์.updatedBy || "—"}{ซิงก์.updatedAt ? ` (${วันเวลาไทย(ซิงก์.updatedAt)})` : ""}</>}
+                  </div>
+                  {เตือน && <div role="alert" data-sheet-sync-warning style={{ fontSize: "0.74rem", fontWeight: 600, color: "#b45309", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 8, padding: "6px 10px" }}>{เตือน}</div>}
+                  <span style={{ fontSize: "0.68rem", color: "#6b7280" }}>นำเข้าทันทีไม่มีหน้าตัวอย่าง · แถวที่เคยนำเข้าแล้วไม่นำเข้าซ้ำ · มีรายใหม่ = แจ้งกระดิ่ง · แต่ละรอบเป็น 1 ชุด ยกเลิกทั้งชุดได้ด้านล่าง</span>
+                </section>
+              );
+            })()}
             {พลาด && <div role="alert" style={{ padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: "0.78rem", fontWeight: 600 }}>{พลาด}</div>}
 
             {/* 2ก · ไฟล์ Facebook: หน้าตัวอย่าง → บอสกดยืนยัน (บอสสั่ง 20 พ.ย. 69) */}
             {เฟซบุ๊ก && !ผล && (() => {
               const ส = สรุปเฟซบุ๊ก(เฟซบุ๊ก);
               const กลุ่ม: { k: กลุ่มเฟซบุ๊ก; label: string; n: number }[] = [
-                { k: "import", label: "จะนำเข้า", n: ส.นำเข้า }, { k: "dup", label: "ซ้ำ", n: ส.ซ้ำ },
-                { k: "short", label: "เบอร์ไม่ครบ", n: ส.เบอร์ไม่ครบ }, { k: "noprov", label: "จังหวัดจับคู่ไม่ได้", n: ส.จังหวัดไม่ได้ },
-                ...(ส.ข้ามอื่น ? [{ k: "skip" as const, label: "ข้าม (ไม่มีชื่อ/เบอร์)", n: ส.ข้ามอื่น }] : []),
+                { k: "import", label: "จะนำเข้า", n: ส.นำเข้า }, { k: "dup", label: "เบอร์ซ้ำ (นำเข้าด้วย)", n: ส.เบอร์ซ้ำ },
+                { k: "short", label: "ข้อมูลไม่ครบ (นำเข้าด้วย)", n: ส.ไม่ครบ }, { k: "noprov", label: "จังหวัดจับคู่ไม่ได้", n: ส.จังหวัดไม่ได้ },
+                { k: "already", label: "เคยนำเข้าแล้ว (ข้าม)", n: ส.เคยนำเข้า },
+                ...(ส.ข้ามอื่น ? [{ k: "skip" as const, label: "ข้าม (ไม่มีทั้งชื่อและเบอร์)", n: ส.ข้ามอื่น }] : []),
               ];
               const แสดง = เฟซบุ๊ก.filter(r => ในกลุ่มเฟซบุ๊ก(r, ดูเฟซบุ๊ก));
               return (
@@ -256,16 +322,18 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     <table aria-label={`แถว Facebook: ${กลุ่ม.find(g => g.k === ดูเฟซบุ๊ก)?.label ?? ""}`} style={{ width: "100%", tableLayout: "fixed", minWidth: 860 }}>
                       {/* กว้างที่ colgroup · คอลัมน์สุดท้าย (เหตุผล/อีเมล) ตัดบรรทัดได้ ห้ามตัดด้วย … (บอส 20 พ.ย. 69 "ซ้ำยังไง") */}
                       <colgroup><col style={{ width: 90 }} /><col style={{ width: "20%" }} /><col style={{ width: 150 }} /><col style={{ width: "17%" }} /><col style={{ width: 110 }} /><col /></colgroup>
-                      <thead><tr><th>ชีต:แถว</th><th>ชื่อ</th><th>เบอร์</th><th>จังหวัด</th><th>วันที่ทิ้งเบอร์</th><th>{ดูเฟซบุ๊ก === "dup" || ดูเฟซบุ๊ก === "skip" ? "เหตุผลที่ข้าม" : "อีเมล"}</th></tr></thead>
+                      <thead><tr><th>ชีต:แถว</th><th>ชื่อ</th><th>เบอร์</th><th>จังหวัด</th><th>วันที่ทิ้งเบอร์</th><th>{ดูเฟซบุ๊ก === "already" || ดูเฟซบุ๊ก === "skip" ? "เหตุผลที่ข้าม" : ดูเฟซบุ๊ก === "dup" ? "ซ้ำกับ" : "อีเมล"}</th></tr></thead>
                       <tbody>
                         {แสดง.map(r => (
                           <tr key={r.row} data-fb-row={r.row}>
                             <td style={เซลล์}>{r.row}</td>
-                            <td style={เซลล์}>{r.name || "—"}</td>
-                            <td style={เซลล์}>{r.phone || "—"}{r.เบอร์ไม่ครบ && <span data-tag="phone-short" style={{ marginLeft: 6, fontSize: "0.66rem", fontWeight: 700, color: "#b45309", background: "#fff8e6", border: "1px solid #f5d78e", borderRadius: 6, padding: "1px 6px" }}>เบอร์ไม่ครบ</span>}</td>
+                            <td style={เซลล์}>{r.name || "—"}{!r.ข้าม && r.ไม่ครบ === "ไม่มีชื่อ" && <span data-tag="incomplete" style={ป้ายเล็ก("amber")}>ไม่มีชื่อ</span>}</td>
+                            <td style={เซลล์}>{r.phone || "—"}{r.เบอร์ไม่ครบ && <span data-tag="phone-short" style={ป้ายเล็ก("amber")}>เบอร์ไม่ครบ</span>}
+                              {!r.ข้าม && r.ไม่ครบ === "ไม่มีเบอร์" && <span data-tag="incomplete" style={ป้ายเล็ก("amber")}>ไม่มีเบอร์</span>}
+                              {เป็นแถวซ้ำ(r) && <span data-tag="phone-dup" style={ป้ายเล็ก("red")}>เบอร์ซ้ำ</span>}</td>
                             <td style={เซลล์}>{r.province ?? "—"}{r.จังหวัดเดิม && r.จังหวัดเดิม !== r.province && <div style={{ fontSize: "0.66rem", color: "#9ca3af" }}>ลูกค้าพิมพ์: {r.จังหวัดเดิม}</div>}</td>
                             <td style={เซลล์}>{r.enteredAt ? fmtISOToThai(r.enteredAt) : "—"}</td>
-                            <td className="wrap" data-fb-reason style={{ ...เซลล์, color: r.ข้าม ? "#b45309" : "#52606d", whiteSpace: "normal", overflowWrap: "anywhere", textOverflow: "clip" }}>{r.ข้าม ?? (r.email || "—")}</td>
+                            <td className="wrap" data-fb-reason style={{ ...เซลล์, color: r.ข้าม ? "#b45309" : "#52606d", whiteSpace: "normal", overflowWrap: "anywhere", textOverflow: "clip" }}>{r.ข้าม ?? (ดูเฟซบุ๊ก === "dup" ? r.ซ้ำกับ : null) ?? (r.email || "—")}</td>
                           </tr>
                         ))}
                         {!แสดง.length && <tr><td colSpan={6} style={{ ...เซลล์, textAlign: "center", color: "#9ca3af" }}>ไม่มีแถวในกลุ่มนี้</td></tr>}
@@ -276,7 +344,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     <button type="button" className="btn btn-primary btn-sm" disabled={กำลัง || !พร้อมเฟซบุ๊ก.length} onClick={() => void นำเข้าเฟซบุ๊ก()}>
                       {กำลัง ? "กำลังนำเข้า…" : `ยืนยันนำเข้า ${พร้อมเฟซบุ๊ก.length.toLocaleString()} ราย`}
                     </button>
-                    <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>แถวซ้ำ/ข้ามไม่ถูกนำเข้า · ระบบตรวจเบอร์ซ้ำอีกครั้งตอนบันทึก · ยกเลิกทั้งชุดได้ภายหลัง</span>
+                    <span style={{ fontSize: "0.72rem", color: "#6b7280" }}>เบอร์ซ้ำ/ข้อมูลไม่ครบนำเข้าด้วย (ติดป้ายในตาราง) · แถวที่เคยนำเข้าแล้วไม่นำเข้าซ้ำ (ระบบตรวจอีกครั้งตอนบันทึก) · ยกเลิกทั้งชุดได้ภายหลัง</span>
                   </div>
                 </section>
               );
@@ -322,10 +390,11 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     <tbody>
                       {ช่องทางในไฟล์.map(c => (
                         <tr key={c}><td style={เซลล์}>{c}</td><td style={เซลล์}>
-                          {/* ต้องมีค่าเสมอ — ตารางแปลงช่องทาง (ไม่รู้จัก = แนะนำต่อ) */}
-                          <select aria-label={`แหล่งที่มาของ ${c}`} className="form-select" value={ช่องทาง[คีย์ช่องทาง(c)] ?? ช่องทางที่ไม่รู้จัก}
+                          {/* ค่าตั้งต้น = ชื่อในรายการที่ตรงกับค่าในไฟล์ · ไม่ตรง = ยังไม่ระบุ (ไม่เดา · แถวขึ้นเตือนในหน้าตรวจ) */}
+                          <select aria-label={`แหล่งที่มาของ ${c}`} className="form-select" value={ช่องทาง[คีย์ช่องทาง(c)] ?? แหล่งที่มา.find(x => คีย์ช่องทาง(x) === คีย์ช่องทาง(c)) ?? ""}
                             onChange={e => setช่องทาง(m => ({ ...m, [คีย์ช่องทาง(c)]: e.target.value }))}>
-                            {[...new Set([...แหล่งที่มา, ช่องทางที่ไม่รู้จัก])].map(x => <option key={x} value={x}>{x}</option>)}
+                            <option value="">— ยังไม่ระบุ —</option>
+                            {แหล่งที่มา.map(x => <option key={x} value={x}>{x}</option>)}
                           </select>
                         </td></tr>
                       ))}
@@ -378,7 +447,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                   <><select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => { แก้แถว(r.row, { lostReason: e.target.value || null }); บังคับ.ล้าง(`reason:${r.row}`); }}
                                     {...บังคับ.ผูก(`reason:${r.row}`)} style={{ marginTop: 4, ...บังคับ.ผูก(`reason:${r.row}`).style }}>
                                     <option value="">— ยังไม่ระบุ —</option>
-                                    {[...new Set([...เหตุผลไม่สำเร็จ, ...(r.lostReason ? [r.lostReason] : [])])].map(x => <option key={x} value={x}>{x}</option>)}
+                                    {ตัวเลือกฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                   <FieldError>{บังคับ.ผิด[`reason:${r.row}`]}</FieldError></>
                                 )}

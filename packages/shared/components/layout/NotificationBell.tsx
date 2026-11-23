@@ -45,6 +45,8 @@ const ICON: Record<string, { el: React.ReactNode; bg: string; color: string }> =
   prospect_idle:             { el: <AlertTriangle size={14} />, bg: "#fff3cd", color: "#d97706" },
   proposal_awaiting:         { el: <Clock size={14} />,         bg: "#dce5f0", color: "#003366" },
   proposal_expired:          { el: <FileText size={14} />,      bg: "#fdecec", color: "#dc2626" },
+  prospect_sheet_imported:   { el: <Inbox size={14} />,         bg: "#dcfce7", color: "#166534" },   // ใบ 0295 ดึงชีตอัตโนมัติ
+  prospect_sheet_failed:     { el: <AlertTriangle size={14} />, bg: "#fee2e2", color: "#dc2626" },
 };
 const ICON_อื่น = { el: <Bell size={14} />, bg: "#eef2f7", color: "#475569" };
 

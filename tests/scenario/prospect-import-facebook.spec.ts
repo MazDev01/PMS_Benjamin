@@ -14,7 +14,9 @@ import { หัวไฟล์เฟซบุ๊ก } from "../../packages/share
 // ── นำเข้าไฟล์ลีดจาก Facebook Lead Ads ตรง ๆ (บอสสั่ง 20 พ.ย. 69 · ใบ 0292) — ไฟล์ปลอม 2 ชีต หัวตารางเดียวกับของจริง ────────────
 //   ⚠️ ไม่ใช้ไฟล์จริง — ชื่อ ZZTEST · เบอร์ p:+6600NNNNNNNN (ปลอม) · อีเมล @example.test
 //   ไม่มีหน้าจับคู่คอลัมน์ · อ่านทุกชีต · หน้าตัวอย่าง: จะนำเข้า / ซ้ำ / เบอร์ไม่ครบ / จังหวัดจับคู่ไม่ได้ → กดยืนยัน
-//   ฐาน: รอติดต่อ · นัดติดตามวันนี้ (การ์ดถึงกำหนดติดตาม) · Facebook · created_at = วันที่ทิ้งเบอร์ · เบอร์ไม่ครบนำเข้าได้ · นำเข้าซ้ำไม่สร้างซ้ำ
+//   ฐาน: รอติดต่อ · นัดติดตามวันนี้ (การ์ดถึงกำหนดติดตาม) · Facebook · created_at = วันที่ทิ้งเบอร์ · เบอร์ไม่ครบนำเข้าได้
+//   บอสสั่ง 23 พ.ย. 69 (ใบ 0295 · ข้อเดิมตรวจกลับด้าน): เบอร์ซ้ำ = นำเข้า + ป้าย "เบอร์ซ้ำ" (ตาราง/หน้าตัวอย่าง) · ไฟล์เดิมซ้ำ = "เคยนำเข้าแล้ว (ข้าม)"
+//   ดึงอัตโนมัติ: สวิตช์ + บันทึกที่ฐาน · ตัวตั้งเวลาไม่ทำงาน = เห็นคำเตือนบนจอ
 //   ตกบนโค้ดก่อนแก้ (f4a964f5): ไฟล์ Facebook ไปหน้าจับคู่คอลัมน์ · อ่านแค่ชีตแรก · ไม่มีหน้าตัวอย่างแบบนี้
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.describe.configure({ mode: "serial" });
@@ -51,7 +53,7 @@ test.afterAll(async () => {
   await admin.from("prospect_import_batches").delete().like("file_name", `${แท็ก}%`);
 });
 
-test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย่าง 4 ตัวเลข → ยืนยัน → ฐาน: รอติดต่อ · นัดวันนี้ · Facebook · วันที่ทิ้งเบอร์", async ({ page }) => {
+test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย่าง → ยืนยัน (เบอร์ซ้ำนำเข้าด้วย) → ฐาน: รอติดต่อ · นัดวันนี้ · Facebook · วันที่ทิ้งเบอร์ · ป้ายเบอร์ซ้ำในตาราง", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
@@ -61,22 +63,25 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   await expect(ตัวอย่าง, "ไฟล์ Facebook = หน้าตัวอย่าง (ไม่มีหน้าจับคู่คอลัมน์)").toBeVisible({ timeout: 20_000 });
   await expect(กล่อง.locator("#pi-header"), "ไม่มีหน้าจับคู่คอลัมน์").toHaveCount(0);
   const นับ = (g: string) => ตัวอย่าง.locator(`[data-fb-group="${g}"] [data-count]`);
-  await expect(นับ("import"), "จะนำเข้า: หนึ่ง สอง ไม่มีจังหวัด เบอร์ไม่ครบ").toHaveAttribute("data-count", "4");
-  await expect(นับ("dup"), "ซ้ำ: ชีต 11.26 เบอร์เดียวกับหนึ่ง").toHaveAttribute("data-count", "1");
+  await expect(นับ("import"), "จะนำเข้า: หนึ่ง สอง ไม่มีจังหวัด เบอร์ไม่ครบ ซ้ำในไฟล์ (เบอร์ซ้ำนำเข้าด้วย · บอส 23 พ.ย. 69)").toHaveAttribute("data-count", "5");
+  await expect(นับ("dup"), "เบอร์ซ้ำ: ชีต 11.26 เบอร์เดียวกับหนึ่ง").toHaveAttribute("data-count", "1");
+  await expect(ตัวอย่าง.locator('[data-fb-group="dup"]'), "แท็บบอกว่านำเข้าด้วย").toContainText("เบอร์ซ้ำ (นำเข้าด้วย)");
+  await expect(นับ("already")).toHaveAttribute("data-count", "0");
   await expect(นับ("short")).toHaveAttribute("data-count", "1");
   await expect(นับ("noprov")).toHaveAttribute("data-count", "1");
   await expect(ตัวอย่าง.locator('[data-fb-row="10.26:5"] [data-tag="phone-short"]'), "ป้ายเบอร์ไม่ครบ").toHaveText("เบอร์ไม่ครบ");
   await ตัวอย่าง.locator('[data-fb-group="dup"]').click();
-  // บอกเต็มว่าซ้ำกับอะไร · ตัดบรรทัดได้ ไม่ตัดด้วย … (บอส 20 พ.ย. 69 "ซ้ำยังไง")
+  // บอกเต็มว่าซ้ำกับอะไร · ตัดบรรทัดได้ ไม่ตัดด้วย … (บอส 20 พ.ย. 69 "ซ้ำยังไง") · ป้าย "เบอร์ซ้ำ" ที่แถว
   const เหตุผล = ตัวอย่าง.locator('[data-fb-row="11.26:2"] [data-fb-reason]');
-  await expect(เหตุผล, "รายการซ้ำแสดงก่อนบันทึก").toHaveText(`เบอร์ซ้ำกับแถว 10.26:2 (${แท็ก} หนึ่ง) ในไฟล์นี้`);
-  expect(await เหตุผล.evaluate(e => e.scrollWidth - e.clientWidth), "ข้อความเหตุผลไม่ถูกตัด").toBeLessThanOrEqual(0);
-  await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 4 ราย", exact: true }).click();
-  await expect(กล่อง.getByTestId("import-result"), "นำเข้า 4 ราย").toHaveAttribute("data-inserted", "4", { timeout: 30_000 });
+  await expect(เหตุผล, "ซ้ำกับใครแสดงก่อนบันทึก").toHaveText(`แถว 10.26:2 (${แท็ก} หนึ่ง) ในไฟล์นี้`);
+  expect(await เหตุผล.evaluate(e => e.scrollWidth - e.clientWidth), "ข้อความไม่ถูกตัด").toBeLessThanOrEqual(0);
+  await expect(ตัวอย่าง.locator('[data-fb-row="11.26:2"] [data-tag="phone-dup"]')).toHaveText("เบอร์ซ้ำ");
+  await กล่อง.getByRole("button", { name: "ยืนยันนำเข้า 5 ราย", exact: true }).click();
+  await expect(กล่อง.getByTestId("import-result"), "นำเข้า 5 ราย").toHaveAttribute("data-inserted", "5", { timeout: 30_000 });
 
   const { data, error } = await admin.from("dealer_prospects").select("name, phone, province, status, follow_up, channel, email, note, created_at, last_contact_at").like("name", `${แท็ก}%`).order("name");
   expect(error).toBeNull();
-  expect(data ?? [], "ฐานมี 4 ราย (ซ้ำไม่สร้าง)").toHaveLength(4);
+  expect(data ?? [], "ฐานมี 5 ราย (เบอร์ซ้ำนำเข้าด้วย)").toHaveLength(5);
   for (const p of data ?? []) {
     expect(p, `${p.name}: รอติดต่อ · นัดวันนี้ · Facebook`).toMatchObject({ status: "new", follow_up: วันนี้, channel: "Facebook", email: "zzfb@example.test" });
     expect(new Date(new Date(p.created_at as string).getTime() + 7 * 3_600_000).toISOString().slice(0, 10), `${p.name}: วันที่เข้า = วันที่ทิ้งเบอร์`).toBe(เมื่อวาน);
@@ -91,16 +96,27 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   expect(หนึ่ง?.note).toContain("จังหวัดที่ลูกค้าพิมพ์: Khon Kaen");
   expect((data ?? []).find(p => p.name === `${แท็ก} ไม่มีจังหวัด`)?.province, "จับคู่ไม่ได้ = ว่าง").toBeNull();
   expect((data ?? []).find(p => p.name === `${แท็ก} เบอร์ไม่ครบ`)?.phone, "เบอร์ไม่ครบเก็บตามที่มี").toBe(`000${กลาง}12`);
+  expect((data ?? []).find(p => p.name === `${แท็ก} ซ้ำในไฟล์`)?.phone, "เบอร์ซ้ำได้รายใหม่").toBe(`000-${กลาง}-0001`);
+  // ตารางผู้สนใจ: ป้าย "เบอร์ซ้ำกับ …" ทั้งสองราย · เบอร์ไม่ครบ = "ข้อมูลไม่ครบ" (ไม่ใช่แค่หน้าตัวอย่าง · คนรวมงาน 23 พ.ย. 69)
+  await page.keyboard.press("Escape");
+  await page.getByPlaceholder(/ค้นหาชื่อ/).fill(แท็ก);
+  // แถวตามชื่อในช่องชื่อ (title ตรงตัว) — ไม่ใช้ hasText: ป้าย "เบอร์ซ้ำกับ …" ของอีกแถวมีชื่อนี้อยู่ด้วย
+  const แถวตาราง = (ชื่อ: string) => page.getByRole("row").filter({ has: page.getByTitle(ชื่อ, { exact: true }) });
+  await expect(แถวตาราง(`${แท็ก} ซ้ำในไฟล์`).locator('[data-tag="phone-dup"]')).toContainText(`เบอร์ซ้ำกับ ${แท็ก} หนึ่ง`, { timeout: 20_000 });
+  await expect(แถวตาราง(`${แท็ก} หนึ่ง`).locator('[data-tag="phone-dup"]')).toContainText(`${แท็ก} ซ้ำในไฟล์`);
+  await expect(แถวตาราง(`${แท็ก} เบอร์ไม่ครบ`).locator('[data-tag="incomplete"]')).toContainText("เบอร์ไม่ครบ");
+  await expect(แถวตาราง(`${แท็ก} สอง`).locator("[data-prospect-tags]"), "ข้อมูลครบ ไม่ซ้ำ = ไม่มีป้าย").toHaveCount(0);
   assertNoErrors(errs, "นำเข้าไฟล์ Facebook");
 });
 
-test("[ui·hq] นำเข้าไฟล์เดิมซ้ำ = หน้าตัวอย่างบอกซ้ำทั้งหมด · ปุ่มยืนยันกดไม่ได้", async ({ page }) => {
+test("[ui·hq] นำเข้าไฟล์เดิมซ้ำ = เคยนำเข้าแล้วทั้งหมด (ข้าม) · ปุ่มยืนยันกดไม่ได้", async ({ page }) => {
   const errs = watchErrors(page);
   await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
   await settle(page);
   await นำเข้าผู้สนใจผ่านชีต(page, ไฟล์);
   const ตัวอย่าง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true }).locator("[data-facebook-preview]");
-  await expect(ตัวอย่าง.locator('[data-fb-group="dup"] [data-count]'), "ทุกเบอร์มีอยู่แล้ว").toHaveAttribute("data-count", "5", { timeout: 20_000 });
+  await expect(ตัวอย่าง.locator('[data-fb-group="already"] [data-count]'), "ทุกแถวเคยนำเข้าแล้ว (กุญแจแถว · ใบ 0295)").toHaveAttribute("data-count", "5", { timeout: 20_000 });
+  await expect(ตัวอย่าง.locator('[data-fb-group="already"]')).toContainText("เคยนำเข้าแล้ว (ข้าม)");
   await expect(ตัวอย่าง.locator('[data-fb-group="import"] [data-count]')).toHaveAttribute("data-count", "0");
   await expect(ตัวอย่าง.getByRole("button", { name: "ยืนยันนำเข้า 0 ราย", exact: true })).toBeDisabled();
   assertNoErrors(errs, "นำเข้าไฟล์ Facebook ซ้ำ");
@@ -114,6 +130,7 @@ test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัว
   const ลิงก์ = "https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit#gid=0";
   let ส่งมา: unknown = null;
   await page.route("**/api/v1/prospect-sheet", async route => {
+    if (route.request().method() !== "POST") return route.continue();   // GET = สถานะดึงอัตโนมัติ (ใบ 0295) ไปฐานจริง
     ส่งมา = route.request().postDataJSON();
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: `${แท็ก}-ชีต.xlsx`, sheets: [   // ชื่อชุดขึ้นต้นด้วยป้ายของข้อ — afterAll ลบชุดตาม `${แท็ก}%` (เดิม "Google Sheets ZZtest…" ค้างในฐาน · คนรวมงาน 20 พ.ย. 69)
       
@@ -145,4 +162,37 @@ test("[ui·hq] Google Sheets: วางลิงก์ → หน้าตัว
   const { count } = await admin.from("dealer_prospects").select("id", { count: "exact", head: true }).eq("name", `${แท็ก} จากชีต`);
   expect(count, "ยกเลิกชุดแล้วไม่เหลือราย").toBe(0);
   assertNoErrors(errs, "นำเข้าจาก Google Sheets");
+});
+
+// ── ดึงอัตโนมัติทุกชั่วโมง (บอสสั่ง 23 พ.ย. 69 · ใบ 0295) — สวิตช์ + ลิงก์เก็บที่ฐาน · บันทึกการใช้งาน · ตัวตั้งเวลาไม่ทำงาน = เตือนบนจอ ──
+//   ไม่กด "ดึงตอนนี้" (เซิร์ฟเวอร์จะออกไป Google) — ตัวดึงหนึ่งรอบตรวจด้วยชีต/ฐานจำลองใน tests/unit/prospectSheetSync.test.ts
+//   ฐานทดสอบไม่มีค่า Vault ของงานตั้งเวลา → ต้องขึ้นคำเตือน (ไม่เงียบ) · คืนค่าตั้งเดิมท้ายข้อ
+test("[ui·hq] ดึงอัตโนมัติ: เปิดสวิตช์ + บันทึก → ฐานเก็บลิงก์ · บันทึกการใช้งาน · เตือนตัวตั้งเวลาไม่ทำงาน · ปิดได้", async ({ page }) => {
+  const errs = watchErrors(page);
+  const { data: เดิม } = await admin.from("prospect_sheet_sync").select("url, enabled").eq("id", 1).single();
+  const ลิงก์ = `https://docs.google.com/spreadsheets/d/ZZtest_auto_${แท็ก.replace(/\W/g, "")}_000000/edit`;
+  try {
+    await loginUI(page, HQ_ORIGIN, "/hq/prospects", ADMIN);
+    await settle(page);
+    await เปิดนำเข้าจากชีต(page);
+    const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ", exact: true });
+    const ซิงก์ = กล่อง.locator("[data-sheet-sync]");
+    await expect(ซิงก์).toBeVisible({ timeout: 20_000 });
+    await กล่อง.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill(ลิงก์);
+    await ซิงก์.getByRole("switch", { name: "ดึงอัตโนมัติทุกชั่วโมง", exact: true }).check();
+    await ซิงก์.getByRole("button", { name: "บันทึกการตั้งค่า", exact: true }).click();
+    await expect.poll(async () => (await admin.from("prospect_sheet_sync").select("url, enabled").eq("id", 1).single()).data, { timeout: 20_000 })
+      .toEqual({ url: ลิงก์, enabled: true });
+    await expect(ซิงก์.locator("[data-sheet-sync-warning]"), "ฐานทดสอบไม่มีตัวตั้งเวลาที่ทำงาน = เห็นคำเตือน").toBeVisible();
+    await expect(ซิงก์.getByRole("button", { name: "ดึงตอนนี้", exact: true }), "บันทึกแล้ว = กดดึงตอนนี้ได้").toBeEnabled();
+    const { data: บันทึก } = await admin.from("audit_log").select("action, target").eq("action", "เปิดดึงผู้สนใจจากชีตอัตโนมัติ").order("id", { ascending: false }).limit(1);
+    expect(บันทึก?.[0]?.target, "บันทึกการใช้งานลงรหัสชีตย่อ ไม่ลงลิงก์เต็ม").toBe("ชีต ZZtest…");
+    await ซิงก์.getByRole("switch", { name: "ดึงอัตโนมัติทุกชั่วโมง", exact: true }).uncheck();
+    await ซิงก์.getByRole("button", { name: "บันทึกการตั้งค่า", exact: true }).click();
+    await expect.poll(async () => (await admin.from("prospect_sheet_sync").select("enabled").eq("id", 1).single()).data?.enabled, { timeout: 20_000 }).toBe(false);
+    await expect(ซิงก์.locator("[data-sheet-sync-warning]"), "ปิดอยู่ = ไม่เตือน").toHaveCount(0);
+    assertNoErrors(errs, "ตั้งดึงอัตโนมัติ");
+  } finally {
+    await admin.from("prospect_sheet_sync").update({ url: เดิม?.url ?? "", enabled: เดิม?.enabled ?? false }).eq("id", 1);
+  }
 });

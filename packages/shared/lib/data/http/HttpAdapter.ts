@@ -15,7 +15,8 @@
 import type { ProposalsRepo } from "../ports";
 import type { DealerPackageProposal, DealerProposalPayment } from "../types";
 import type { ProspectsRepo, ProspectActivitiesRepo } from "../ports";
-import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo, MaterialTemplatesRepo, QuoteFilesRepo } from "../ports";
+import type { TerritoriesRepo, UnmatchedDealer, HqTransferPlanRow, QuoteRequestsRepo, MaterialTemplatesRepo, QuoteFilesRepo, OptionListsRepo } from "../ports";
+import type { ตัวเลือกกลาง, รายการกลาง } from "../../optionLists";
 import type { QuoteFile, จำนวนไฟล์คำขอ, StorageUsage } from "../../quoteFiles";
 import type { MaterialTemplate, EstimateAccuracy } from "../../materialTemplates";
 import type { QuoteRequest, HqQuote, QuoteMargin, QuoteBoard } from "../../quoteRequests";
@@ -60,6 +61,7 @@ export const MIGRATED: readonly string[] = [
   "persons",
   "profile",
   "hqCompany",
+  "optionLists",
   "territories",
   "quoteRequests",
   "materialTemplates",
@@ -343,6 +345,12 @@ const territories: TerritoriesRepo = {
   transferAuto: async () => (await post<{ moved: number }>("/territories", { op: "transfer-auto" })).moved,
   transfer: async (province, to) => (await post<{ moved: number }>("/territories", { op: "transfer", province, to })).moved,
 };
+// รายการกลางของเครือ (ใบ 0296)
+const optionLists: OptionListsRepo = {
+  list: () => apiFetch<ตัวเลือกกลาง[]>("/option-lists"),
+  save: (list, rows) => post<ตัวเลือกกลาง[]>("/option-lists", { list, rows }),
+  used: () => apiFetch<{ list: รายการกลาง; code: string }[]>("/option-lists?view=used"),
+};
 const hqCompany: HQCompanyRepo = {
   // ยังไม่เคยตั้งค่า = คืนค่ากลาง (เหมือน SupabaseAdapter) ไม่ใช่ null ให้หน้าจอไปพังเอง
   get: async () => (await apiFetch<HQCompany | null>("/hq-company")) ?? EMPTY_HQ_COMPANY,
@@ -553,7 +561,7 @@ const realtime: RealtimePort = {
 
 export const HttpAdapter: DataAdapter = {
   storage, realtime, dealers, files, persons, settings, dealerSettings,
-  profile, hqCompany, territories, quoteRequests, quoteFiles, materialTemplates, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
+  profile, hqCompany, optionLists, territories, quoteRequests, quoteFiles, materialTemplates, notes, users, audit, notifications, metrics, leads, quotations, customers, appointments, prospects, proposals, prospectActivities,
   // บัญชีเข้าระบบของดีลเลอร์ — เปลี่ยนผ่าน API ของสำนักงานใหญ่ (คีย์ผู้ดูแลอยู่ที่นั่นที่เดียว)
   account: accountRemote,
 };

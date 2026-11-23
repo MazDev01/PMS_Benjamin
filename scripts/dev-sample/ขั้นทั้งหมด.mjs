@@ -51,6 +51,7 @@ export async function มีแล้ว(ctx) {
 export function ลบ(ctx) {
   const เลข = [...สาขา.flatMap(s => สถานการณ์.map((_, i) => s.base + i)), 996_900_000, 996_900_001, 996_900_002].join(",");
   // ผู้สนใจของส่วน = อีเมล sample-prospect-…@example.test (ชื่อสมจริงตั้งแต่ 18 พ.ย. 69) หรือชื่อแบบเดิม "ผู้สนใจตัวอย่าง …"
+  const ชุดเฟซบุ๊กตัวอย่าง = "ไฟล์ Facebook ตัวอย่าง.xlsx";   // ชุดนำเข้าตัวอย่าง (ใบ 0295 · ป้ายเบอร์ซ้ำ/ข้อมูลไม่ครบ)
   const ผู้สนใจของส่วน = `(d.email like 'sample-prospect-%@example.test' or d.name like 'ผู้สนใจตัวอย่าง %')`;
   const sql = `begin;
     create temp table ชื่อในส่วน on commit drop as select distinct company from public.leads where num_id in (${เลข}) and coalesce(company, '') <> '';
@@ -75,6 +76,7 @@ export function ลบ(ctx) {
     alter table public.dealer_proposal_payments enable trigger dealer_proposal_payments_guard;
     alter table public.dealer_package_proposals enable trigger dealer_package_proposals_before_delete;
     delete from public.dealer_prospects d where ${ผู้สนใจของส่วน};
+    delete from public.prospect_import_batches where file_name = ${"'"}${ชุดเฟซบุ๊กตัวอย่าง}${"'"};   -- กุญแจแถวหายตาม (ใบ 0295) · รันซ้ำนำเข้าใหม่ได้
     delete from public.material_templates where name like '% (ตัวอย่าง)';
     commit;`;
   ctx.sql(sql);
@@ -126,7 +128,7 @@ export async function สร้าง(ctx) {
         phone: เบอร์งาน(n), email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
         address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province), province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ตามสถานการณ์[i]),
         // หมายเหตุ = ความต้องการของลูกค้าแบบจริง (สถานการณ์ของรายนี้อยู่ในรายการ สถานการณ์ ด้านบน · เดิมขึ้นบนจอ "ข้อมูลตัวอย่าง: D5x …")
-        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][i % 6], assigned: ผู้รับผิดชอบ, status: "WAITING",
+        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["referral", "website", "facebook", "line", "walk_in", "exhibition"][i % 6],   // รหัสในรายการกลาง "ช่องทางที่มา" (ใบ 0290) assigned: ผู้รับผิดชอบ, status: "WAITING",
         created_label: ป้ายวัน(วัน(-เส้นเวลา[i][0])),
       }), `สร้างลีด ${company}`);
       return { n, company };
@@ -223,7 +225,7 @@ export async function สร้าง(ctx) {
   for (const [i, จังหวัด] of ["ระยอง", "เชียงใหม่", "ชลบุรี"].entries()) {
     const n = 996_900_000 + i, company = ชื่อบริษัทสมจริง(`HQ:${n}`);
     ต้อง(await svc.from("leads").insert({ id: รหัสลีด(n), num_id: n, dealer_code: "HQ", company, name: company, contact: ผู้ติดต่อสมจริง(`HQ:${n}`),
-      phone: เบอร์งาน(n), province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING",
+      phone: เบอร์งาน(n), province: จังหวัด, product: "โรงงาน", source: "website", status: "WAITING",
       note: "กรอกฟอร์มติดต่อผ่านเว็บไซต์ · สนใจสร้างโรงงานโครงเหล็ก ขอให้ดีลเลอร์ในพื้นที่ติดต่อกลับ",   // H6 ลีดของ HQ รอโอนให้ดีลเลอร์
       created_label: ป้ายวัน(วัน()) }), `ลีด HQ ${company}`);
   }
@@ -246,9 +248,23 @@ export async function สร้าง(ctx) {
     const r = ต้อง(await hq.from("dealer_prospects").insert({ name: `${ผู้ติดต่อสมจริง(`ผู้สนใจ:${i}`)} (ตัวอย่าง)`, province, status,
       social: [`เพจ ${province}วัสดุก่อสร้าง`, null, `LINE ${province} โฮมเซ็นเตอร์`, `เพจ ช่างเหล็ก${province}`, null, `LINE ร้านเหล็ก${province}`][i] ?? null,
       phone: `000-000-${String(8000 + i)}`, email: `sample-prospect-${i + 1}@example.test`, channel: ["Facebook", "LINE OA", "แนะนำต่อ", "โทรเข้ามาเอง"][i % 4], first_contact: วัน(-14 - i * 3),
-      note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "ยังไม่พร้อมลงทุน" } : {}),
+      note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "not_ready" } : {}),   // รหัสในรายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0290)
       follow_up: ติดตาม == null ? null : วัน(ติดตาม) }).select("id").single(), `ผู้สนใจ ${status}`);
     pid[status] = r.id;
+  }
+  // ผู้สนใจจากไฟล์ Facebook ตัวอย่าง (บอสสั่ง 23 พ.ย. 69 "เบอร์ซ้ำก็เอา ไม่ครบก็เอา" · ใบ 0295) — ผ่านคำสั่งนำเข้าจริง (ทางเดียวกับหน้าต่างนำเข้า)
+  //   ให้ demo เห็นป้าย "เบอร์ซ้ำกับ …" / "ข้อมูลไม่ครบ" ในตาราง/แผง + ชุดนำเข้าในหน้าต่าง · เบอร์ปลอม 000-000-NNNN · อีเมล @example.test
+  {
+    const ทิ้งเบอร์ = (วันก่อน, ชม) => `${วัน(-วันก่อน)}T${String(ชม).padStart(2, "0")}:15:00+07:00`;
+    const แถว = [
+      { row: "11.26:2", name: `${ผู้ติดต่อสมจริง("ผู้สนใจFB:1")} (ตัวอย่าง)`, phone: "0000008000", email: "sample-prospect-fb-1@example.test", province: "ขอนแก่น", entered_at: ทิ้งเบอร์(2, 9) },   // เบอร์ซ้ำกับรายแรก
+      { row: "11.26:3", name: "", phone: "0000008011", email: "sample-prospect-fb-2@example.test", province: "ชลบุรี", entered_at: ทิ้งเบอร์(1, 20) },   // ไม่มีชื่อ
+      { row: "11.26:4", name: `${ผู้ติดต่อสมจริง("ผู้สนใจFB:3")} (ตัวอย่าง)`, phone: "", email: "sample-prospect-fb-3@example.test", province: "ระยอง", entered_at: ทิ้งเบอร์(1, 11) },   // ไม่มีเบอร์
+      { row: "11.26:5", name: `${ผู้ติดต่อสมจริง("ผู้สนใจFB:4")} (ตัวอย่าง)`, phone: "00000801", phone_incomplete: true, email: "sample-prospect-fb-4@example.test", province: null, entered_at: ทิ้งเบอร์(0, 8) },   // เบอร์ไม่ครบ
+    ].map(r => ({ ...r, channel: "Facebook", status: "new", follow_up_today: true, dup_ok: true,
+      note: `โฆษณา: แคมเปญหาตัวแทน (ตัวอย่าง) · ทิ้งเบอร์เมื่อ: ${r.entered_at.slice(0, 16).replace("T", " ")}${r.phone_incomplete ? " · เบอร์ไม่ครบ" : ""}` }));
+    const r = ต้อง(await hq.rpc("hq_prospects_import", { p_file: ชุดเฟซบุ๊กตัวอย่าง, p_rows: แถว }), "นำเข้าผู้สนใจจากไฟล์ Facebook ตัวอย่าง");
+    if (Number(r?.inserted) !== แถว.length) throw new Error(`ผู้สนใจ Facebook ตัวอย่าง: นำเข้า ${r?.inserted} จาก ${แถว.length} ราย (${JSON.stringify(r?.skipped)})`);
   }
   // บันทึกการติดต่อของผู้สนใจที่ผ่านขั้นติดต่อแล้ว (ทางเดียวกับแผงผู้สนใจ › บันทึกการติดต่อ) — เดิมทุกรายขึ้น "ยังไม่เคยติดต่อ" ทั้งที่อยู่ขั้นคุย/ส่งใบแล้ว
   //   ฐานตั้งเวลาเป็นตอนนี้เสมอ (ตัวดัก) → ถอยเวลาบันทึก + ติดต่อล่าสุด ด้วย SQL ฐาน dev (replica · แตะเฉพาะ 2 คอลัมน์เวลา)
