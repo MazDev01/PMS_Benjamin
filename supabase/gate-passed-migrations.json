@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-11-20 16:33:02",
- "รอบ": "2026-11-20-15-33-30",
- "จำนวน": 291,
+ "บันทึกเมื่อ": "2026-11-23 11:06:30",
+ "รอบ": "2026-11-23-10-09-55",
+ "จำนวน": 292,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -294,6 +294,7 @@
   "0289_print_issuer_contact.sql": "f822f27275ef339bb989d69aad79385e27dad8ae10d1368335990c57a6a6c04f",
   "0290_request_items.sql": "966868ebf8b5ab54b862f7a8612520f7d1c7eac2a69bac05b0677ec7c3db155c",
   "0291_dealer_extra_lines.sql": "8a370f3c76778235589c6b5fa993bfd2c1e2b1c6f803a31e83484888139abb68",
-  "0292_prospect_import_facebook.sql": "fdac98982052b1eb98fe2dacbb52037422ce696de277762197532fc6d2ae789d"
+  "0292_prospect_import_facebook.sql": "fdac98982052b1eb98fe2dacbb52037422ce696de277762197532fc6d2ae789d",
+  "0293_prospect_import_entered_time.sql": "638cf6075f2b9344ce9728981d1171ba19086e82241768d957dbf96844919339"
  }
 }
