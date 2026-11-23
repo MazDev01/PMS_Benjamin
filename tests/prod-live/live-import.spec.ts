@@ -124,7 +124,7 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
   await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
-  await expect(กล่อง.locator('input[type="file"]'), "ไม่มีช่องเลือกไฟล์ในหน้าต่าง").toHaveCount(0);
+  await expect(กล่อง.locator('input[type="file"]'), "ในหน้าต่างมีช่องเลือกไฟล์ 1 ตัว (บอสสั่ง 23 พ.ย. 69 · บนหน้ายังไม่มี)").toHaveCount(1);
   await กล่อง.getByLabel("ลิงก์ Google Sheets", { exact: true }).fill("https://docs.google.com/spreadsheets/d/ZZtest_fake-sheet-id-0000000000/edit");
   await กล่อง.getByRole("button", { name: "ดึงข้อมูลจากชีต", exact: true }).click();
   await expect(กล่อง.getByRole("region", { name: "จับคู่คอลัมน์" }), "ดึงชีตแล้วเข้าหน้าจับคู่คอลัมน์").toBeVisible({ timeout: 20_000 });

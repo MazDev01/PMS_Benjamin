@@ -7,13 +7,14 @@
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
-import { X, Download, Check, Undo2 } from "lucide-react";
+import { X, Download, Check, Undo2, Upload } from "lucide-react";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { ยืนยัน, แจ้งสำเร็จ, แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { prospects as prospectsRepo } from "@pms/shared/lib/data";
 import type { ชุดนำเข้าผู้สนใจ, ผลนำเข้าผู้สนใจ } from "@pms/shared/lib/data/types";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
+import { อ่านสมุดงานจากไฟล์ } from "@pms/shared/lib/importSheet";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import {
@@ -81,6 +82,14 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   }, [ไฟล์, คู่.channel, แถวหัว]);
   const คีย์ช่องทาง = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
+  // อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 "ทำปุ่มอัพไฟล์ในนี้ด้วย" · ทับ 20 พ.ย. เฉพาะในหน้าต่าง — ปุ่มบนหน้ายังไม่มี)
+  //   ตัวอ่าน .xlsx/.csv ตัวเดียวกับเดิม → รับสมุดงาน → หน้าตัวอย่าง Facebook / หน้าจับคู่คอลัมน์เดิม (ไม่มีทางที่สอง)
+  async function เลือกไฟล์(f: File | undefined) {
+    if (!f) return;
+    ล้าง();
+    try { รับสมุดงาน(f.name, await อ่านสมุดงานจากไฟล์(f)); }
+    catch (e) { setพลาด(`อ่านไฟล์ไม่ได้: ${friendlyError(e)}`); }
+  }
   // ดึงจากลิงก์ Google Sheets (บอสสั่ง 20 พ.ย. 69) — เซิร์ฟเวอร์ดึงให้ (/api/v1/prospect-sheet) แล้วเข้าตัวอ่านเดียวกับไฟล์ (ไม่มีทางที่สอง)
   async function ดึงชีต() {
     const ลิงก์ = ลิงก์ชีต.trim();
@@ -194,7 +203,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
             <button type="button" aria-label="ปิด" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}><X size={16} /></button>
           </div>
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 14 }}>
-            {/* 1 · ลิงก์ Google Sheets ทางเดียว (บอสสั่ง 20 พ.ย. 69 เอาปุ่มเลือกไฟล์ออก) · แบบฟอร์มตัวอย่าง */}
+            {/* 1 · ลิงก์ Google Sheets หรือ อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 · ปุ่มบนหน้ายังไม่มี) · แบบฟอร์มตัวอย่าง */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
               <button type="button" data-act="import-template" onClick={ดาวน์โหลดแบบฟอร์ม}
@@ -210,7 +219,13 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                 <button type="button" className="btn btn-primary btn-sm" disabled={กำลังดึงชีต || !ลิงก์ชีต} onClick={() => void ดึงชีต()}>
                   {กำลังดึงชีต ? "กำลังดึงข้อมูล…" : "ดึงข้อมูลจากชีต"}
                 </button>
-                <span style={{ flexBasis: "100%", fontSize: "0.68rem", color: "#6b7280" }}>ชีตต้องเปิดแชร์ &quot;ทุกคนที่มีลิงก์ดูได้&quot; · อ่านทุกชีต (หัวตารางเดียวกับไฟล์ Facebook) · ระบบไม่เก็บไฟล์</span>
+                <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#6b7280" }}>หรือ</span>
+                <label className="btn btn-secondary btn-sm" data-act="import-file" style={{ cursor: "pointer", gap: 6 }}>
+                  <Upload size={13} /> เลือกไฟล์ (.xlsx, .csv)
+                  <input type="file" aria-label="ไฟล์ผู้สนใจ" accept=".xlsx,.csv" hidden
+                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; void เลือกไฟล์(f); }} />
+                </label>
+                <span style={{ flexBasis: "100%", fontSize: "0.68rem", color: "#6b7280" }}>วางลิงก์ Google Sheets (ต้องเปิดแชร์ &quot;ทุกคนที่มีลิงก์ดูได้&quot;) หรือเลือกไฟล์ .xlsx / .csv จากเครื่อง · อ่านทุกชีต (หัวตารางเดียวกับไฟล์ Facebook) · ระบบไม่เก็บไฟล์</span>
               </div>
             )}
             {พลาด && <div role="alert" style={{ padding: "8px 12px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: "0.78rem", fontWeight: 600 }}>{พลาด}</div>}
