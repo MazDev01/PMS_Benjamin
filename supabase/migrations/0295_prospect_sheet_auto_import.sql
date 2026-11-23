@@ -443,3 +443,20 @@ select distinct on (k) k, p.import_batch_id
          where p.channel = 'Facebook') p
  order by k, p.id
 on conflict (key) do nothing;
+
+-- ═══ ถอนสิทธิ์ตัวนับเลข (sequence) ที่ใบเก่าเปิดให้คนนอกโดยไม่ตั้งใจ (คนรวมงานสั่ง 23 พ.ย. 69 · พบตอนถ่ายค่าสิทธิ์ใหม่) ═════════════════
+--   ค่าตั้งต้นของสคีมา public ให้ anon/authenticated ใช้ตัวนับเลขทุกตัวที่สร้างใหม่ → anon เลื่อนเลข/อ่านเลขล่าสุดได้ (เช่น hqd_move_0287_id_seq · ใบ 0287)
+--   anon ไม่ได้เพิ่มแถวเองในตารางใดเลย (กฎ RLS ทุกตัวต้องเข้าระบบ · งานของคนนอกทำผ่านคำสั่งของฐาน) → ถอนจาก anon ทุกตัว
+--   authenticated: ถอนเฉพาะตัวนับของตารางที่ผู้ใช้ไม่ได้เขียนตรง (hqd_move_0287 = ตารางย้อนกลับของระบบ) · ตัวอื่นคงไว้ (หน้าเว็บเพิ่มแถวตรงผ่านกฎ RLS)
+--   ตาราง (ไม่ใช่ตัวนับ) ที่ค่าตั้งต้นให้ anon ไว้ ป้องกันด้วยกฎ RLS ที่ต้องเข้าระบบ — ไม่แตะในใบนี้ (แจ้งคนรวมงานแยก)
+do $$
+declare s record;
+begin
+  for s in select c.relname from pg_class c
+            where c.relnamespace = 'public'::regnamespace and c.relkind = 'S'
+              and ((case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'USAGE') end) or (case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'SELECT') end) or (case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'UPDATE') end))
+  loop
+    execute format('revoke all on sequence public.%I from anon, public', s.relname);
+  end loop;
+end $$;
+revoke all on sequence public.hqd_move_0287_id_seq from anon, authenticated, public;

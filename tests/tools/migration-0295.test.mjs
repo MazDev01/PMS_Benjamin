@@ -28,10 +28,16 @@ set session_replication_role = origin;
 create table public.zz_ก่อน as select
   (select count(*) from public.dealer_prospects) as ราย,
   (select md5(string_agg(id || name || coalesce(phone, '') || status || created_at, ',' order by id)) from public.dealer_prospects) as ลาย,
-  (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'prospect_import_keys') as มีตารางกุญแจ;`;
+  (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'prospect_import_keys') as มีตารางกุญแจ,
+  (select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'S' and (case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'USAGE') end)) as ตัวนับanon;`;
 
 const สิทธิ์ = (บทบาท, fn) => `has_function_privilege('${บทบาท}', 'public.${fn}', 'execute')`;
 const หลังลงใบ = `select 'ก่อน=' || (select ราย || '|' || มีตารางกุญแจ from public.zz_ก่อน);
+select 'ตัวนับก่อน=' || (select ตัวนับanon from public.zz_ก่อน);
+select 'ตัวนับ=' || (select count(*) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'S'
+    and ((case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'USAGE') end) or (case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'SELECT') end) or (case when c.relkind = 'S' then has_sequence_privilege('anon', c.oid, 'UPDATE') end)))
+  || '|' || has_sequence_privilege('authenticated', 'public.hqd_move_0287_id_seq', 'USAGE')
+  || '|' || has_sequence_privilege('authenticated', 'public.dealer_prospects_id_seq', 'USAGE');
 select 'ลายคงเดิม=' || ((select ลาย from public.zz_ก่อน) = (select md5(string_agg(id || name || coalesce(phone, '') || status || created_at, ',' order by id)) from public.dealer_prospects));
 select 'หลังราย=' || (select count(*) from public.dealer_prospects);
 select 'กุญแจ=' || (select string_agg(key || '@' || batch_id, ',' order by key) from public.prospect_import_keys);
@@ -50,6 +56,8 @@ try {
   const ค่า = (k) => new RegExp(`(?:^|NOTICE:\\s+)${k}=(.*)$`, "m").exec(r.ผลตรวจ)?.[1]?.trim() ?? "(ไม่มีบรรทัด)";
   ผล(r.warnings.length === 0, "ลงใบแบบ db push ไม่มี WARNING", r.warnings.join("\n"));
   ผล(ค่า("ก่อน") === "5|0", "ก่อนลงใบ: ผู้สนใจ 5 ราย · ยังไม่มีตารางกุญแจแถว", ค่า("ก่อน"));
+  ผล(Number(ค่า("ตัวนับก่อน")) > 0, "ก่อนลงใบ: มีตัวนับเลขที่ anon ใช้ได้ (ค่าตั้งต้นของสคีมา)", ค่า("ตัวนับก่อน"));
+  ผล(ค่า("ตัวนับ") === "0|false|true", "หลังลงใบ: ตัวนับเลขทุกตัว anon ใช้ไม่ได้ · hqd_move_0287_id_seq ผู้ใช้ใช้ไม่ได้ · ตัวนับของตารางที่หน้าเว็บเขียนตรงคงเดิม", ค่า("ตัวนับ"));
   ผล(ค่า("หลังราย") === "5" && ค่า("ลายคงเดิม") === "true", "หลังลงใบ: ผู้สนใจ 5 ราย ไม่ถูกแก้/ลบ (ลายเซ็นแถวเท่าเดิม)", `${ค่า("หลังราย")} ${ค่า("ลายคงเดิม")}`);
   ผล(ค่า("กุญแจ") === "ZZTEST ก|0000002951|2026-11-20T10:15:00@951,ZZTEST ข|0000029|2026-11-21T09:00:00@951",
     "หลังลงใบ: กุญแจแถว 0 → 2 เฉพาะ Facebook ของชุดที่ยังไม่ยกเลิก (ไม่รวมไฟล์ทีม/ชุดยกเลิก/เพิ่มมือ) · รูปแบบ ชื่อ|ตัวเลข|เวลาไทย", ค่า("กุญแจ"));

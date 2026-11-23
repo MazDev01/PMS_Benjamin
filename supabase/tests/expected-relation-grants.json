@@ -29,7 +29,7 @@
    "r": "audit_log_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -53,7 +53,7 @@
    "r": "customer_notes_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -77,7 +77,7 @@
    "r": "dealer_account_changes_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -93,7 +93,7 @@
    "r": "dealer_account_requests_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -133,7 +133,7 @@
    "r": "dealer_notify_recipients_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -149,7 +149,7 @@
    "r": "dealer_package_proposals_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -173,7 +173,7 @@
    "r": "dealer_proposal_payments_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -189,7 +189,7 @@
    "r": "dealer_prospect_activities_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -205,7 +205,7 @@
    "r": "dealer_prospects_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -261,7 +261,7 @@
    "r": "email_outbox_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -285,7 +285,7 @@
    "r": "files_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -333,7 +333,7 @@
    "r": "hq_quotes_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -373,8 +373,8 @@
    "r": "hqd_move_0287_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
-   "authenticated": "SELECT,UPDATE,USAGE",
+   "anon": "",
+   "authenticated": "",
    "service_role": "SELECT,UPDATE,USAGE"
   },
   {
@@ -413,7 +413,7 @@
    "r": "material_import_batches_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -469,7 +469,7 @@
    "r": "notifications_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -493,7 +493,7 @@
    "r": "prospect_import_batches_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -525,7 +525,7 @@
    "r": "quotation_prints_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -589,7 +589,7 @@
    "r": "quote_request_events_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -605,7 +605,7 @@
    "r": "quote_requests_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
@@ -629,7 +629,7 @@
    "r": "responsible_persons_id_seq",
    "kind": "S",
    "rls": false,
-   "anon": "SELECT,UPDATE,USAGE",
+   "anon": "",
    "authenticated": "SELECT,UPDATE,USAGE",
    "service_role": "SELECT,UPDATE,USAGE"
   },
