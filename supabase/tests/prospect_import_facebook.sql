@@ -132,5 +132,35 @@ begin
   perform pftest.as_admin();
 end $$;
 
+-- ── 7) ใบ 0294: ยกเลิกทั้งชุด = ลบแจ้งเตือนชนิดผู้สนใจของรายในชุด + อีเมลค้างส่ง · ของรายอื่น/อีเมลที่ส่งแล้วไม่แตะ ──
+do $$
+declare r jsonb; b bigint; ก bigint; ข bigint; อื่น bigint;
+  ไฟล์ text := format('ZZTEST-FB-แจ้งเตือน-%s.xlsx', txid_current());
+begin
+  perform pftest.as_hq();
+  r := public.hq_prospects_import(ไฟล์, '[{"row":"n:2","name":"ZZTEST-FB-แจ้งก","phone":"0000008241","status":"new","follow_up_today":true},
+                                          {"row":"n:3","name":"ZZTEST-FB-แจ้งข","phone":"0000008242","status":"new","follow_up_today":true}]');
+  b := (r->>'batch')::bigint;
+  perform pftest.as_admin();
+  select id into ก from dealer_prospects where name = 'ZZTEST-FB-แจ้งก';
+  select id into ข from dealer_prospects where name = 'ZZTEST-FB-แจ้งข';
+  insert into dealer_prospects (name, phone, status) values ('ZZTEST-FB-รายอื่น', '000-000-8249', 'new') returning id into อื่น;
+  -- แจ้งเตือนแบบที่ตัวสแกนสร้าง (dedupe_key = ชนิด:id:…) + อีเมลค้างส่ง/ส่งแล้ว
+  insert into notifications (kind, audience, title, body, href, dedupe_key) values
+    ('prospect_followup_due', 'hq', 'ZZTEST', 'ZZTEST แจ้งก', '/hq/prospects?open=' || ก, 'prospect_followup_due:' || ก || ':zz'),
+    ('prospect_idle', 'hq', 'ZZTEST', 'ZZTEST แจ้งข', '/hq/prospects?open=' || ข, 'prospect_idle:' || ข || ':zz'),
+    ('prospect_followup_due', 'hq', 'ZZTEST', 'ZZTEST รายอื่น', '/hq/prospects?open=' || อื่น, 'prospect_followup_due:' || อื่น || ':zz');
+  insert into email_outbox (kind, to_email, subject, body, ref_table, ref_id, dedupe_key, status) values
+    ('prospect_followup_due', 'zz@example.test', 'ZZTEST', 'ZZTEST', 'dealer_prospects', ก::text, 'zz-ค้าง-' || ก, 'pending'),
+    ('prospect_followup_due', 'zz@example.test', 'ZZTEST', 'ZZTEST', 'dealer_prospects', ข::text, 'zz-ส่งแล้ว-' || ข, 'sent');
+  perform pftest.as_hq();
+  perform pftest.ok((public.hq_prospects_import_cancel(b)->>'deleted')::int = 2, '7) ยกเลิกทั้งชุด ลบ 2 ราย');
+  perform pftest.as_admin();
+  perform pftest.ok(not exists (select 1 from notifications where dedupe_key in ('prospect_followup_due:' || ก || ':zz', 'prospect_idle:' || ข || ':zz')), '7) แจ้งเตือนของรายในชุดหายตาม');
+  perform pftest.ok(exists (select 1 from notifications where dedupe_key = 'prospect_followup_due:' || อื่น || ':zz'), '7) แจ้งเตือนของรายอื่นยังอยู่');
+  perform pftest.ok(not exists (select 1 from email_outbox where dedupe_key = 'zz-ค้าง-' || ก), '7) อีเมลค้างส่งของรายในชุดหาย');
+  perform pftest.ok(exists (select 1 from email_outbox where dedupe_key = 'zz-ส่งแล้ว-' || ข), '7) อีเมลที่ส่งแล้วเก็บเป็นประวัติ');
+end $$;
+
 select 'ALL PASS' as result;
 rollback;
