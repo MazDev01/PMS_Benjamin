@@ -100,7 +100,8 @@ test("[ui·hq] ไฟล์ Facebook 2 ชีต → หน้าตัวอย
   // ตารางผู้สนใจ: ป้าย "เบอร์ซ้ำกับ …" ทั้งสองราย · เบอร์ไม่ครบ = "ข้อมูลไม่ครบ" (ไม่ใช่แค่หน้าตัวอย่าง · คนรวมงาน 23 พ.ย. 69)
   await page.keyboard.press("Escape");
   await page.getByPlaceholder(/ค้นหาชื่อ/).fill(แท็ก);
-  const แถวตาราง = (ชื่อ: string) => page.getByRole("row").filter({ hasText: ชื่อ });
+  // แถวตามชื่อในช่องชื่อ (title ตรงตัว) — ไม่ใช้ hasText: ป้าย "เบอร์ซ้ำกับ …" ของอีกแถวมีชื่อนี้อยู่ด้วย
+  const แถวตาราง = (ชื่อ: string) => page.getByRole("row").filter({ has: page.getByTitle(ชื่อ, { exact: true }) });
   await expect(แถวตาราง(`${แท็ก} ซ้ำในไฟล์`).locator('[data-tag="phone-dup"]')).toContainText(`เบอร์ซ้ำกับ ${แท็ก} หนึ่ง`, { timeout: 20_000 });
   await expect(แถวตาราง(`${แท็ก} หนึ่ง`).locator('[data-tag="phone-dup"]')).toContainText(`${แท็ก} ซ้ำในไฟล์`);
   await expect(แถวตาราง(`${แท็ก} เบอร์ไม่ครบ`).locator('[data-tag="incomplete"]')).toContainText("เบอร์ไม่ครบ");

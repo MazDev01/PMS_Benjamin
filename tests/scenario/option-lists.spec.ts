@@ -133,7 +133,8 @@ test("[func·dealer] ประเภทนัด call / meeting / site_visit แ
   const แผง = page.locator("[data-row-panel]").last();
   await expect(แผง).toBeVisible({ timeout: 30_000 });
   for (const [ชื่องาน, ชื่อประเภท] of [[`ZZTEST นัดโทร ${ฐาน}`, "โทรติดตาม"], [`ZZTEST นัดประชุม ${ฐาน}`, "ประชุม"], [`ZZTEST นัดหน้างาน ${ฐาน}`, "นัดดูหน้างาน"]] as const) {
-    const นัด = แผง.locator("div").filter({ has: page.getByText(ชื่องาน, { exact: true }) }).last();
+    // กล่องของนัด = แม่ของบรรทัดชื่อนัด (ชื่อ + บรรทัด "ประเภท · วัน · เวลา") — เดิม filter({has}).last() ได้บรรทัดชื่อเอง (deploy31 · หน้าจอถูก)
+    const นัด = แผง.getByText(ชื่องาน, { exact: true }).locator("..");
     await expect(นัด, `นัด ${ชื่องาน}`).toContainText(`${ชื่อประเภท} · `, { timeout: 20_000 });
   }
   await page.goto(`${DEALER_ORIGIN}/calendar`, { waitUntil: "domcontentloaded" });

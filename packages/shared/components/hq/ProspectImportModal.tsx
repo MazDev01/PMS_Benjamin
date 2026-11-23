@@ -81,7 +81,9 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   const [กำลังตั้ง, setกำลังตั้ง] = useState(false);
   const [กำลังดึงตอนนี้, setกำลังดึงตอนนี้] = useState(false);
   const โหลดซิงก์ = () => apiFetch<สถานะดึงชีต>("/prospect-sheet").then(s => {
-    setซิงก์(s); setอัตโนมัติ(s.enabled); setลิงก์ชีต(v => v || s.url);
+    // คำตอบไม่ใช่สถานะ (ไม่มี url) = ไม่แสดงส่วนดึงอัตโนมัติ ไม่ใช่หน้าพัง (deploy31: ได้ตารางชีตแทนสถานะ → .trim ของ undefined)
+    if (!s || typeof s.url !== "string") { setซิงก์(null); return; }
+    setซิงก์(s); setอัตโนมัติ(!!s.enabled); setลิงก์ชีต(v => v || s.url);
   }).catch(() => setซิงก์(null));
   useEffect(() => { if (open) void โหลดซิงก์(); }, [open]);
   const โหลดชุด = () => prospectsRepo.importBatches().then(setชุด).catch(() => setชุด([]));

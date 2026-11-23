@@ -121,7 +121,9 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   // จำลองคำตอบเส้นทางดึงชีต (ในเบราว์เซอร์นี้เท่านั้น) — ตารางจากไฟล์ปลอม แปลงด้วยตัวอ่านเดียวกับเซิร์ฟเวอร์ · ไม่ดึง Google Sheets จริง
   const ไบต์ = readFileSync(ไฟล์);
   const ตาราง = [...(await แยกสมุดงานจากXlsx(ไบต์.buffer.slice(ไบต์.byteOffset, ไบต์.byteOffset + ไบต์.byteLength) as ArrayBuffer)).entries()];
-  await page.route("**/api/v1/prospect-sheet", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
+  // จำลองเฉพาะ POST (ดึงชีต) — GET = สถานะดึงอัตโนมัติ (ใบ 0295) ไปฐานจริง
+  await page.route("**/api/v1/prospect-sheet", r => r.request().method() !== "POST" ? r.continue()
+    : r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ fileName: ชื่อไฟล์, sheets: ตาราง }) }));
   await page.getByRole("button", { name: "นำเข้าจาก Google Sheets", exact: true }).click();
   const กล่อง = page.getByRole("dialog", { name: "นำเข้าผู้สนใจ" });
   await expect(กล่อง.locator('input[type="file"]'), "ในหน้าต่างมีช่องเลือกไฟล์ 1 ตัว (บอสสั่ง 23 พ.ย. 69 · บนหน้ายังไม่มี)").toHaveCount(1);
