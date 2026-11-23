@@ -12,7 +12,9 @@ import { ช่องผู้สนใจครบ, เบอร์ทดสอ
 //   2) ฟอร์มผู้สนใจเป็นดีลเลอร์ ใช้รายการที่ตั้ง: แหล่งที่มาเป็นดรอปดาวน์ · เหตุผลเลือกจากรายการ
 //   3) ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น: เงื่อนไข · วันมีผล
 //   3 พ.ย. 69 (บอสสั่ง · ตาม FLOW H2–H5 · กลับด้านข้อเดิม): แท็บไม่มี ชื่องานตามขั้น · ประเภทธุรกิจ · ช่องทางในบันทึกการติดต่อ
-//      ชื่องาน = 4 งานตาม FLOW ตายตัว · ประเภทธุรกิจพิมพ์เอง · ช่องทางติดต่อ = รายการตายตัว · ค่าตั้งต้นจากใบ 0274: เหตุผล 4 ข้อ + อายุใบ 7 วัน
+//      ชื่องาน = 4 งานตาม FLOW ตายตัว · ประเภทธุรกิจพิมพ์เอง · ช่องทางติดต่อ = รายการตายตัว · ค่าตั้งต้นจากใบ 0274: อายุใบ 7 วัน
+//   19 พ.ย. 69 (บอสตัดสิน · ใบ 0296 · กลับด้านข้อเดิม): เหตุผลที่ไม่สำเร็จย้ายจากแท็บนี้ไป "รายการกลาง" (option_lists · เก็บรหัส)
+//      แท็บหาดีลเลอร์ไม่มีช่องเพิ่มเหตุผลแล้ว · กล่องไม่สำเร็จใช้รายการกลาง · ค่าตั้งต้น 4 ข้อ + อื่น ๆ (ระบุ)
 // ค่าตั้งเป็นแถวเดียวของทั้งระบบ — เก็บของเดิมไว้แล้วคืนให้ท้ายไฟล์เสมอ
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(240_000);
@@ -70,11 +72,12 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await expect(page.getByLabel(/^ชื่องาน /)).toHaveCount(0);
   await expect(page.locator("[data-section-card] .card-title").filter({ hasText: /^แหล่งที่มา$/ }), "แหล่งที่มายังอยู่").toHaveCount(1);
   await เพิ่ม("แหล่งที่มา", "TikTok ทดสอบ");
-  await เพิ่ม("เหตุผลที่ไม่สำเร็จ", "เงินทุนไม่พอ (ทดสอบ)");
   // ใส่ซ้ำต้องไม่ได้สองรายการ
-  await page.getByRole("textbox", { name: "เพิ่มเหตุผลที่ไม่สำเร็จ" }).fill("เงินทุนไม่พอ (ทดสอบ)");
-  await page.getByRole("button", { name: "เพิ่มเหตุผลที่ไม่สำเร็จ" }).click();
-  await expect(page.getByText("“เงินทุนไม่พอ (ทดสอบ)” มีอยู่แล้ว")).toBeVisible();
+  await page.getByRole("textbox", { name: "เพิ่มแหล่งที่มา" }).fill("TikTok ทดสอบ");
+  await page.getByRole("button", { name: "เพิ่มแหล่งที่มา" }).click();
+  await expect(page.getByText("“TikTok ทดสอบ” มีอยู่แล้ว")).toBeVisible();
+  // เหตุผลที่ไม่สำเร็จย้ายไปแท็บรายการกลาง (ใบ 0296) — แท็บนี้ไม่มีช่องเพิ่มเหตุผลแล้ว
+  await expect(page.getByRole("textbox", { name: "เพิ่มเหตุผลที่ไม่สำเร็จ", exact: true }), "เหตุผลย้ายไปรายการกลาง").toHaveCount(0);
 
   await page.getByLabel("อายุใบค่าแฟรนไชส์ (วัน)").fill("30");
   await page.getByLabel("ชื่อผู้ลงนาม").fill("คุณทดสอบ ลงนาม");
@@ -86,7 +89,6 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await expect.poll(async () => (await sb.from("hq_recruit_settings").select("config").eq("id", 1).single()).data?.config, { timeout: 20_000 })
     .toMatchObject({
       channels: [...ช่องทางที่เข้ามาเริ่มต้น, "TikTok ทดสอบ"],
-      lostReasons: ["เงินทุนไม่พอ (ทดสอบ)"],
       proposal: {
         validityDays: 30, signerName: "คุณทดสอบ ลงนาม", terms: "ข้อทดสอบหนึ่ง",
       },
@@ -127,13 +129,15 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await แผง.getByRole("tab", { name: "งาน/ความคืบหน้า" }).click();
   await expect(แผง.getByRole("checkbox", { name: "ส่งข้อมูลบริษัท" }), "ชื่องานตาม FLOW").toBeVisible({ timeout: 15_000 });
   await แผง.getByRole("button", { name: "ไม่สำเร็จ", exact: true }).click();
-  // กล่องเหตุผลกลาง (28 ต.ค. 69) — รายการที่ตั้งไว้เป็นปุ่มให้เลือก (เดิม select#pj-lost-reason)
+  // กล่องเหตุผลกลาง (28 ต.ค. 69) — ตัวเลือก = รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0296) · ฐานเก็บรหัส
   const กล่อง = page.locator("[data-reason-dialog]");
-  await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ (ทดสอบ)" }), "ตั้งรายการเหตุผลแล้วต้องเลือกจากรายการ").toBeVisible();
+  await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ", exact: true }), "เลือกจากรายการกลาง").toBeVisible();
+  await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true }), "อื่น ๆ (ระบุ) อยู่ในรายการ (เขียนแบบเดียว)").toBeVisible();
+  await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "อื่นๆ (ระบุเอง)", exact: true }), "ไม่เติมปุ่มอื่นๆ ซ้ำ").toHaveCount(0);
   await expect(กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }), "ยังไม่เลือกเหตุผล = กดยืนยันไม่ได้").toBeDisabled();
-  await กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ (ทดสอบ)" }).click();
+  await กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ", exact: true }).click();
   await กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }).click();
-  await waitRow(sb, "dealer_prospects", { name, status: "lost", lost_reason: "เงินทุนไม่พอ (ทดสอบ)" });
+  await waitRow(sb, "dealer_prospects", { name, status: "lost", lost_reason: "no_capital" });
   assertNoErrors(errs, "ตั้งค่าหาดีลเลอร์ → ฟอร์มลูกค้าเป้าหมาย");
 });
 
@@ -178,9 +182,13 @@ test("[func·hq] ใบค่าแฟรนไชส์ใหม่เติม
   assertNoErrors(errs, "ใบค่าแฟรนไชส์ใหม่เติมค่าตั้งต้น");
 });
 
-test("[func·hq] ค่าตั้งต้นจากใบ 0274: เหตุผลที่ไม่สำเร็จ 4 ข้อ · ใบค่าแฟรนไชส์ใหม่อายุ 7 วัน", async ({ page }) => {
-  // ค่าที่ฐานมีก่อนข้อนี้ = ผลของใบ 0274 บนข้อมูลตั้งต้น (เหมือนระบบจริงหลังลงใบ)
-  expect((ค่าตั้งเดิม as { lostReasons?: string[] }).lostReasons, "เหตุผลตั้งต้น").toEqual(["เงินทุนไม่พอ", "ยังไม่พร้อม", "เลือกแบรนด์อื่น", "ทำเลไม่เหมาะ"]);
+test("[func·hq] ค่าตั้งต้น: เหตุผลที่ไม่สำเร็จ 4 ข้อ + อื่น ๆ (ระบุ) ในรายการกลาง (ใบ 0296) · ใบค่าแฟรนไชส์ใหม่อายุ 7 วัน (ใบ 0274)", async ({ page }) => {
+  // เหตุผลตั้งต้นอยู่ที่รายการกลาง (ใบ 0296) — ค่าเดิมใน hq_recruit_settings.config.lostReasons คงไว้ ไม่มีที่อ่าน
+  const เหตุผล = await (await db(ADMIN)).from("option_lists").select("code, label, free_text").eq("list", "prospect_lost_reason")
+    .in("code", ["no_capital", "not_ready", "other_brand", "bad_location", "other"]).order("sort");
+  expect(เหตุผล.error).toBeNull();
+  expect((เหตุผล.data ?? []).map(r => r.label), "เหตุผลตั้งต้น").toEqual(["เงินทุนไม่พอ", "ยังไม่พร้อม", "เลือกแบรนด์อื่น", "ทำเลไม่เหมาะ", "อื่น ๆ (ระบุ)"]);
+  expect((เหตุผล.data ?? []).find(r => r.code === "other")?.free_text, "อื่น ๆ (ระบุ) = เลือกแล้วพิมพ์เอง").toBe(true);
   expect((ค่าตั้งเดิม as { proposal?: { validityDays?: number } }).proposal?.validityDays, "อายุใบตั้งต้น").toBe(7);
   const sb = await db(ADMIN);
   expect((await sb.from("hq_recruit_settings").upsert({ id: 1, config: ค่าตั้งเดิม })).error).toBeNull();

@@ -14,6 +14,8 @@ import { สร้างไฟล์Xlsx } from "../../packages/shared/lib/expor
 //   หัวตารางแถว 2 · แถวหัวข้อแทรก ("BJM PEB" · "BJM PEB โทรแล้ว") ถูกข้าม · แถวรวมช่องเดียว → ต้องตรวจ · จังหวัดย่อจับคู่ถูก
 //   24.8 + ปีที่เลือก → วันที่ถูก · เบอร์ซ้ำในไฟล์ → ข้าม · นำเข้าซ้ำ → ฐานไม่สร้างซ้ำ · ยกเลิกทั้งชุดได้
 //   ตกบนโค้ดก่อนใบ 0275: ไม่มีปุ่ม/คำสั่งนำเข้า
+//   รายการกลาง (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296): แหล่งที่มาจับคู่จากชื่อในรายการเท่านั้น (ไม่ตรง = ยังไม่ระบุ · HQ เลือกเองในตารางแปลง)
+//     เหตุผลไม่สำเร็จไม่เดาจากคำ ("ไม่มีทุน" ≠ ชื่อในรายการ) → HQ เลือกจากรายการกลางในหน้าตรวจ · ฐานเก็บรหัส (no_capital)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.describe.configure({ mode: "serial" });
 test.setTimeout(240_000);
@@ -33,7 +35,7 @@ test.beforeAll(async () => {
     หัว,
     [],
     ["", "", "BJM PEB"],
-    ["31", `${แท็ก} เพจหนึ่ง`, เบอร์(1), "บุรีรัมย์", "", "24.8", "", "", "ไม่มีคนรับ", "FB"],
+    ["31", `${แท็ก} เพจหนึ่ง`, เบอร์(1), "บุรีรัมย์", "", "24.8", "", "", "ไม่มีคนรับ", "Facebook"],
     ["34", `${แท็ก} เพจสอง`, เบอร์(2), "นราธิวาส ปัตตานี ยะลา", `${แท็ก} สอง`, "25.8", "", "ทำอสังหาฯ", "ส่ง Company Profiles แล้ว", "Line Pu"],
     ["37", `${แท็ก} เพจสาม`, เบอร์(3), "อุบล", `${แท็ก} สาม`, "25.8", "18.4", "", "ไม่มีทุน", "Line OA", "", "DM ปลอม"],
     ["", "", "BJM PEB โทรแล้ว"],
@@ -63,9 +65,10 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   const วันนี้ = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
   const ปีเริ่ม = (mmdd: string) => (`${ปี}-${mmdd}` > วันนี้ ? ปี - 1 : ปี);
   await expect(กล่อง.locator("#pi-year"), "ถามปีครั้งเดียว (ค่าตั้งต้นปีนี้)").toHaveValue(String(ปี + 543));
-  // ตารางแปลงช่องทาง (แก้ได้)
-  await expect(กล่อง.getByLabel("แหล่งที่มาของ FB")).toHaveValue("Facebook");
-  await expect(กล่อง.getByLabel("แหล่งที่มาของ Line Pu")).toHaveValue("LINE ส่วนตัว");
+  // ตารางแปลงช่องทาง: ตรงชื่อในรายการ = จับคู่เอง · ไม่ตรง = ยังไม่ระบุ (ไม่เดา) → HQ เลือกเอง
+  await expect(กล่อง.getByLabel("แหล่งที่มาของ Facebook", { exact: true })).toHaveValue("Facebook");
+  await expect(กล่อง.getByLabel("แหล่งที่มาของ Line Pu", { exact: true }), "ไม่ตรงชื่อในรายการ = ยังไม่ระบุ").toHaveValue("");
+  await กล่อง.getByLabel("แหล่งที่มาของ Line Pu", { exact: true }).selectOption("LINE ส่วนตัว");
   await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
 
   const นับ = (g: string) => กล่อง.locator(`[role="tab"][data-group="${g}"] [data-count]`);
@@ -78,6 +81,11 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   // จังหวัดย่อจับคู่ถูก (อุบล → อุบลราชธานี) · ยืนยันทุกแถวที่ต้องตรวจ
   const แถวอุบล = ตรวจ.locator("tr").filter({ hasText: เบอร์จัดรูป(3) });
   await expect(แถวอุบล.locator("select[aria-label^='จังหวัด']")).toHaveValue("อุบลราชธานี");
+  // ไม่สำเร็จ ("ไม่มีทุน") = เหตุผลว่าง ต้องเลือกจากรายการกลาง · ตัวเลือกเป็นรหัส ชื่อตามรายการ
+  const เหตุผลอุบล = แถวอุบล.locator("select[aria-label^='เหตุผล แถว']");
+  await expect(เหตุผลอุบล, "ไม่เดาเหตุผลจากคำในหมายเหตุ").toHaveValue("");
+  await เหตุผลอุบล.selectOption({ label: "เงินทุนไม่พอ" });
+  await expect(เหตุผลอุบล).toHaveValue("no_capital");
   for (const n of [2, 3, 4]) await ตรวจ.locator("tr").filter({ hasText: เบอร์จัดรูป(n) }).getByRole("button", { name: /^ยืนยัน แถว/ }).click();
   await expect(นับ("ready")).toHaveAttribute("data-count", "4");
   await กล่อง.getByRole("button", { name: "นำเข้า 4 ราย" }).click();
@@ -93,7 +101,7 @@ test("[ui·hq] นำเข้าไฟล์ทำงานจริง (ปล
   expect(ของ(2).note).toContain("จังหวัดอื่นในไฟล์: ปัตตานี ยะลา");
   // ใบ 0277 (ตรวจกลับด้าน — เดิม follow_up = วันติดตามในไฟล์): ช่อง "ติดตาม" = วันที่ตามไปแล้ว → นัดติดตามว่างเสมอ (บอสสั่ง 5 พ.ย. 69)
   //   ติดตาม 18.4 หลังเริ่ม 25.8 = เม.ย. ปีถัดไป · ยังไม่ถึง = เกินวันนี้ → ไม่ลงวันนั้น เก็บค่าเดิมในหมายเหตุ (N6)
-  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "เงินทุนไม่พอ", first_contact: `${ปีเริ่ม("08-25")}-08-25`, follow_up: null });
+  expect(ของ(3)).toMatchObject({ province: "อุบลราชธานี", status: "lost", lost_reason: "no_capital", first_contact: `${ปีเริ่ม("08-25")}-08-25`, follow_up: null });
   if (`${ปีเริ่ม("08-25") + 1}-04-18` > วันนี้) expect(ของ(3).note ?? "", "วันติดตามเกินวันนี้ → ค่าเดิมอยู่ในหมายเหตุ").toContain("วันติดตามในไฟล์: 18.4");
   expect(ของ(4)).toMatchObject({ name: `${แท็ก} รวม สกุลรวม`, province: "นครสวรรค์" });
   assertNoErrors(errs, "นำเข้าผู้สนใจ");

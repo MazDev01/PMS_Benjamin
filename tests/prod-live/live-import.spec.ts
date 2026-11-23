@@ -140,7 +140,10 @@ test("[live·นำเข้า] ไฟล์ทำงานจริง (ปล
   await expect(กล่อง.getByLabel("คอลัมน์ แหล่งที่มา")).toHaveValue("9");
   await expect(กล่อง.locator("#pi-year"), "ค่าตั้งต้น = ปีนี้ (พ.ศ.)").toHaveValue(String(ปี + 543));
   await กล่อง.locator("#pi-year").selectOption(String(ปี + 543));   // ใส่ปี (ครั้งเดียวทั้งไฟล์)
-  await expect(กล่อง.getByLabel("แหล่งที่มาของ FB")).toHaveValue("Facebook");
+  // แหล่งที่มา (รายการกลาง · บอสตัดสิน 19 พ.ย. 69 · ไม่เดา): ค่าในไฟล์ที่ไม่ตรงชื่อในรายการ = ยังไม่ระบุ → HQ เลือกเองในตารางแปลงช่องทาง
+  await expect(กล่อง.getByLabel("แหล่งที่มาของ FB", { exact: true }), "FB ไม่ตรงชื่อในรายการ = ยังไม่ระบุ").toHaveValue("");
+  for (const [ในไฟล์, ในรายการ] of [["FB", "Facebook"], ["Direct", "โทรเข้ามาเอง"], ["Line Pu", "LINE ส่วนตัว"], ["Line OA", "LINE OA"]] as const)
+    await กล่อง.getByLabel(`แหล่งที่มาของ ${ในไฟล์}`, { exact: true }).selectOption(ในรายการ);
   await กล่อง.getByRole("button", { name: "ไปหน้าตรวจ" }).click();
 
   // ── 3) หน้าตรวจ ──

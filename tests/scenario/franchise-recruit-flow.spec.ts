@@ -115,10 +115,12 @@ test("[H2] [H3] [H4] [H5] [flow·hq] หาดีลเลอร์ใหม่�
   const ถาม = page.getByRole("alertdialog", { name: `ปฏิเสธใบ ${v2no} ?` });
   await expect(ถาม).toBeVisible();
   await expect(ถาม.getByRole("button", { name: "ปฏิเสธใบนี้" }), "ยังไม่กรอกเหตุผล กดปฏิเสธไม่ได้").toBeDisabled();
+  // เหตุผล = รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296) · อื่น ๆ (ระบุ) = พิมพ์เอง เก็บ "other:ข้อความ"
+  await ถาม.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true }).click();
   await ถาม.getByLabel("เหตุผลที่ปฏิเสธ").fill("ค่าแรกเข้ายังสูงเกินงบ");
   await ถาม.getByRole("button", { name: "ปฏิเสธใบนี้" }).click();
-  await waitRow(sb, "dealer_package_proposals", { id: v2.id, status: "rejected", close_reason: "ค่าแรกเข้ายังสูงเกินงบ" });
-  await expect(แผง.getByTestId(`เหตุผลปิด-${v2no}`)).toHaveText("เหตุผล: ค่าแรกเข้ายังสูงเกินงบ");
+  await waitRow(sb, "dealer_package_proposals", { id: v2.id, status: "rejected", close_reason: "other:ค่าแรกเข้ายังสูงเกินงบ" });
+  await expect(แผง.getByTestId(`เหตุผลปิด-${v2no}`)).toHaveText("เหตุผล: อื่น ๆ: ค่าแรกเข้ายังสูงเกินงบ");
   await waitRow(sb, "dealer_prospects", { id: ราย.id, status: "meeting" });
 
   // เจรจาต่อ: เวอร์ชัน 3 จากใบที่ปฏิเสธ → ส่ง

@@ -35,7 +35,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
   /** เปิดฟอร์มออกใบใหม่ให้ครั้งเดียวหลังโหลดรายการเสร็จ (ปุ่มลัด "ออกใบค่าแฟรนไชส์" / งานส่งใบเสนอ) */
   เปิดฟอร์มทันที?: boolean;
 }) {
-  const { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ } = useProposalActions();
+  const { พิมพ์, เปลี่ยนสถานะ, ทำเวอร์ชันใหม่, ลบใบ, ป้ายเหตุผลปิด } = useProposalActions();
   const [list, setList] = useState<DealerPackageProposal[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState("");
@@ -141,7 +141,7 @@ export function ProspectProposalsPanel({ prospect, editable, onChange, เปิ
                         </div>
                       )}
                       {p.closeReason && (
-                        <div data-testid={`เหตุผลปิด-${p.proposalNo ?? ""}`} style={{ fontSize: "0.7rem", color: "#991b1b" }}>เหตุผล: {p.closeReason}</div>
+                        <div data-testid={`เหตุผลปิด-${p.proposalNo ?? ""}`} style={{ fontSize: "0.7rem", color: "#991b1b" }}>เหตุผล: {ป้ายเหตุผลปิด(p)}</div>
                       )}
                     </div>
                     {editable && สถานะที่เปลี่ยนไปได้(p.status).length > 1 ? (

@@ -126,7 +126,7 @@ export async function สร้าง(ctx) {
         phone: เบอร์งาน(n), email: `sample-${s.code.toLowerCase()}-${i + 1}@example.test`,
         address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province), province: s.province, product: "โกดังเก็บสินค้า", project: "โกดังเก็บสินค้า", area: String(พื้นที่ตามสถานการณ์[i]),
         // หมายเหตุ = ความต้องการของลูกค้าแบบจริง (สถานการณ์ของรายนี้อยู่ในรายการ สถานการณ์ ด้านบน · เดิมขึ้นบนจอ "ข้อมูลตัวอย่าง: D5x …")
-        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["แนะนำต่อ", "เว็บไซต์", "Facebook", "LINE", "ลูกค้าเข้ามาเอง", "งานแสดงสินค้า"][i % 6], assigned: ผู้รับผิดชอบ, status: "WAITING",
+        note: หมายเหตุลีด(n, พื้นที่ตามสถานการณ์[i]), source: ["referral", "website", "facebook", "line", "walk_in", "exhibition"][i % 6],   // รหัสในรายการกลาง "ช่องทางที่มา" (ใบ 0290) assigned: ผู้รับผิดชอบ, status: "WAITING",
         created_label: ป้ายวัน(วัน(-เส้นเวลา[i][0])),
       }), `สร้างลีด ${company}`);
       return { n, company };
@@ -223,7 +223,7 @@ export async function สร้าง(ctx) {
   for (const [i, จังหวัด] of ["ระยอง", "เชียงใหม่", "ชลบุรี"].entries()) {
     const n = 996_900_000 + i, company = ชื่อบริษัทสมจริง(`HQ:${n}`);
     ต้อง(await svc.from("leads").insert({ id: รหัสลีด(n), num_id: n, dealer_code: "HQ", company, name: company, contact: ผู้ติดต่อสมจริง(`HQ:${n}`),
-      phone: เบอร์งาน(n), province: จังหวัด, product: "โรงงาน", source: "เว็บไซต์", status: "WAITING",
+      phone: เบอร์งาน(n), province: จังหวัด, product: "โรงงาน", source: "website", status: "WAITING",
       note: "กรอกฟอร์มติดต่อผ่านเว็บไซต์ · สนใจสร้างโรงงานโครงเหล็ก ขอให้ดีลเลอร์ในพื้นที่ติดต่อกลับ",   // H6 ลีดของ HQ รอโอนให้ดีลเลอร์
       created_label: ป้ายวัน(วัน()) }), `ลีด HQ ${company}`);
   }
@@ -246,7 +246,7 @@ export async function สร้าง(ctx) {
     const r = ต้อง(await hq.from("dealer_prospects").insert({ name: `${ผู้ติดต่อสมจริง(`ผู้สนใจ:${i}`)} (ตัวอย่าง)`, province, status,
       social: [`เพจ ${province}วัสดุก่อสร้าง`, null, `LINE ${province} โฮมเซ็นเตอร์`, `เพจ ช่างเหล็ก${province}`, null, `LINE ร้านเหล็ก${province}`][i] ?? null,
       phone: `000-000-${String(8000 + i)}`, email: `sample-prospect-${i + 1}@example.test`, channel: ["Facebook", "LINE OA", "แนะนำต่อ", "โทรเข้ามาเอง"][i % 4], first_contact: วัน(-14 - i * 3),
-      note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "ยังไม่พร้อมลงทุน" } : {}),
+      note: หมายเหตุผู้สนใจ[status], ...(status === "lost" ? { lost_reason: "not_ready" } : {}),   // รหัสในรายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0290)
       follow_up: ติดตาม == null ? null : วัน(ติดตาม) }).select("id").single(), `ผู้สนใจ ${status}`);
     pid[status] = r.id;
   }

@@ -70,7 +70,7 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
   expect((await ขั้น()).status, "ส่งใบแล้วต้องเลื่อนเป็นรอตัดสินใจเอง").toBe("considering");
 
   // ปิดไม่สำเร็จ → เปิดใหม่กลับขั้นเดิมได้ · เป็นดีลเลอร์ต้องผูกรหัส · เป็นดีลเลอร์แล้วเปลี่ยนไม่ได้
-  expect((await sb.from("dealer_prospects").update({ status: "lost", lost_reason: "ไม่มีทุน" }).eq("id", id)).error).toBeNull();
+  expect((await sb.from("dealer_prospects").update({ status: "lost", lost_reason: "no_capital" }).eq("id", id)).error).toBeNull();
   expect((await sb.from("dealer_prospects").update({ status: "considering", lost_reason: null }).eq("id", id)).error).toBeNull();
   const ไม่มีรหัส = await sb.from("dealer_prospects").update({ status: "won" }).eq("id", id).select();
   expect(ไม่มีรหัส.error?.message ?? "").toMatch(/ผูกกับดีลเลอร์/);
@@ -85,7 +85,8 @@ test("[db] กติกาเลื่อนขั้น + บันทึกก
   expect([...ชนิด].sort()).toEqual(["contact", "created", "proposal", "status"]);
   const ข้อความ = (ประวัติ ?? []).map(a => (a as { body: string }).body);
   expect(ข้อความ).toContain("รอติดต่อ → ติดต่อแล้ว");
-  expect(ข้อความ).toContain("ปิดว่าไม่สำเร็จ · เหตุผล: ไม่มีทุน");
+  // เหตุผลเก็บรหัสในรายการกลาง (ใบ 0296) — ประวัติเขียนชื่อ ไม่ใช่รหัส
+  expect(ข้อความ).toContain("ปิดว่าไม่สำเร็จ · เหตุผล: เงินทุนไม่พอ");
   expect(ข้อความ).toContain("เป็นดีลเลอร์แล้ว · รหัส RYG");
   expect(ข้อความ.some(t => /^ใบค่าแฟรนไชส์ DP-\d{4}-\d{4} · ส่งแล้ว$/.test(t))).toBe(true);
 });

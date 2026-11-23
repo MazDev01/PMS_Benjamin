@@ -5,7 +5,8 @@ import { ModalCard } from "@pms/shared/components/ui/ModalCard";
 import { useState, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ยืนยัน } from "@pms/shared/components/ui/ConfirmToast";
-import { apptTypeLabel, ป้ายประเภทนัด, fmtISOToThai, นัดยังเปิด, ป้ายสถานะนัด, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
+import { useOptionList } from "@pms/shared/lib/useOptionList";
+import { fmtISOToThai, นัดยังเปิด, ป้ายสถานะนัด, DEFAULT_DEALER_CODE, type AppointmentMock, type ApptType } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/context/FilterContext";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -40,19 +41,14 @@ const BUCKET_META: Record<ActivityBucket, { label: string; labelTh: string; colo
   quotation: { label: "Quotation Due", labelTh: "ใบเสนอราคาครบกำหนด", color: "#dc2626", bg: "#fdecec" },
 };
 
-// Map the mock ApptType values to activity buckets.
-// visit / design_meet / presentation / contract_sign / close → Meeting
-// follow_up → Follow-up
-const APPT_BUCKET: Record<ApptType, ActivityBucket> = {
-  visit:         "meeting",
-  design_meet:   "meeting",
-  presentation:  "meeting",
-  contract_sign: "meeting",
-  close:         "meeting",
+// สีของนัดตามรหัสประเภท (รายการกลาง "appointment_type" · ใบ 0296) — ชื่อที่แสดงอ่านจากรายการ ไม่ใช่ที่นี่
+// follow_up / call → Follow-up · รหัสอื่นทั้งหมด (รวมตัวที่ HQ เพิ่มเอง) → Meeting
+const APPT_BUCKET: Record<string, ActivityBucket> = {
   follow_up:     "followup",
+  call:          "followup",
 };
 
-// a.type ที่ไม่ตรงกับ 6 ค่าที่รู้จัก (ข้อมูลเก่า/ผิดปกติจาก DB ที่ไม่มี CHECK constraint คุม) → fallback เป็น meeting
+// a.type ที่ไม่อยู่ในตารางสี (ข้อมูลเก่า/ผิดปกติจาก DB ที่ไม่มี CHECK constraint คุม) → fallback เป็น meeting
 // แทนที่จะคืน undefined แล้วพังตอนอ่าน .color (พบจาก QA sweep 30 ก.ค. 69 — หน้าปฏิทินเปิดไม่ได้)
 function bucketOf(a: AppointmentMock): ActivityBucket { return APPT_BUCKET[a.type] ?? "meeting"; }
 function bucketMeta(a: AppointmentMock) { return BUCKET_META[bucketOf(a)]; }
@@ -82,6 +78,7 @@ function addDays(s: string, n: number) { const dt = parseYmd(s); dt.setDate(dt.g
 function startOfWeek(s: string) { const dt = parseYmd(s); dt.setDate(dt.getDate() - dt.getDay()); return ymdOf(dt); }
 
 export default function CalendarPage() {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const router = useRouter();
   const TODAY_DT = parseYmd(TODAY);
   const [year, setYear] = useState(TODAY_DT.getFullYear());
@@ -247,7 +244,7 @@ export default function CalendarPage() {
                 <thead><tr><th>วันที่</th><th>เวลา</th><th>ลูกค้า</th><th>ประเภท</th><th>สถานะ</th></tr></thead>
                 <tbody>{นัดตามการ์ด.map(a => (
                   <tr key={a.id} data-appt-row={a.id} onClick={() => { selectDate(a.date); setView("day"); setDetail(a); }} style={{ cursor: "pointer" }}>
-                    <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{ป้ายประเภทนัด(a.type)}</td>
+                    <td>{fmtISOToThai(a.date)}</td><td>{a.time || "—"}</td><td>{a.company || "—"}</td><td>{ประเภทนัดกลาง.ป้าย(a.type)}</td>
                     <td>{ป้ายสถานะนัด(a.status)}</td>
                   </tr>
                 ))}</tbody>
@@ -449,6 +446,7 @@ export default function CalendarPage() {
 // Appointment detail modal — read-only summary + related-record links
 function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, customerId, router }: { a: AppointmentMock; onClose: () => void; onEdit: () => void; onDelete: () => void;
   onStatus: (s: AppointmentMock["status"]) => void; leadNum?: number; customerId?: number; router: ReturnType<typeof useRouter> }) {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const m = bucketMeta(a);
   const statusLabel = ป้ายสถานะนัด(a.status);
   const rows: [ReactNode, string][] = [
@@ -469,7 +467,7 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, cust
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: "0.92rem", fontWeight: 800, color: "#fff" }}>{a.company}</div>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: m.color, background: "#fff", borderRadius: 999, padding: "2px 10px" }}>{ป้ายประเภทนัด(a.type)}</span>
+                <span style={{ fontSize: "0.65rem", fontWeight: 700, color: m.color, background: "#fff", borderRadius: 999, padding: "2px 10px" }}>{ประเภทนัดกลาง.ป้าย(a.type)}</span>
                 <span style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.8)" }}>{statusLabel}</span>
               </div>
             </div>
@@ -529,6 +527,7 @@ function ApptDetailModal({ a, onClose, onEdit, onDelete, onStatus, leadNum, cust
 
 // Add / Edit appointment modal — writes to local state only (mock.ts untouched)
 function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: AppointmentMock; defaultDate: string; onSave: (a: AppointmentMock) => void; onClose: () => void }) {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const isEdit = !!initial;
   const { session } = useRole(); // ผู้รับผิดชอบเริ่มต้น = ผู้ใช้ที่ล็อกอิน
   const currentDealer = useCurrentDealer(); // สาขาที่ล็อกอิน (multi-tenant)
@@ -625,7 +624,7 @@ function AddApptModal({ initial, defaultDate, onSave, onClose }: { initial?: App
                 <FieldLabel htmlFor="ae-type" required>ประเภท</FieldLabel>
                 <select id="ae-type" aria-label="ประเภท" value={type} onChange={e => { บังคับ.ล้าง("type"); setType(e.target.value as ApptType | ""); }} className="form-select" {...บังคับ.ผูก("type")}>
                   <option value="">— ยังไม่ระบุ —</option>
-                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                  {ประเภทนัดกลาง.ตัวเลือกฟอร์ม(type).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <FieldError>{บังคับ.ผิด.type}</FieldError>
               </div>
@@ -720,6 +719,7 @@ function WeekChip({ a, onOpen }: { a: AppointmentMock; onOpen?: () => void }) {
 }
 
 function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; showDate?: boolean; groupColor?: string; onOpen?: () => void }) {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const m = bucketMeta(a);
   const c = m.color;
   return (
@@ -730,7 +730,7 @@ function ApptRow({ a, showDate, groupColor, onOpen }: { a: AppointmentMock; show
       <div className="activity-text">
         <div className="activity-title" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.company}</div>
         <div className="activity-meta" style={{ marginBottom: 3 }}>
-          <span style={{ color: c, fontWeight: 700 }}>{ป้ายประเภทนัด(a.type)}</span>
+          <span style={{ color: c, fontWeight: 700 }}>{ประเภทนัดกลาง.ป้าย(a.type)}</span>
         </div>
         <div className="activity-meta" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><Clock size={10} /> {showDate ? `${parseInt(a.date.split("-")[2])}/${parseInt(a.date.split("-")[1])} · ` : ""}{a.time} น.</span>
@@ -797,6 +797,7 @@ function ตารางช่องเวลา({ วัน, byDate, วัน�
 //   นัดของลูกค้า = ผูกลูกค้าอย่างเดียว ไม่ผูกลีดล่าสุดให้เอง
 type ผูกกับ = { kind: "lead"; id: number } | { kind: "customer"; id: number };
 function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultDate: string; defaultTime: string; onClose: () => void; onSaved: (a: AppointmentMock) => void }) {
+  const ประเภทนัดกลาง = useOptionList("appointment_type");   // รายการกลาง (ใบ 0296)
   const { session } = useRole();
   const currentDealer = useCurrentDealer();
   const { leads: allLeads, customers: allCustomers, addAppointment, newAppointmentId } = useSales();
@@ -848,7 +849,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
         company: ชื่อที่เลือก || "—",
         contact: ลีดที่เลือก?.contact ?? ลูกค้าที่เลือก?.name ?? "", phone: ลีดที่เลือก?.phone ?? ลูกค้าที่เลือก?.phone ?? "",
         province: ลีดที่เลือก?.province ?? ลูกค้าที่เลือก?.province ?? "",
-        project: apptTypeLabel[type], buildingType: "", area: ลีดที่เลือก?.area ?? 0,
+        project: ประเภทนัดกลาง.ป้าย(type), buildingType: "", area: ลีดที่เลือก?.area ?? 0,
         location: location.trim(), date, time, type, assigned: assigned || session.name, status: "upcoming", note: note.trim(),
       };
       addAppointment(a);
@@ -897,7 +898,7 @@ function NewApptModal({ defaultDate, defaultTime, onClose, onSaved }: { defaultD
                 <FieldLabel htmlFor="na-type" required>ประเภท</FieldLabel>
                 <select id="na-type" value={type} onChange={e => { บังคับ.ล้าง("type"); setType(e.target.value as ApptType | ""); }} className="form-select" {...บังคับ.ผูก("type")}>
                   <option value="">— ยังไม่ระบุ —</option>
-                  {(Object.keys(apptTypeLabel) as ApptType[]).map(t => <option key={t} value={t}>{apptTypeLabel[t]}</option>)}
+                  {ประเภทนัดกลาง.ตัวเลือกฟอร์ม(type).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <FieldError>{บังคับ.ผิด.type}</FieldError>
               </div>

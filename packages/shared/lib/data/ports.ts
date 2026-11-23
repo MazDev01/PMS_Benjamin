@@ -171,6 +171,16 @@ export interface QuoteRequestsRepo {
   quotedLeadIds(dealerCode: string): Promise<number[]>;
 }
 
+// รายการกลางของเครือ (ใบ 0296) — อ่าน: ทุกคน · บันทึก/ดูว่าตัวไหนมีข้อมูลใช้: HQ (ฐานตรวจสิทธิ์)
+export interface OptionListsRepo {
+  /** ทุกรายการ ทุกตัว (รวมที่ซ่อน — ข้อมูลเก่ายังต้องแสดงชื่อ) */
+  list(): Promise<import("../optionLists").ตัวเลือกกลาง[]>;
+  /** บันทึกทั้งรายการ (เพิ่ม/แก้ชื่อ/เรียง/ซ่อน/ลบ) ในคำสั่งเดียว — ลบตัวที่มีข้อมูลใช้ = ฐานปฏิเสธทั้งชุด (option_in_use) */
+  save(list: import("../optionLists").รายการกลาง, rows: import("../optionLists").ร่างตัวเลือก[]): Promise<import("../optionLists").ตัวเลือกกลาง[]>;
+  /** ตัวเลือกที่มีข้อมูลใช้ (ลบไม่ได้ · ซ่อนแทน) — HQ เท่านั้น */
+  used(): Promise<{ list: import("../optionLists").รายการกลาง; code: string }[]>;
+}
+
 export interface HQCompanyRepo {
   get(): Promise<HQCompany>;
   save(c: HQCompany): Promise<void>;
@@ -773,6 +783,7 @@ export interface DataAdapter {
   dealerSettings: DealerSettingsRepo;
   profile: ProfileRepo;
   hqCompany: HQCompanyRepo;
+  optionLists: OptionListsRepo;
   territories: TerritoriesRepo;
   quoteRequests: QuoteRequestsRepo;
   quoteFiles: QuoteFilesRepo;

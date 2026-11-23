@@ -117,3 +117,28 @@ describe("ไฟล์สำรองการตั้งค่า (Excel)", ()
     expect(ผล.targets).toEqual(ของจริง.targets);
   });
 });
+
+// รายการกลาง (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296) — สำรอง/กู้คืนต้องมีรายการกลางด้วย
+describe("ไฟล์สำรอง: รายการกลาง", () => {
+  it("ส่งออกแล้วนำเข้ากลับ: รหัสเดิม ชื่อ/ลำดับ/ซ่อน ตามไฟล์ · แก้ชื่อใน Excel มีผล · ตัวที่ลบแถวทิ้งคงไว้", async () => {
+    const { รายการตั้งต้นทั้งหมด } = await import("@pms/shared/lib/optionLists");
+    const รายการ = รายการตั้งต้นทั้งหมด();
+    const ชุด: ชุดการตั้งค่า = { optionLists: รายการ };
+    const แผ่นงาน = สร้างแผ่นงานสำรอง(ชุด);
+    expect(แผ่นงาน.map(s => s.ชื่อ)).toEqual([แผ่น.รายการกลาง]);
+    const blob = สร้างไฟล์Xlsx(แผ่นงาน);
+    const เล่ม = await แยกสมุดงานจากXlsx(await blob.arrayBuffer());
+    const ตาราง = เล่ม.get(แผ่น.รายการกลาง)!;
+    // แก้ชื่อ LINE · ซ่อนเว็บไซต์ · ลบแถว Facebook ทิ้ง · เพิ่มแถวใหม่ (ไม่มีรหัส)
+    const ถัดไป = ตาราง.filter(r => r[1] !== "facebook").map(r => r[1] === "line" ? [r[0], r[1], "ไลน์ OA", r[3], r[4]] : r[1] === "website" ? [r[0], r[1], r[2], r[3], "ซ่อน"] : r);
+    ถัดไป.push(["ช่องทางที่มาลูกค้าเป้าหมาย", "", "TikTok", "99", "แสดง"]);
+    เล่ม.set(แผ่น.รายการกลาง, ถัดไป);
+    const ได้ = อ่านแผ่นงานสำรอง(เล่ม, ชุด).รายการกลาง!;
+    const ช่องทาง = ได้.lead_source!;
+    expect(ช่องทาง.find(x => x.code === "line")?.label).toBe("ไลน์ OA");
+    expect(ช่องทาง.find(x => x.code === "website")?.hidden).toBe(true);
+    expect(ช่องทาง.find(x => x.label === "TikTok")).toEqual({ label: "TikTok", hidden: false });
+    expect(ช่องทาง.find(x => x.code === "facebook"), "ลบแถวทิ้ง = ไม่ลบตัวเลือก").toBeTruthy();
+    expect(ได้.appointment_type?.map(x => x.code)).toEqual(รายการ.filter(x => x.list === "appointment_type").map(x => x.code));
+  });
+});

@@ -19,7 +19,7 @@ import { dedupeRead, ttlCacheRead, invalidateCache } from "./dedupe";
 // TTL ของแคชข้อมูลอ้างอิง (ทะเบียนดีลเลอร์/แคตตาล็อก/กฎธุรกิจ/ผู้รับผิดชอบ) — สั้นพอที่ผู้ใช้จะไม่รู้สึกว่า
 // ข้อมูลค้าง (แก้เองก็ invalidate ทันทีอยู่แล้ว) ยาวพอที่จะตัดคำขอซ้ำตอนสลับหน้าไปมาเร็ว ๆ
 const REF_TTL_MS = 30_000;
-import type { DataAdapter, DealersRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, NotificationsRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo } from "./ports";
+import type { DataAdapter, DealersRepo, SettingsRepo, MetricsRepo, PersonsRepo, DealerSettingsRepo, AuditRepo, NotificationsRepo, ProfileRepo, LeadsRepo, QuotationsRepo, CustomersRepo, OptionListsRepo } from "./ports";
 
 // "api" = คุยผ่าน backend ของเราเอง (ครบทุกพอร์ตแล้ว · ดู http/HttpAdapter.ts และ docs/BACKEND-MIGRATION.md)
 const adapter: DataAdapter =
@@ -86,6 +86,14 @@ export const profile: ProfileRepo = {
   get: () => dedupeRead("profile.get", () => _profile.get()),
 };
 export const hqCompany = adapter.hqCompany;
+// รายการกลางของเครือ (ใบ 0296) — ทุกฟอร์ม/ตัวกรอง/ป้ายอ่าน (หลายหน้าพร้อมกัน) → แคชสั้น · บันทึกแล้วล้างทันที
+//   ฝั่งที่เปิดหน้าอยู่เห็นค่าใหม่เมื่อโหลดหน้า/เลยอายุแคช (useOptionList ฟังเหตุการณ์บันทึกในแท็บเดียวกัน)
+const _optionLists = adapter.optionLists;
+export const optionLists: OptionListsRepo = {
+  ..._optionLists,
+  list: () => ttlCacheRead("optionLists.list", () => _optionLists.list(), REF_TTL_MS),
+  save: async (list, rows) => { const r = await _optionLists.save(list, rows); invalidateCache("optionLists.list"); return r; },
+};
 export const territories = adapter.territories;
 export const quoteRequests = adapter.quoteRequests;
 // ไฟล์แนบของคำขอราคา (ใบ 0273) — ต้องสดหลังแนบ/ลบ ไม่แคช

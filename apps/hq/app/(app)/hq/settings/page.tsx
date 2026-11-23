@@ -15,6 +15,7 @@ import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/h
 //   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของดีลเลอร์แล้ว — ดีลเลอร์ตั้งเอง แยกรายสาขา)
 //   อีเมลผู้รับแจ้งเตือน  → ตัววางจดหมายของฐาน (_email_enqueue_hq · ใบ 0231)
 //   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของดีลเลอร์ (loadLostReasons)
+//   รายการกลาง (ใบ 0296)   → ช่องทางที่มา · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ ทุกฟอร์ม/ตัวกรอง/ป้ายทั้งเครือ (useOptionList)
 //   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดดีลเลอร์
 import {
   useState, useEffect, useRef, useCallback, useMemo, useContext,
@@ -30,7 +31,12 @@ import {
   DEFAULT_RECRUIT_SETTINGS, จำนวนรายการสูงสุด, ความยาวรายการสูงสุด,
   type HQRecruitSettings,
 } from "@pms/shared/lib/recruitSettings";
-import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo, audit as auditRepo } from "@pms/shared/lib/data";
+import { settings as settingsRepo, dealers as dealersRepo, hqCompany as hqCompanyRepo, audit as auditRepo, optionLists as optionListsRepo } from "@pms/shared/lib/data";
+import {
+  รายการกลางทั้งหมด, ชื่อรายการกลาง, ของรายการ, ตรวจร่าง, จัดป้าย, ความยาวป้ายสูงสุด, จำนวนตัวเลือกสูงสุด, คีย์ป้าย,
+  type รายการกลาง, type ตัวเลือกกลาง, type ร่างตัวเลือก,
+} from "@pms/shared/lib/optionLists";
+import { แจ้งรายการกลางเปลี่ยน } from "@pms/shared/lib/useOptionList";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { สร้างไฟล์Xlsx, ดาวน์โหลดไฟล์ } from "@pms/shared/lib/exportWorkbook";
 import { สร้างแผ่นงานสำรอง, อ่านแผ่นงานสำรอง, type ชุดการตั้งค่า } from "@pms/shared/lib/settingsBackup";
@@ -64,7 +70,7 @@ import {
   Building2, Users, GitMerge, Target, Bell, UserPlus, FileText, ArrowUp, ArrowDown,
   Save, RotateCcw, Plus, Trash2, Check, X,
   Download, Upload, RefreshCw, AlertCircle,
-  Mail, HardDrive,
+  Mail, HardDrive, ListChecks, Eye, EyeOff,
 } from "lucide-react";
 
 // ── tokens (Benjamin CI) ────────────────────────────────────────────────────
@@ -350,30 +356,21 @@ function RecruitTab() {
   );
   useReport(useMemo(() => ({ dirty: rc.dirty, save: rc.save, reset: rc.reset }), [rc.dirty, rc.save, rc.reset]));
   const d = rc.draft;
-  const ตั้งรายการ = (k: "channels" | "lostReasons") =>
+  const ตั้งรายการ = (k: "channels") =>
     (next: string[]) => rc.set(p => ({ ...p, [k]: next }));
   const ตั้งใบ = (patch: Partial<HQRecruitSettings["proposal"]>) => rc.set(p => ({ ...p, proposal: { ...p.proposal, ...patch } }));
-  const หมายเหตุ = { fontSize: "0.7rem", color: "#8a929c", marginTop: 8 } as const;
 
   return (
     <>
-      {/* บอสสั่ง 3 พ.ย. 69 (ตาม FLOW H2–H5): เหลือ "แหล่งที่มา" + "เหตุผลที่ไม่สำเร็จ" แถวเดียวกัน
+      {/* บอสสั่ง 3 พ.ย. 69 (ตาม FLOW H2–H5): เหลือ "แหล่งที่มา" (เหตุผลที่ไม่สำเร็จ ย้ายไปแท็บ "รายการกลาง" · ใบ 0296 · 19 พ.ย. 69)
           เอาออก: ชื่องานตามขั้น (ใช้ชื่อ 4 งานตาม FLOW ตายตัว · ชื่อเดิมในฐานคงไว้ไม่แสดง) · ประเภทธุรกิจ (ฟอร์มพิมพ์เอง)
                   ช่องทางในบันทึกการติดต่อ (รายการตายตัว โทรศัพท์ · LINE · Facebook · พบตัว · อีเมล · อื่น ๆ — บันทึกเก่าช่องทางอื่นยังแสดงตามเดิม)
-          fill + note จองบรรทัดเท่ากัน → ช่องเพิ่มของสองการ์ดอยู่ระดับเดียวกัน */}
-      <div className="row-2-eq">
-        <SectionCard fill icon={<UserPlus size={19} />} title="แหล่งที่มา">
-          <ListEditor label="แหล่งที่มา" items={d.channels} onChange={ตั้งรายการ("channels")} placeholder="เช่น TikTok"
-            emptyNote="ยังไม่มีแหล่งที่มา — ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
-            note="ในฟอร์มมีตัวเลือก “อื่น ๆ” ต่อท้ายให้เสมอ" noteLines={2} />
-        </SectionCard>
-
-        <SectionCard fill icon={<X size={19} />} title="เหตุผลที่ไม่สำเร็จ (ผู้สนใจเป็นดีลเลอร์)">
-          <ListEditor label="เหตุผลที่ไม่สำเร็จ" items={d.lostReasons} onChange={ตั้งรายการ("lostReasons")} placeholder="เช่น เงินทุนไม่พอ"
-            emptyNote="ยังไม่ได้ตั้ง — ตอนปิดการขายไม่สำเร็จยังพิมพ์เหตุผลเองได้"
-            note="มีตัวเลือก “อื่น ๆ (ระบุเอง)” ให้ด้วยเสมอ · ปฏิเสธ/หมดอายุใบค่าแฟรนไชส์ต้องมีเหตุผล · แยกจากเหตุผลของดีลเลอร์" noteLines={2} />
-        </SectionCard>
-      </div>
+          เหตุผลที่ไม่สำเร็จ = แท็บ "รายการกลาง" (ใช้ร่วมกับปฏิเสธใบค่าแฟรนไชส์ · เก็บรหัส) — ค่าเดิมใน config.lostReasons คงไว้ในฐาน ไม่มีที่อ่านแล้ว */}
+      <SectionCard icon={<UserPlus size={19} />} title="แหล่งที่มา">
+        <ListEditor label="แหล่งที่มา" items={d.channels} onChange={ตั้งรายการ("channels")} placeholder="เช่น TikTok"
+          emptyNote="ยังไม่มีแหล่งที่มา — ถ้าบันทึกตอนว่าง ระบบใช้รายการเริ่มต้น"
+          note="ในฟอร์มมีตัวเลือก “อื่น ๆ” ต่อท้ายให้เสมอ · เหตุผลที่ไม่สำเร็จตั้งที่แท็บ “รายการกลาง”" />
+      </SectionCard>
 
       <SectionCard icon={<FileText size={19} />} title="ค่าตั้งต้นใบค่าแฟรนไชส์">
         <Row label="อายุใบ">
@@ -399,6 +396,136 @@ function RecruitTab() {
         </div>
         {/* "ตัวเลขตั้งต้นของแต่ละแพ็กเกจ" เอาออก (บอสสั่ง 30 ต.ค. 69 เอาระบบแพ็กเกจออกทั้งหมด) — HQ กรอกยอดในใบค่าแฟรนไชส์เอง */}
       </SectionCard>
+    </>
+  );
+}
+
+// ═══════════════════════ 4b · รายการกลาง (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296) ═══════════════════════════════
+// สามรายการที่ใช้ทั้งเครือ: ช่องทางที่มาลูกค้าเป้าหมาย · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ (ใช้ร่วมกับปฏิเสธใบค่าแฟรนไชส์)
+//   เพิ่ม · แก้ชื่อ (แก้ในที่เดิม) · เลื่อนขึ้น/ลง · ซ่อน/แสดง · ลบได้เฉพาะตัวที่ไม่มีข้อมูลใช้ (ปุ่มลบปิด + บอกเหตุผล · ฐานกันซ้ำ option_in_use)
+//   ข้อมูลเก็บรหัส → แก้ชื่อแล้วข้อมูลเก่าเห็นชื่อใหม่ทันที · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ ข้อมูลเดิมยังแสดงชื่อ
+//   บันทึกด้วยปุ่มบันทึกกลาง (ทีละรายการที่แก้ · ฐานลงบันทึกการใช้งาน) · ไม่ผ่าน = บอกเหตุผล แล้วโหลดค่าจริงจากฐาน
+type แถวร่าง = ร่างตัวเลือก & { key: string; ชื่อเดิม: string; freeText: boolean };
+const เป็นร่าง = (items: ตัวเลือกกลาง[]): แถวร่าง[] =>
+  items.map(x => ({ key: x.code, code: x.code, label: x.label, hidden: x.hidden, ชื่อเดิม: x.label, freeText: x.freeText }));
+const ร่างของ = (all: ตัวเลือกกลาง[]) =>
+  Object.fromEntries(รายการกลางทั้งหมด.map(l => [l, เป็นร่าง(ของรายการ(all, l))])) as Record<รายการกลาง, แถวร่าง[]>;
+const ส่วนที่บันทึก = (rows: แถวร่าง[]): ร่างตัวเลือก[] =>
+  rows.map(r => ({ ...(r.code ? { code: r.code } : {}), label: จัดป้าย(r.label), hidden: r.hidden }));
+const คำอธิบายรายการ: Record<รายการกลาง, string> = {
+  lead_source: "ฟอร์ม/ตัวกรอง/ตารางลูกค้าเป้าหมายของดีลเลอร์ทุกราย + หน้าลูกค้าเป้าหมายของสำนักงานใหญ่",
+  appointment_type: "ฟอร์มนัดหมาย (แผงลูกค้าเป้าหมาย · ปฏิทิน) และชื่อประเภทนัดทุกที่",
+  prospect_lost_reason: "ปิดผู้สนใจว่าไม่สำเร็จ · ปฏิเสธใบค่าแฟรนไชส์ · นำเข้าผู้สนใจจากไฟล์ (จับคู่จากชื่อ)",
+};
+
+function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {
+  list: รายการกลาง; rows: แถวร่าง[]; ใช้อยู่: Set<string>; onChange: (next: แถวร่าง[]) => void;
+}) {
+  const [ใหม่, setใหม่] = useState("");
+  const [บอก, setบอก] = useState("");
+  const แก้ = (i: number, patch: Partial<แถวร่าง>) => onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  const เลื่อน = (i: number, d: -1 | 1) => {
+    const j = i + d;
+    if (j < 0 || j >= rows.length) return;
+    const n = [...rows]; [n[i], n[j]] = [n[j], n[i]]; onChange(n);
+  };
+  const เพิ่ม = () => {
+    const t = จัดป้าย(ใหม่).slice(0, ความยาวป้ายสูงสุด);
+    if (!t) return;
+    if (rows.some(r => !r.hidden && คีย์ป้าย(r.label) === คีย์ป้าย(t))) { setบอก(`“${t}” มีอยู่แล้ว`); return; }
+    if (rows.length >= จำนวนตัวเลือกสูงสุด) { setบอก(`ใส่ได้ไม่เกิน ${จำนวนตัวเลือกสูงสุด} ตัวเลือก`); return; }
+    onChange([...rows, { key: `ใหม่-${Date.now()}`, label: t, hidden: false, ชื่อเดิม: "", freeText: false }]);
+    setใหม่(""); setบอก("");
+  };
+  return (
+    <div data-option-list={list}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+        {rows.map((r, i) => {
+          const ป้าย = r.label || r.ชื่อเดิม || "ตัวเลือกใหม่";
+          const ล็อก = !!r.code && ใช้อยู่.has(r.code);
+          return (
+            <div key={r.key} data-option-row={r.code ?? "ใหม่"} data-hidden={r.hidden || undefined}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: r.hidden ? "#f3f4f6" : "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 8, padding: "5px 8px" }}>
+              <input className="form-input" aria-label={r.ชื่อเดิม ? `ชื่อตัวเลือก “${r.ชื่อเดิม}”` : `ชื่อตัวเลือกใหม่ ${i + 1}`} value={r.label} maxLength={ความยาวป้ายสูงสุด}
+                onChange={e => แก้(i, { label: e.target.value })}
+                style={{ flex: 1, minWidth: 0, color: r.hidden ? "#9ca3af" : STEEL, textDecoration: r.hidden ? "line-through" : undefined }} />
+              {r.freeText && <span style={{ fontSize: "0.66rem", color: "#6b7280", whiteSpace: "nowrap" }}>เลือกแล้วพิมพ์เพิ่ม</span>}
+              {r.hidden && <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#6b7280", whiteSpace: "nowrap" }}>ซ่อนอยู่</span>}
+              {ล็อก && <span style={{ fontSize: "0.66rem", color: "#0369a1", whiteSpace: "nowrap" }}>มีข้อมูลใช้</span>}
+              <button type="button" aria-label={`เลื่อน ${ป้าย} ขึ้น`} disabled={i === 0} onClick={() => เลื่อน(i, -1)} style={ปุ่มไอคอน(i === 0)}><ArrowUp size={13} /></button>
+              <button type="button" aria-label={`เลื่อน ${ป้าย} ลง`} disabled={i === rows.length - 1} onClick={() => เลื่อน(i, 1)} style={ปุ่มไอคอน(i === rows.length - 1)}><ArrowDown size={13} /></button>
+              <button type="button" aria-label={r.hidden ? `แสดง ${ป้าย}` : `ซ่อน ${ป้าย}`} title={r.hidden ? "แสดงให้เลือกตอนกรอกใหม่" : "ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ)"}
+                onClick={() => แก้(i, { hidden: !r.hidden })} style={ปุ่มไอคอน(false)}>{r.hidden ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <button type="button" aria-label={`ลบ ${ป้าย}`} disabled={ล็อก}
+                title={ล็อก ? "มีข้อมูลใช้ตัวเลือกนี้อยู่ ลบไม่ได้ — ซ่อนแทน" : "ลบตัวเลือกนี้"}
+                onClick={() => onChange(rows.filter((_, k) => k !== i))} style={{ ...ปุ่มไอคอน(ล็อก), color: ล็อก ? "#cbd5e1" : "#dc2626" }}><Trash2 size={13} /></button>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 10, maxWidth: 420 }}>
+        <input className="form-input" aria-label={`เพิ่มตัวเลือก${ชื่อรายการกลาง[list]}`} value={ใหม่} maxLength={ความยาวป้ายสูงสุด} placeholder="ชื่อตัวเลือกใหม่"
+          onChange={e => { setใหม่(e.target.value); setบอก(""); }} onKeyDown={e => { if (e.key === "Enter") เพิ่ม(); }} />
+        <button type="button" className="btn btn-primary btn-sm" aria-label={`เพิ่มตัวเลือก${ชื่อรายการกลาง[list]}`} style={{ flexShrink: 0 }} onClick={เพิ่ม}><Plus size={14} /></button>
+      </div>
+      {บอก && <div style={{ fontSize: "0.7rem", color: "#b45309", marginTop: 4 }}>{บอก}</div>}
+    </div>
+  );
+}
+
+function OptionListsTab() {
+  const toast = useToast();
+  const [saved, setSaved] = useState<Record<รายการกลาง, แถวร่าง[]> | null>(null);
+  const [draft, setDraft] = useState<Record<รายการกลาง, แถวร่าง[]> | null>(null);
+  const [ใช้อยู่, setใช้อยู่] = useState<{ list: รายการกลาง; code: string }[]>([]);
+  const [ผิดโหลด, setผิดโหลด] = useState("");
+  const โหลด = useCallback(async () => {
+    try {
+      const [all, used] = await Promise.all([optionListsRepo.list(), optionListsRepo.used()]);
+      const r = ร่างของ(all);
+      setSaved(r); setDraft(r); setใช้อยู่(used); setผิดโหลด("");
+    } catch (e) { setผิดโหลด(friendlyError(e)); logRepoRead("optionLists.list(settings)", e); }
+  }, []);
+  useEffect(() => { void โหลด(); }, [โหลด]);
+  const ต่าง = useCallback((l: รายการกลาง, d: Record<รายการกลาง, แถวร่าง[]> | null) =>
+    !!saved && !!d && JSON.stringify(ส่วนที่บันทึก(saved[l])) !== JSON.stringify(ส่วนที่บันทึก(d[l])), [saved]);
+  const dirty = รายการกลางทั้งหมด.some(l => ต่าง(l, draft));
+  const draftRef = useRef(draft); draftRef.current = draft;
+  const save = useCallback(() => {
+    const d = draftRef.current;
+    if (!d) return false;
+    const แก้ = รายการกลางทั้งหมด.filter(l => ต่าง(l, d));
+    for (const l of แก้) {
+      const ผิด = ตรวจร่าง(ส่วนที่บันทึก(d[l]));
+      if (ผิด) { toast(`${ชื่อรายการกลาง[l]}: ${ผิด}`); return false; }
+    }
+    void (async () => {
+      for (const l of แก้) {
+        try { await optionListsRepo.save(l, ส่วนที่บันทึก(d[l])); }
+        catch (e) { toast(`บันทึก${ชื่อรายการกลาง[l]}ไม่สำเร็จ — ${friendlyError(e)}`); }
+      }
+      แจ้งรายการกลางเปลี่ยน();
+      await โหลด();
+    })();
+  }, [toast, โหลด, ต่าง]);
+  const reset = useCallback(() => setDraft(saved), [saved]);
+  useReport(useMemo(() => ({ dirty, save, reset }), [dirty, save, reset]));
+  if (ผิดโหลด) {
+    return <SectionCard icon={<ListChecks size={19} />} title="รายการกลาง"><div style={{ fontSize: "0.8rem", color: "#dc2626" }}>โหลดรายการกลางไม่สำเร็จ — {ผิดโหลด}</div></SectionCard>;
+  }
+  if (!draft) return <SectionCard icon={<ListChecks size={19} />} title="รายการกลาง"><div style={{ fontSize: "0.8rem", color: "#6b7280" }}>กำลังโหลด…</div></SectionCard>;
+  return (
+    <>
+      {รายการกลางทั้งหมด.map(l => (
+        <SectionCard key={l} icon={<ListChecks size={19} />} title={ชื่อรายการกลาง[l]}>
+          <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ใช้ที่: {คำอธิบายรายการ[l]} · ดีลเลอร์ทุกรายเห็นรายการเดียวกัน</div>
+          <OptionListEditor list={l} rows={draft[l]} onChange={next => setDraft(p => p && { ...p, [l]: next })}
+            ใช้อยู่={new Set(ใช้อยู่.filter(u => u.list === l).map(u => u.code))} />
+          <div style={{ fontSize: "0.7rem", color: "#8a929c", marginTop: 8, lineHeight: 1.5 }}>
+            แก้ชื่อแล้วข้อมูลเดิมเห็นชื่อใหม่ทันที · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ) · ตัวที่มีข้อมูลใช้ลบไม่ได้ — ซ่อนแทน
+          </div>
+        </SectionCard>
+      ))}
     </>
   );
 }
@@ -522,13 +649,13 @@ function BackupCard() {
   //   ส่งออกได้ไฟล์ว่าง · นำเข้าไม่มีผล · "คืนค่าเริ่มต้น" ขึ้น confirm แล้วไม่เกิดอะไรขึ้น
   async function exportAll() {
     try {
-      const [policy, targets, notifRules, lostReasons, company, dealers] = await Promise.all([
+      const [policy, targets, notifRules, lostReasons, company, dealers, optionLists] = await Promise.all([
         settingsRepo.getPolicy(), settingsRepo.getTargets(), settingsRepo.getNotifRules(),
-        settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(),
+        settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(), optionListsRepo.list(),
       ]);
       // ไฟล์ Excel เล่มเดียว แยกแท็บตามเรื่อง หัวตารางภาษาไทย — เปิดอ่าน/แก้ แล้วนำเข้ากลับได้เลย
-      // (เดิมเป็น .json ซึ่งเปิดแล้วอ่านไม่รู้เรื่อง และเอาไปทำอะไรต่อไม่ได้)
-      const แผ่นงาน = สร้างแผ่นงานสำรอง({ policy, targets, notifRules, lostReasons, company, dealers });
+      // (เดิมเป็น .json ซึ่งเปิดแล้วอ่านไม่รู้เรื่อง และเอาไปทำอะไรต่อไม่ได้) · รายการกลาง (ใบ 0296) อยู่แท็บ "รายการกลาง"
+      const แผ่นงาน = สร้างแผ่นงานสำรอง({ policy, targets, notifRules, lostReasons, company, dealers, optionLists });
       const ชื่อไฟล์ = `การตั้งค่าเบญจมิน-${APP_NOW_ISO.slice(0, 10)}.xlsx`;
       // ลงบันทึกที่ฐานก่อนให้ไฟล์ — ลงไม่สำเร็จ = ไม่ให้ไฟล์ (ส่งออกข้อมูลทั้งเครือต้องมีร่องรอยเสมอ)
       await auditRepo.settingsExported(ชื่อไฟล์);
@@ -556,12 +683,12 @@ function BackupCard() {
         };
       } else {
         // ต่อยอดจากค่าที่ใช้อยู่จริง — แท็บไหนไม่มีในไฟล์ = ไม่แตะเรื่องนั้น
-        const [policy, targets, notifRules, lostReasons, company, dealers] = await Promise.all([
+        const [policy, targets, notifRules, lostReasons, company, dealers, optionLists] = await Promise.all([
           settingsRepo.getPolicy(), settingsRepo.getTargets(), settingsRepo.getNotifRules(),
-          settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(),
+          settingsRepo.getLostReasons(), hqCompanyRepo.get(), dealersRepo.list(), optionListsRepo.list(),
         ]);
         const เล่ม = await อ่านสมุดงานจากไฟล์(file);
-        ที่จะเขียน = อ่านแผ่นงานสำรอง(เล่ม, { policy, targets, notifRules, lostReasons, company, dealers });
+        ที่จะเขียน = อ่านแผ่นงานสำรอง(เล่ม, { policy, targets, notifRules, lostReasons, company, dealers, optionLists });
         if (!Object.keys(ที่จะเขียน).length) {
           toast("ไฟล์นี้ไม่มีแท็บการตั้งค่าที่ระบบรู้จัก — ใช้ไฟล์ที่ส่งออกจากปุ่ม “ส่งออก (สำรองข้อมูล)”");
           return;
@@ -577,6 +704,12 @@ function BackupCard() {
       const jobs: Promise<unknown>[] = [];
       if (ที่จะเขียน.dealers?.length) jobs.push(dealersRepo.save(ที่จะเขียน.dealers));
       await Promise.all(jobs);
+      // รายการกลาง (ใบ 0296): ทีละรายการ · ฐานตรวจซ้ำ (ชื่อซ้ำ/ว่าง = ปฏิเสธรายการนั้นทั้งรายการ) · การนำเข้าไม่ลบตัวเลือกใด ๆ
+      for (const l of รายการกลางทั้งหมด) {
+        const ร่าง = ที่จะเขียน.รายการกลาง?.[l];
+        if (ร่าง?.length) await optionListsRepo.save(l, ร่าง);
+      }
+      if (ที่จะเขียน.รายการกลาง) แจ้งรายการกลางเปลี่ยน();
       toast("นำเข้าสำเร็จ — กำลังโหลดใหม่");
       setTimeout(() => location.reload(), 900);
     } catch (err) {
@@ -627,13 +760,15 @@ function CompanyTab() {
 // แท็บ "ดีลเลอร์" ถูกยุบตามคำสั่ง — ทั้งใบซ้ำกับหน้า /hq/dealers (ตารางบัญชี · สลับสถานะ · เข้าระบบแทน)
 //   "ตั้งรหัสผ่านใหม่" ย้ายไปอยู่ในโมดัล "รหัสเข้าระบบ" ของหน้า /hq/dealers แล้ว (ไม่มีที่อื่นมาก่อน)
 //   "ค่ามาตรฐานดีลเลอร์" (defaultQuota) ถูกลบ — ไม่มีใครอ่านค่านั้นเลย ค่าจริงตอนสร้างดีลเลอร์อยู่ที่ /hq/dealers
-type TabKey = "company" | "users" | "journey" | "recruit" | "targets" | "materials" | "notifications" | "storage";
+type TabKey = "company" | "users" | "journey" | "recruit" | "options" | "targets" | "materials" | "notifications" | "storage";
 const TABS: { key: TabKey; label: string; icon: ReactNode; render: () => ReactNode }[] = [
   { key: "company", label: "บริษัท", icon: <Building2 size={15} />, render: () => <CompanyTab /> },
   { key: "users", label: "ผู้ใช้งาน", icon: <Users size={15} />, render: () => <UsersPanel embedded /> },
   { key: "journey", label: "ขั้นการขายมาตรฐาน", icon: <GitMerge size={15} />, render: () => <JourneyTab /> },
   // งานหาดีลเลอร์ของ HQ เอง (บอสสั่ง 14 ก.ย. 69) — แยกจาก "เส้นทางการขาย" ซึ่งเป็นกติกาของดีลเลอร์
   { key: "recruit", label: "หาดีลเลอร์", icon: <UserPlus size={15} />, render: () => <RecruitTab /> },
+  // รายการกลางของเครือ (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296) — ช่องทางที่มา · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ
+  { key: "options", label: "รายการกลาง", icon: <ListChecks size={15} />, render: () => <OptionListsTab /> },
   { key: "targets", label: "เป้าหมายยอดขาย", icon: <Target size={15} />, render: () => <TargetsTab /> },
   // รายการวัสดุ: เอาออกทั้งระบบ (บอสสั่ง 20 พ.ย. 69 · ทับ 26 ต.ค. 69) — ตาราง material_templates ในฐานคงไว้ ไม่ลบ (ซ่อนหน้าจอเท่านั้น)
   { key: "notifications", label: "การแจ้งเตือน", icon: <Bell size={15} />, render: () => <NotificationsTab /> },

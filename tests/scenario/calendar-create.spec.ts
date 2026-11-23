@@ -56,8 +56,10 @@ test("[D7] [ui·dealer] ทางเข้า 3 ทาง เติมวัน�
   await expect(ฟอร์ม(page)).toBeVisible({ timeout: 15_000 });
   await expect(ฟอร์ม(page).locator("#na-date")).toHaveValue(วันนี้());
   await expect(ฟอร์ม(page).locator("#na-time")).toHaveValue("09:00");
-  // ประเภท 6 แบบเดิม
-  await expect(ฟอร์ม(page).locator("#na-type option:not([value=''])")).toHaveText(["นัดพบลูกค้า", "นัดนำเสนอสินค้า", "นำเสนอราคา", "เซ็นสัญญาซื้อขาย", "ปิดการขาย", "โทรติดตาม"]);
+  // ประเภท = รายการกลาง "ประเภทนัดหมาย" (ใบ 0296): 6 แบบเดิม + ประชุม · นัดดูหน้างาน (call ซ่อน — ชื่อซ้ำ โทรติดตาม)
+  //   ตรวจทีละชื่อ ไม่ตรึงทั้งชุด — HQ เพิ่มตัวเลือกได้
+  for (const ชื่อ of ["นัดพบลูกค้า", "นัดนำเสนอสินค้า", "นำเสนอราคา", "เซ็นสัญญาซื้อขาย", "ปิดการขาย", "โทรติดตาม", "ประชุม", "นัดดูหน้างาน"])
+    await expect(ฟอร์ม(page).locator("#na-type").getByRole("option", { name: ชื่อ, exact: true }), ชื่อ).toHaveCount(1);
   // ไม่เลือกลีด/ลูกค้า = บันทึกไม่ได้
   await ฟอร์ม(page).locator("#na-type").selectOption("visit");
   await ฟอร์ม(page).getByRole("button", { name: "บันทึกนัดหมาย" }).click();

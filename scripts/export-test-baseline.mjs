@@ -70,6 +70,16 @@ customers.forEach((r, i) => {
   });
 });
 
+// ช่องทางที่มา = รหัสในรายการกลาง (ใบ 0296 · option_lists) — ชื่อเดิม/คำนอกรายการของข้อมูลตั้งต้นแปลงเป็นรหัส (ข้อมูลตั้งต้นใช้เฉพาะค่าในรายการ)
+//   ฐานหลังใบ 0296 เก็บรหัสอยู่แล้ว · ตารางนี้กันฐานเก่า/ข้อมูลที่ใส่ตรงด้วยชื่อ · รหัสที่ไม่รู้จัก = คงเดิม
+const รหัสช่องทาง = { "facebook": "facebook", "เว็บไซต์": "website", "website": "website", "line": "line", "lineoa": "line",
+  "ลูกค้าเข้ามาเอง": "walk_in", "walk-in": "walk_in", "โทรเข้า": "walk_in", "แนะนำต่อ": "referral", "ลูกค้าแนะนำ": "referral", "referral": "referral",
+  "งานแสดงสินค้า": "exhibition", "ออกบูธ": "exhibition", "exhibition": "exhibition", "อื่นๆ": "other", "อื่น ๆ": "other", "other": "other" };
+const เป็นรหัสช่องทาง = (v) => {
+  if (typeof v !== "string") return v;
+  const k = v.trim().toLowerCase();
+  return รหัสช่องทาง[k] ?? รหัสช่องทาง[k.replace(/\s+/g, "")] ?? v;
+};
 const leads = อ่าน("leads", `${NZ} and company not like 'ZZ%'`, "dealer_code, num_id");
 const ลีด = new Map();
 leads.forEach((r, i) => {
@@ -79,7 +89,7 @@ leads.forEach((r, i) => {
     name: `ผู้ติดต่อทดสอบ L${n}`, contact: แทนถ้ามี(r.contact, `ผู้ติดต่อทดสอบ L${n}`), company, phone: เบอร์(),
     email: แทนถ้ามี(r.email, `lead-${n}@example.test`), address: แทนถ้ามี(r.address, `ที่อยู่ทดสอบ L${n}`),
     project: แทนถ้ามี(r.project, `โครงการทดสอบ L${n}`), note: แทนถ้ามี(r.note, `บันทึกทดสอบ L${n}`), report: แทนถ้ามี(r.report, `รายงานทดสอบ L${n}`),
-    assigned: พนักงาน(r.assigned, r.dealer_code), logo: แทนถ้ามี(r.logo, ""),
+    assigned: พนักงาน(r.assigned, r.dealer_code), logo: แทนถ้ามี(r.logo, ""), source: เป็นรหัสช่องทาง(r.source),
     activities: Array.isArray(r.activities) ? r.activities.map((a, j) => ({ ...a, text: แทนถ้ามี(a.text, `บันทึกการติดต่อทดสอบ ${j + 1}`) })) : r.activities,
     tasks: Array.isArray(r.tasks) ? r.tasks.map(t => ({ ...t, doneBy: แทนถ้ามี(t.doneBy, "ผู้ใช้ทดสอบ") })) : r.tasks,
   });

@@ -7,6 +7,7 @@
 //   งานของลูกค้า = ลีดที่ผูกลูกค้ารายนี้ + ลีดของใบเสนอราคาที่ผูกลูกค้ารายนี้ (สาขาเดียวกันเสมอ · เลขซ้ำข้ามสาขาได้)
 //   อ่านด้วยสิทธิ์ของผู้เรียก (ดีลเลอร์เห็นเฉพาะสาขาตัวเอง · HQ ทั้งเครือ) · ข้อทดสอบ tests/unit/customerTimeline.test.ts · customer-timeline.spec
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ป้ายของ, รายการตั้งต้นของ, จากแถว, type ตัวเลือกกลาง } from "./optionLists";
 
 export type ชนิดเหตุการณ์ = "lead" | "request" | "activity" | "appointment" | "note" | "customer";
 export type เหตุการณ์ลูกค้า = {
@@ -21,6 +22,8 @@ export type เหตุการณ์ลูกค้า = {
 type แถว = Record<string, unknown>;
 export type ข้อมูลเส้นเวลา = {
   ลูกค้า: แถว | null; ลีด: แถว[]; คำขอ: แถว[]; นัด: แถว[]; บันทึก: แถว[];
+  /** ประเภทนัดหมายจากรายการกลาง (ใบ 0296) — ไม่ส่ง = ค่าตั้งต้น */
+  ประเภทนัด?: ตัวเลือกกลาง[];
 };
 
 const เดือน: Record<string, number> = { "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12 };
@@ -40,11 +43,12 @@ const ISO = (v: unknown): string | null => {
   return Number.isNaN(t) ? null : new Date(t).toISOString();
 };
 const สถานะนัด: Record<string, string> = { upcoming: "กำลังจะมาถึง", scheduled: "กำลังจะมาถึง", done: "เสร็จแล้ว", completed: "เสร็จแล้ว", cancelled: "ยกเลิก" };
-const ชนิดนัด: Record<string, string> = { visit: "นัดพบลูกค้า", site_visit: "นัดดูหน้างาน", design_meet: "นัดนำเสนอสินค้า", presentation: "นำเสนอราคา", call: "โทรติดตาม", meeting: "ประชุม" };
+// ชื่อประเภทนัด = รายการกลาง "appointment_type" (ใบ 0296) — ไม่ตรงรายการ = "‹ค่า› (ตามที่บันทึกไว้)" · ไม่มีประเภท = "นัดหมาย"
 
 /** ประกอบเหตุการณ์จากแถวที่อ่านมา (ฟังก์ชันล้วน) — ใหม่สุดก่อน */
 export function ประกอบเส้นเวลา(d: ข้อมูลเส้นเวลา): เหตุการณ์ลูกค้า[] {
   const ผล: เหตุการณ์ลูกค้า[] = [];
+  const ประเภทนัด = d.ประเภทนัด ?? รายการตั้งต้นของ("appointment_type");
   const เพิ่ม = (at: string | null, ชนิด: ชนิดเหตุการณ์, ข้อความ: string, งาน?: string) => { if (at && ข้อความ.trim()) ผล.push({ at, ชนิด, ข้อความ: ข้อความ.trim(), ...(งาน ? { งาน } : {}) }); };
   const ชื่องาน = new Map<number, string>();
   for (const l of d.ลีด) {
@@ -62,7 +66,7 @@ export function ประกอบเส้นเวลา(d: ข้อมูล
   }
   for (const a of d.นัด) {
     const วัน = /^\d{4}-\d{2}-\d{2}$/.test(String(a.date ?? "")) ? `${a.date}T${/^\d{1,2}:\d{2}$/.test(String(a.time ?? "")) ? สอง(+String(a.time).split(":")[0]) + ":" + String(a.time).split(":")[1] : "09:00"}:00+07:00` : null;
-    const ส่วน = [ชนิดนัด[String(a.type)] ?? "นัดหมาย", สถานะนัด[String(a.status)] ?? "", String(a.note ?? "").trim()].filter(Boolean);
+    const ส่วน = [ป้ายของ(ประเภทนัด, a.type == null ? null : String(a.type), "นัดหมาย"), สถานะนัด[String(a.status)] ?? "", String(a.note ?? "").trim()].filter(Boolean);
     เพิ่ม(วัน, "appointment", ส่วน.join(" · "), ชื่องาน.get(Number(a.lead_id)) || String(a.project ?? "").trim() || undefined);
   }
   for (const n of d.บันทึก) {
@@ -91,6 +95,8 @@ export async function อ่านเส้นเวลาลูกค้า(sb:
     sb.from("appointments").select("lead_id, project, date, time, type, status, note").eq("dealer_code", dealer).in("lead_id", เลข),
   ]) : [{ data: [], error: null }, { data: [], error: null }];
   ตก(คำขอ.error); ตก(นัด.error);
-  return ประกอบเส้นเวลา({ ลูกค้า: (ลูกค้า.data as แถว | null) ?? null, ลีด: (ลีด.data ?? []) as แถว[],
+  const ประเภท = นัด.data?.length ? await sb.from("option_lists").select("*").eq("list", "appointment_type") : { data: null, error: null };
+  ตก(ประเภท.error);
+  return ประกอบเส้นเวลา({ ...(ประเภท.data ? { ประเภทนัด: (ประเภท.data as แถว[]).map(จากแถว) } : {}), ลูกค้า: (ลูกค้า.data as แถว | null) ?? null, ลีด: (ลีด.data ?? []) as แถว[],
     คำขอ: (คำขอ.data ?? []) as แถว[], นัด: (นัด.data ?? []) as แถว[], บันทึก: (บันทึก.data ?? []) as แถว[] });
 }

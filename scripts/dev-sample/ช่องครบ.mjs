@@ -126,10 +126,14 @@ function sqlเติม() {
    where r.assignee is null and r.status in ('pricing', 'quoted', 'won', 'lost')
      and h.n = 1 + abs(hashtext(r.request_no)) % (select count(*) from public.profiles where role::text = 'SUPER_ADMIN' and name <> 'ผู้ดูแลระบบสำนักงานใหญ่');
 
-  -- ── ค่าที่ต้องเป็นตัวเลือกในฟอร์มจริง: ช่องทางที่มาของลีด (leads/page.tsx SOURCES) · แหล่งที่มาของผู้สนใจ (recruitSettings ช่องทางที่เข้ามาเริ่มต้น)
-  --    ข้อมูลตั้งต้นมีคำนอกรายการ (ลูกค้าแนะนำ · โทรเข้า · ออกบูธ · Line OA) → ฟอร์มขึ้น "(ตามที่บันทึกไว้)" ──
-  update public.leads l set source = case when l.source in ('ลูกค้าแนะนำ', 'แนะนำ') then 'แนะนำต่อ' else ${เลือก(["Facebook", "LINE", "ลูกค้าเข้ามาเอง", "เว็บไซต์"], "l.id")} end
-   where coalesce(l.source, '') not in ('Facebook', 'เว็บไซต์', 'LINE', 'ลูกค้าเข้ามาเอง', 'แนะนำต่อ', 'งานแสดงสินค้า', 'อื่นๆ');
+  -- ── ค่าที่ต้องเป็นตัวเลือกในฟอร์มจริง: ช่องทางที่มาของลีด · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ = รหัสในรายการกลาง (ใบ 0290 · option_lists)
+  --    แหล่งที่มาของผู้สนใจ (recruitSettings ช่องทางที่เข้ามาเริ่มต้น) · ข้อมูลตั้งต้นมีคำนอกรายการ → ฟอร์มขึ้น "(ตามที่บันทึกไว้)" ──
+  update public.leads l set source = case when l.source in ('ลูกค้าแนะนำ', 'แนะนำ') then 'referral' else ${เลือก(["facebook", "line", "walk_in", "website"], "l.id")} end
+   where not exists (select 1 from public.option_lists o where o.list = 'lead_source' and o.code = l.source and not o.hidden);
+  update public.appointments a set type = ${เลือก(["visit", "follow_up", "presentation", "site_visit"], "a.id::text")}
+   where not exists (select 1 from public.option_lists o where o.list = 'appointment_type' and o.code = a.type and not o.hidden);
+  update public.dealer_prospects p set lost_reason = ${เลือก(["no_capital", "not_ready", "other_brand", "bad_location"], "p.id::text")}
+   where p.status = 'lost' and not exists (select 1 from public.option_lists o where o.list = 'prospect_lost_reason' and o.code = p.lost_reason and not o.free_text);
   update public.dealer_prospects p set channel = case when p.channel ilike 'line oa' then 'LINE OA' else ${เลือก(["Facebook", "LINE OA", "แนะนำต่อ", "โทรเข้ามาเอง"], "p.id::text")} end
    where coalesce(p.channel, '') not in ('Facebook', 'LINE OA', 'LINE ส่วนตัว', 'โทรเข้ามาเอง', 'แนะนำต่อ', 'อื่น ๆ');
 

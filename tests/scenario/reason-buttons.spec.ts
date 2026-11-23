@@ -260,7 +260,7 @@ test.describe("HQ: กล่องเหตุผล", () => {
     await ตรวจกล่องเหตุผล(page, "ปฏิเสธใบค่าแฟรนไชส์", async () => {
       await แผง.getByRole("tab", { name: /ใบค่าแฟรนไชส์/ }).click();
       await แผง.getByLabel(`สถานะใบ ${ใบปฏิเสธ}`).selectOption("rejected");
-    });
+    }, { เลือกจากรายการ: true });   // ใบ 0296: เหตุผลปฏิเสธ = รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" → ปุ่มเลือก
 
     await page.goto(`${HQ_ORIGIN}/hq/proposals?q=${encodeURIComponent(ใบชำระ)}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("row", { name: new RegExp(`เปิดใบค่าแฟรนไชส์ ${ใบชำระ} `) }).first().click({ timeout: 25_000 });

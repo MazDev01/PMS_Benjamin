@@ -1,5 +1,5 @@
 {
- "migration": "0295",
+ "migration": "0296",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -315,6 +315,27 @@
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_option_in_use(p_list text, p_code text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_option_key(p text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
+   "f": "_option_label(p_list text, p_value text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_phone_digits(p text)",
@@ -1637,6 +1658,27 @@
    "anon": false,
    "authenticated": false,
    "service_role": true,
+   "definer": true
+  },
+  {
+   "f": "option_lists_guard()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "option_lists_save(p_list text, p_rows jsonb)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "option_lists_used()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
    "definer": true
   },
   {

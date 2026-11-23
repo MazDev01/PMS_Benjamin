@@ -5,6 +5,7 @@
 //   ทุกตัวเลขมาจากฐาน: แถวรายดีลเลอร์ hq_pipeline_dealers (ใบ 0264) · ผลรวมกลุ่มใช้ รวมผลงาน() ตัวเดียวกับแถวรวมท้ายตาราง (= การ์ด)
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
+import { useOptionList } from "@pms/shared/lib/useOptionList";
 import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useRouter } from "next/navigation";
 import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
@@ -332,11 +333,13 @@ function แถบนับ({ rows, empty }: { rows: { label: string; value: num
 const สีชุด = ["#003366", "#0891b2", "#059669", "#d97706", "#7c3aed", "#dc2626", "#64748b"];
 
 /** ระดับ = ป้ายระดับที่เลือก · ช่วง = ช่วงเวลาที่เลือก (หัวข้อกราฟ · บอสสั่ง 3 พ.ย. 69) */
-export function กล่องล่าง({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง, ระดับ, ช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null;
+// ชื่ออังกฤษ: ตัวตรวจ rules-of-hooks รู้จักคอมโพเนนต์จากตัวพิมพ์ใหญ่ (ใช้ hook รายการกลาง) · ชื่อไทยเดิมคงไว้ให้ที่เรียกใช้
+export function BottomBoxes({ รวมทั้งหมด, ขั้นตอนนี้, ในช่วง, ระดับ, ช่วง }: { รวมทั้งหมด: รวม; ขั้นตอนนี้: LeadSummary | null; ในช่วง: LeadSummary | null;
   ระดับ: string; ช่วง: { start: string; end: string } }) {
+  const ช่องทางกลาง = useOptionList("lead_source");   // ชื่อแหล่งที่มาจากรายการกลาง (ใบ 0296 · ข้อมูลเก็บรหัส)
   const ขั้น = เลขขั้นเปิด.map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
   const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
-  const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.source || "ไม่ระบุ", value: r.count, color: สีชุด[i % สีชุด.length] }));
+  const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: !r.source || r.source === "ไม่ระบุ" ? "ไม่ระบุ" : ช่องทางกลาง.ป้าย(r.source), value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [
     { label: "ลูกค้าเป้าหมายใหม่", value: รวมทั้งหมด.leads, color: "#003366" },
     { label: "ใบที่ส่ง", value: รวมทั้งหมด.quotes, color: "#0891b2" },
@@ -400,3 +403,4 @@ export function DealerRecent({ code, เปิดแผง }: { code: string; �
     </>
   );
 }
+export const กล่องล่าง = BottomBoxes;

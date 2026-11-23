@@ -46,6 +46,7 @@ import type { DataAdapter } from "../ports";
 import type { LeadRow, QuotationMock, CustomerRow, AppointmentMock, Scope, DealerSettings, HQCompany, CustomerNote, SystemUser, DealerProspect, DealerPackageProposal, DealerProposalPayment, ProspectActivity, DealerProspectStatus } from "../types";
 import { เตรียมบันทึก } from "@pms/shared/lib/dealerProspects";
 import { รวมค่าตั้งหาดีลเลอร์ } from "@pms/shared/lib/recruitSettings";
+import { รายการตั้งต้นทั้งหมด, ตรวจร่าง, จัดป้าย, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
 import { เตรียมบันทึกใบ, ใบล็อกแล้ว, สถานะที่เปลี่ยนไปได้, มีใบเสนอที่ส่งแล้ว, ทำเวอร์ชันใหม่ได้, ต้องมีเหตุผล } from "@pms/shared/lib/dealerProposals";
 import {
   ตรวจเปลี่ยนขั้น, ข้อความเพิ่มราย, ข้อความเปลี่ยนขั้น, ข้อความใบเสนอ, ข้อความถอยเพราะใบถูกปฏิเสธ, ประวัติใหม่ก่อน,
@@ -60,6 +61,7 @@ function เลขขั้นโหมดตัวอย่าง(l: LeadRow): 
   return เลขขั้นของลีด(l.status, มีใบร่าง);
 }
 const HQ_COMPANY_KEY = "hq_company_profile";
+const OPTION_LISTS_KEY = "pms_option_lists";   // รายการกลาง (ใบ 0296) — โหมดตัวอย่างเก็บในเครื่อง
 const NOTES_KEY = "customer_notes_v1";
 const PROSPECTS_KEY = "hq_dealer_prospects_v1";
 import { HQ_PROSPECTS_SEED } from "./hqProspectsSeed";
@@ -340,6 +342,22 @@ export const LocalAdapter: DataAdapter = {
     transferPlan: () => ok([]),
     transferAuto: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
     transfer: () => Promise.reject(new Error("โหมดข้อมูลตัวอย่างไม่มีการโอนลูกค้าเป้าหมาย")),
+  },
+  // รายการกลาง (ใบ 0296) — โหมดตัวอย่าง: เก็บในเครื่อง · ไม่มีฐานบอกว่าตัวไหนมีข้อมูลใช้ (ลบได้ทุกตัว)
+  optionLists: {
+    list: () => ok(readKey<ตัวเลือกกลาง[]>(OPTION_LISTS_KEY, รายการตั้งต้นทั้งหมด())),
+    save: (list, rows) => {
+      const ผิด = ตรวจร่าง(rows);
+      if (ผิด) return Promise.reject(new Error(ผิด));
+      const เดิม = readKey<ตัวเลือกกลาง[]>(OPTION_LISTS_KEY, รายการตั้งต้นทั้งหมด());
+      const ใหม่ = rows.map((r, i) => {
+        const ก่อน = เดิม.find(x => x.list === list && x.code === r.code);
+        return { list, code: ก่อน?.code ?? `c${Date.now().toString(36)}${i}`, label: จัดป้าย(r.label), sort: i + 1, hidden: r.hidden, freeText: ก่อน?.freeText ?? false };
+      });
+      writeKey(OPTION_LISTS_KEY, [...เดิม.filter(x => x.list !== list), ...ใหม่]);
+      return ok(ใหม่);
+    },
+    used: () => ok([]),
   },
   hqCompany: {
     get: () => ok(readKey<HQCompany>(HQ_COMPANY_KEY, EMPTY_HQ_COMPANY)),

@@ -1,4 +1,5 @@
 "use client";
+import { useOptionList } from "@pms/shared/lib/useOptionList";
 import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
@@ -188,9 +189,14 @@ export default function HQLeadsPage() {
 
   // ตัวเลือกตัวกรอง — จากลูกค้าเป้าหมายจริงในช่วง (ไม่ hardcode) · supabase: lead_summary (เวลาอย่างเดียว) · local/ยังไม่กลับ: scoped
   const optsSummary = useLeadSummary(useMemo(() => ({ dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]));
-  const srcOpts = useMemo(() => (optsSummary
-    ? optsSummary.bySource.map(s => s.source)
-    : [...new Set(scoped.map(l => l.source || "ไม่ระบุ"))]).sort((a, b) => a.localeCompare(b, "th")), [optsSummary, scoped]);
+  // แหล่งที่มา = รายการกลาง (ใบ 0296 · ข้อมูลเก็บรหัส) ทุกตัว + ค่านอกรายการที่พบในข้อมูล ("‹ค่า› (ตามที่บันทึกไว้)") + ไม่ระบุ (ถ้ามี)
+  const ช่องทางกลาง = useOptionList("lead_source");
+  const ป้ายแหล่ง = useCallback((v: string | null | undefined) => (!v || v === "ไม่ระบุ" ? "ไม่ระบุ" : ช่องทางกลาง.ป้าย(v)), [ช่องทางกลาง]);
+  const srcOpts = useMemo(() => {
+    const ในข้อมูล = optsSummary ? optsSummary.bySource.map(s => s.source) : [...new Set(scoped.map(l => l.source || "ไม่ระบุ"))];
+    return [...ช่องทางกลาง.ตัวเลือกตัวกรอง(ในข้อมูล.filter(v => v && v !== "ไม่ระบุ")),
+      ...(ในข้อมูล.includes("ไม่ระบุ") ? [{ value: "ไม่ระบุ", label: "ไม่ระบุ" }] : [])];
+  }, [optsSummary, scoped, ช่องทางกลาง]);
   // ฐานของ KPI = ตัวกรอง "ขอบเขต" ทุกตัว (ดีลเลอร์ · ภูมิภาค · จังหวัด · แหล่งที่มา · ค้นหา)
   // แต่ยังไม่กรองด้วย "สถานะ" และ "ต้องติดตามด่วน" — สองอันนั้นคือปุ่มของการ์ด KPI เอง
   // ถ้า KPI ตามสองอันนั้นด้วย ตัวเลขจะยุบเหลือค่าเดียวทันทีที่กด การ์ดจะไร้ความหมาย
@@ -328,14 +334,14 @@ export default function HQLeadsPage() {
   // ลูกค้าเป้าหมายตามแหล่งที่มา + ตามสถานะ (แท่งแนวนอน)
   const sources = useMemo(() => {
     const base = chartSummary
-      ? chartSummary.bySource.map(r => ({ label: r.source, count: r.count }))
-      : (() => { const m = new Map<string, number>(); kpiBase.forEach(l => m.set(l.source || "ไม่ระบุ", (m.get(l.source || "ไม่ระบุ") ?? 0) + 1)); return [...m.entries()].map(([label, count]) => ({ label, count })); })();
+      ? chartSummary.bySource.map(r => ({ label: ป้ายแหล่ง(r.source), count: r.count }))
+      : (() => { const m = new Map<string, number>(); kpiBase.forEach(l => m.set(l.source || "ไม่ระบุ", (m.get(l.source || "ไม่ระบุ") ?? 0) + 1)); return [...m.entries()].map(([v, count]) => ({ label: ป้ายแหล่ง(v), count })); })();
     const arr = [...base].sort((a, b) => b.count - a.count);
     const max = Math.max(...arr.map(a => a.count), 1);
     const total = arr.reduce((s, a) => s + a.count, 0) || 1;
     // pct = เทียบตัวมากสุด (ใช้กับแท่ง) · share = สัดส่วนของทั้งหมด (ใช้กับโดนัท) — คนละความหมาย อย่าสลับ
     return arr.map(a => ({ ...a, pct: Math.round(a.count / max * 100), share: Math.round(a.count / total * 100) }));
-  }, [chartSummary, kpiBase]);
+  }, [chartSummary, kpiBase, ป้ายแหล่ง]);
 
   // ตามขั้น — เลขขั้นจากฐาน (lead_summary.byStage ใบ 0251) · ชื่อขั้นจากตัวกลาง leadStage.ts
   const byStatus = useMemo(() => {
@@ -371,7 +377,7 @@ export default function HQLeadsPage() {
   // Export — หนึ่งแถวต่อลูกค้าเป้าหมาย (คอลัมน์ตรงกับตาราง) · supabase: ดึงทั้งชุดที่กรองจาก DB ตอนกด · local: จาก filtered
   const leadToCells = (l: LeadRow) => [
     l.id, l.dealerCode ?? "—", DEALER_NAME.get(l.dealerCode ?? "") ?? "—", l.company, l.contact,
-    l.province, l.source || "—", มูลค่าอ่านง่าย(มูลค่าลีด(l)),
+    l.province, ช่องทางกลาง.ป้าย(l.source), มูลค่าอ่านง่าย(มูลค่าลีด(l)),
     lastContactLabel(l),
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
     l.assigned || "—", ชื่อขั้น(เลขขั้นแถว(l)),
@@ -569,7 +575,7 @@ export default function HQLeadsPage() {
           )}
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="ค้นหาบริษัท / จังหวัด / ผู้รับผิดชอบ…" aria-label="ค้นหาลูกค้าเป้าหมาย"
             className="form-input" style={{ flex: "1 1 150px", minWidth: 130, maxWidth: 240, padding: "7px 11px", fontSize: "0.74rem" }} />
-          {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o, l: o })))}
+          {leadSel(srcSel, setSrcSel, "ทุกแหล่งที่มา", srcOpts.map(o => ({ v: o.value, l: o.label })))}
           {/* ต้องมีค่าเสมอ — กลุ่มขั้น: ค่าเริ่มต้นกำลังดำเนินการ (ขั้น 1–4) · ลีดปิดแล้วดูได้จากปิดสำเร็จ/ปิดไม่สำเร็จ/ทั้งหมด (บอสสั่ง 28 ต.ค. 69) */}
           {/* ค่าตั้งต้น (ตัวแรก) = กำลังดำเนินการ — ลำดับตัวเลือกเดิม */}
           <FilterSelect label={ช่อง.ขั้นตอน} caption="กำลังดำเนินการ" all="OPEN" value={status} onChange={v => { setStatus(v); if (เฉพาะไม่มีผู้รับผิดชอบ) ตั้งเฉพาะไม่มีผู้รับผิดชอบ(false); }}
@@ -635,7 +641,7 @@ export default function HQLeadsPage() {
                       {l.dealerCode ? <DataLink เป้า={{ ชนิด: "dealer", รหัส: l.dealerCode }}>{DEALER_NAME.get(l.dealerCode) ?? l.dealerCode}</DataLink> : "—"}
                     </td>}
                     {!ซ่อนรายชื่อ.จังหวัด && <td data-cell="province" style={{ color: "var(--muted-foreground)" }} title={l.province || undefined}>{l.province || "—"}</td>}
-                    <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source || undefined}>{l.source || "—"}</td>
+                    <td style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.source ? ช่องทางกลาง.ป้าย(l.source) : undefined}>{ช่องทางกลาง.ป้าย(l.source)}</td>
                     <td data-cell="project" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem" }} title={l.project || undefined}>{l.project || "—"}</td>
                     <td className="num" style={{ color: "var(--muted-foreground)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>{l.area != null ? Number(l.area).toLocaleString() : "—"}</td>
                     {/* ── ปิดไม่สำเร็จ = ต้องเห็นเหตุผลจากหน้ารายการเลย (บอสสั่ง 21 ส.ค. 69) ──────
@@ -732,7 +738,7 @@ export default function HQLeadsPage() {
                 </PanelSection>
 
                 <PanelSection icon={UserCheck} title={กลุ่มช่อง.การดูแล}>
-                  <PanelRow icon={Compass} label={ช่อง.ช่องทาง} value={l.source} />
+                  <PanelRow icon={Compass} label={ช่อง.ช่องทาง} value={l.source ? ช่องทางกลาง.ป้าย(l.source) : undefined} />
                   <PanelRow icon={CalendarDays} label="สร้างเมื่อ" value={วันที่สร้างอ่านง่าย(l.createdAt)} />
                 </PanelSection>
 

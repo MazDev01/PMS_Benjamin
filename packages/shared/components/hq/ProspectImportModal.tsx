@@ -4,6 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
+import { ตัวเลือกฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +19,7 @@ import { อ่านสมุดงานจากไฟล์ } from "@pms/sha
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { ดาวบังคับ, FieldError, useRequiredFields } from "@pms/shared/components/ui/FieldLabel";
 import {
-  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, แปลงช่องทางตั้งต้น, ช่องทางที่ไม่รู้จัก, จังหวัดทั้งหมด,
+  หาแถวหัวตาราง, เดาคอลัมน์, ลายเซ็นหัว, เตรียมแถว, จัดกลุ่ม, แถวส่งฐาน, เลือกวันที่, type ช่องวันที่, คีย์ช่องทาง, จังหวัดทั้งหมด,
   ชื่อช่องนำเข้า, นำเข้าได้สูงสุด, type การจับคู่, type ช่องนำเข้า, type แถวนำเข้า, type ขั้นนำเข้า, type กลุ่มแถว,
 } from "@pms/shared/lib/prospectImport";
 import { เป็นไฟล์เฟซบุ๊ก, เตรียมแถวเฟซบุ๊ก, สรุปเฟซบุ๊ก, แถวเฟซบุ๊กส่งฐาน, เป็นแถวซ้ำ, ข้อมูลไม่ครบ, หัวไฟล์เฟซบุ๊ก, type แถวเฟซบุ๊ก } from "@pms/shared/lib/facebookLeadImport";
@@ -51,15 +52,17 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
   เบอร์ที่มีอยู่: string[];
   /** ผู้สนใจที่มีอยู่ เบอร์ + ชื่อ — หน้าตัวอย่างไฟล์ Facebook บอกว่าซ้ำกับใคร (บอส 20 พ.ย. 69 "ซ้ำยังไง") · ไม่ส่ง = ใช้เบอร์อย่างเดียว */
   รายที่มีอยู่?: { phone: string; name: string }[];
-  /** รายการแหล่งที่มาของหน้าตั้งค่า (ตารางแปลงช่องทางเลือกจากนี้) */
+  /** รายการแหล่งที่มาของหน้าตั้งค่า (จับคู่ค่าในไฟล์จากชื่อ · ตารางแปลงช่องทางเลือกจากนี้) */
   แหล่งที่มา: string[];
-  เหตุผลไม่สำเร็จ: string[];
+  /** รายการกลาง "เหตุผลผู้สนใจไม่สำเร็จ" (ใบ 0296 · เก็บรหัส) */
+  เหตุผลไม่สำเร็จ: ตัวเลือกกลาง[];
 }) {
   const [ไฟล์, setไฟล์] = useState<{ ชื่อ: string; ตาราง: string[][] } | null>(null);
   const [แถวหัว, setแถวหัว] = useState(-1);
   const [คู่, setคู่] = useState<การจับคู่>({});
   const [ปี, setปี] = useState(ปีพศนี้());
-  const [ช่องทาง, setช่องทาง] = useState<Record<string, string>>({ ...แปลงช่องทางตั้งต้น });
+  // ตารางแปลงช่องทาง: เริ่มว่าง — ค่าในไฟล์ที่ตรงชื่อในรายการจับคู่เอง · ไม่ตรง = HQ เลือกเอง หรือปล่อยไม่ระบุ (แถวขึ้นเตือนให้ตรวจ)
+  const [ช่องทาง, setช่องทาง] = useState<Record<string, string>>({});
   const [แถว, setแถว] = useState<แถวนำเข้า[] | null>(null);
   const [หัวข้อที่ข้าม, setหัวข้อที่ข้าม] = useState(0);
   const [ดู, setดู] = useState<กลุ่มแถว>("review");
@@ -91,7 +94,6 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (!ไฟล์ || คู่.channel === undefined) return [];
     return [...new Set(ไฟล์.ตาราง.slice(แถวหัว + 1).map(r => String(r[คู่.channel!] ?? "").trim()).filter(Boolean))];
   }, [ไฟล์, คู่.channel, แถวหัว]);
-  const คีย์ช่องทาง = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
   // อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 "ทำปุ่มอัพไฟล์ในนี้ด้วย" · ทับ 20 พ.ย. เฉพาะในหน้าต่าง — ปุ่มบนหน้ายังไม่มี)
   //   ตัวอ่าน .xlsx/.csv ตัวเดียวกับเดิม → รับสมุดงาน → หน้าตัวอย่าง Facebook / หน้าจับคู่คอลัมน์เดิม (ไม่มีทางที่สอง)
@@ -135,7 +137,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
     if (คู่.phone === undefined) { setพลาด("ต้องเลือกคอลัมน์เบอร์โทร (ใช้กันรายซ้ำ)"); return; }
     setพลาด("");
     จำ(ลายเซ็นหัว(หัว), คู่);
-    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, วันนี้: APP_NOW_ISO, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
+    const ได้ = เตรียมแถว(ไฟล์.ตาราง, แถวหัว, คู่, { ปี, วันนี้: APP_NOW_ISO, แหล่งที่มา, ช่องทาง, เหตุผลไม่สำเร็จ, เบอร์ที่มีอยู่ });
     setแถว(ได้.แถว); setหัวข้อที่ข้าม(ได้.หัวข้อที่ข้าม);
     setดู(ได้.แถว.some(r => r.กลุ่ม === "review") ? "review" : "ready");
   }
@@ -386,10 +388,11 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                     <tbody>
                       {ช่องทางในไฟล์.map(c => (
                         <tr key={c}><td style={เซลล์}>{c}</td><td style={เซลล์}>
-                          {/* ต้องมีค่าเสมอ — ตารางแปลงช่องทาง (ไม่รู้จัก = แนะนำต่อ) */}
-                          <select aria-label={`แหล่งที่มาของ ${c}`} className="form-select" value={ช่องทาง[คีย์ช่องทาง(c)] ?? ช่องทางที่ไม่รู้จัก}
+                          {/* ค่าตั้งต้น = ชื่อในรายการที่ตรงกับค่าในไฟล์ · ไม่ตรง = ยังไม่ระบุ (ไม่เดา · แถวขึ้นเตือนในหน้าตรวจ) */}
+                          <select aria-label={`แหล่งที่มาของ ${c}`} className="form-select" value={ช่องทาง[คีย์ช่องทาง(c)] ?? แหล่งที่มา.find(x => คีย์ช่องทาง(x) === คีย์ช่องทาง(c)) ?? ""}
                             onChange={e => setช่องทาง(m => ({ ...m, [คีย์ช่องทาง(c)]: e.target.value }))}>
-                            {[...new Set([...แหล่งที่มา, ช่องทางที่ไม่รู้จัก])].map(x => <option key={x} value={x}>{x}</option>)}
+                            <option value="">— ยังไม่ระบุ —</option>
+                            {แหล่งที่มา.map(x => <option key={x} value={x}>{x}</option>)}
                           </select>
                         </td></tr>
                       ))}
@@ -442,7 +445,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                   <><select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => { แก้แถว(r.row, { lostReason: e.target.value || null }); บังคับ.ล้าง(`reason:${r.row}`); }}
                                     {...บังคับ.ผูก(`reason:${r.row}`)} style={{ marginTop: 4, ...บังคับ.ผูก(`reason:${r.row}`).style }}>
                                     <option value="">— ยังไม่ระบุ —</option>
-                                    {[...new Set([...เหตุผลไม่สำเร็จ, ...(r.lostReason ? [r.lostReason] : [])])].map(x => <option key={x} value={x}>{x}</option>)}
+                                    {ตัวเลือกฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                   <FieldError>{บังคับ.ผิด[`reason:${r.row}`]}</FieldError></>
                                 )}
