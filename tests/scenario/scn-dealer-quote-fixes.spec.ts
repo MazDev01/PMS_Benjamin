@@ -80,6 +80,7 @@ test("[D·dealer] ลูกค้าปฏิเสธแล้ว: กล่อ
   await เลือก.getByRole("button", { name: "ลูกค้าปฏิเสธ", exact: true }).click();
   const ตัวเลือก = page.locator("[data-lost-picker]");
   await expect(ตัวเลือก).toBeVisible({ timeout: 30_000 });
+  await expect(ตัวเลือก.locator("button").last(), "ลูกค้าปฏิเสธ: อื่น ๆ (ระบุ) อยู่ท้ายรายการ (บอสสั่ง 24 พ.ย. 69)").toHaveText("อื่น ๆ (ระบุ)");
   await ตัวเลือก.getByRole("button").first().click();
   await page.locator("[data-reason-dialog]").getByRole("button", { name: "ยืนยันลูกค้าปฏิเสธ", exact: true }).click();
   await expect.poll(async () => (await sb.from("leads").select("status").eq("dealer_code", สาขา.รหัส).eq("num_id", ใบค!.leadNum).single()).data?.status,

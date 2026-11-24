@@ -4,7 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
-import { ตัวเลือกฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
+import { ตัวเลือกเหตุผลฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
@@ -450,7 +450,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                   <><select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => { แก้แถว(r.row, { lostReason: e.target.value || null }); บังคับ.ล้าง(`reason:${r.row}`); }}
                                     {...บังคับ.ผูก(`reason:${r.row}`)} style={{ marginTop: 4, ...บังคับ.ผูก(`reason:${r.row}`).style }}>
                                     <option value="">— ยังไม่ระบุ —</option>
-                                    {ตัวเลือกฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    {ตัวเลือกเหตุผลฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                   <FieldError>{บังคับ.ผิด[`reason:${r.row}`]}</FieldError></>
                                 )}

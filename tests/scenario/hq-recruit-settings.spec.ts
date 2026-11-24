@@ -134,6 +134,7 @@ test("[func·hq] ตั้งค่า › หาดีลเลอร์ → �
   await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ", exact: true }), "เลือกจากรายการกลาง").toBeVisible();
   await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true }), "อื่น ๆ (ระบุ) อยู่ในรายการ (เขียนแบบเดียว)").toBeVisible();
   await expect(กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "อื่นๆ (ระบุเอง)", exact: true }), "ไม่เติมปุ่มอื่นๆ ซ้ำ").toHaveCount(0);
+  await expect(กล่อง.locator("[data-lost-picker] button").last(), "อื่น ๆ (ระบุ) อยู่ท้ายรายการ (บอสสั่ง 24 พ.ย. 69)").toHaveText("อื่น ๆ (ระบุ)");
   await expect(กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }), "ยังไม่เลือกเหตุผล = กดยืนยันไม่ได้").toBeDisabled();
   await กล่อง.locator("[data-lost-picker]").getByRole("button", { name: "เงินทุนไม่พอ", exact: true }).click();
   await กล่อง.getByRole("button", { name: "ยืนยันไม่สำเร็จ" }).click();

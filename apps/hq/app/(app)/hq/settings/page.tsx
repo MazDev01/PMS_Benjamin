@@ -424,11 +424,13 @@ function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {
               {ล็อก && <span style={{ fontSize: "0.66rem", color: "#0369a1", whiteSpace: "nowrap" }}>มีข้อมูลใช้</span>}
               <button type="button" aria-label={`เลื่อน ${ป้าย} ขึ้น`} disabled={i === 0} onClick={() => เลื่อน(i, -1)} style={ปุ่มไอคอน(i === 0)}><ArrowUp size={13} /></button>
               <button type="button" aria-label={`เลื่อน ${ป้าย} ลง`} disabled={i === rows.length - 1} onClick={() => เลื่อน(i, 1)} style={ปุ่มไอคอน(i === rows.length - 1)}><ArrowDown size={13} /></button>
-              <button type="button" aria-label={r.hidden ? `แสดง ${ป้าย}` : `ซ่อน ${ป้าย}`} title={r.hidden ? "แสดงให้เลือกตอนกรอกใหม่" : "ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ)"}
-                onClick={() => แก้(i, { hidden: !r.hidden })} style={ปุ่มไอคอน(false)}>{r.hidden ? <Eye size={13} /> : <EyeOff size={13} />}</button>
-              <button type="button" aria-label={`ลบ ${ป้าย}`} disabled={ล็อก}
-                title={ล็อก ? "มีข้อมูลใช้ตัวเลือกนี้อยู่ ลบไม่ได้ — ซ่อนแทน" : "ลบตัวเลือกนี้"}
-                onClick={() => onChange(rows.filter((_, k) => k !== i))} style={{ ...ปุ่มไอคอน(ล็อก), color: ล็อก ? "#cbd5e1" : "#dc2626" }}><Trash2 size={13} /></button>
+              {/* "อื่น ๆ (ระบุ)" (ตัวระบุเอง) ต้องมีในกล่องเหตุผลเสมอ — ซ่อน/ลบไม่ได้ แก้ชื่อได้ (บอสสั่ง 24 พ.ย. 69 · ฐานกันอีกชั้น ใบ 0303) */}
+              <button type="button" aria-label={r.hidden ? `แสดง ${ป้าย}` : `ซ่อน ${ป้าย}`} disabled={r.freeText && !r.hidden}
+                title={r.freeText && !r.hidden ? "ตัวเลือกนี้ต้องมีให้เลือกเสมอ — ซ่อนไม่ได้ (แก้ชื่อได้)" : r.hidden ? "แสดงให้เลือกตอนกรอกใหม่" : "ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ)"}
+                onClick={() => แก้(i, { hidden: !r.hidden })} style={ปุ่มไอคอน(r.freeText && !r.hidden)}>{r.hidden ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <button type="button" aria-label={`ลบ ${ป้าย}`} disabled={ล็อก || r.freeText}
+                title={r.freeText ? "ตัวเลือกนี้ต้องมีให้เลือกเสมอ — ลบไม่ได้ (แก้ชื่อได้)" : ล็อก ? "มีข้อมูลใช้ตัวเลือกนี้อยู่ ลบไม่ได้ — ซ่อนแทน" : "ลบตัวเลือกนี้"}
+                onClick={() => onChange(rows.filter((_, k) => k !== i))} style={{ ...ปุ่มไอคอน(ล็อก || r.freeText), color: ล็อก || r.freeText ? "#cbd5e1" : "#dc2626" }}><Trash2 size={13} /></button>
             </div>
           );
         })}

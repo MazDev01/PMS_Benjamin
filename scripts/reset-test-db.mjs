@@ -111,6 +111,24 @@ select q.dealer_code, q.id, coalesce(h.ordered_at,
  where q.status = 'won'
 on conflict (dealer_code, quote_id) do nothing;` });
 
+// ── ②คข เหตุผลปิดไม่สำเร็จในข้อมูลตั้งต้น = รหัสในรายการกลาง (ใบ 0301) ───────────────────────────────────────────────
+//   ฐานจริง: ใบ 0301 แปลงข้อความเดิมตอนลงใบ · ข้อมูลตั้งต้นลงหลังใบโดยปิดตัวดัก → ค้างเป็นข้อความดิบ ("งบประมาณไม่พอ" ฯลฯ)
+//   (คนรวมงานเจอบนฐาน dev ที่สร้างใหม่ 24 พ.ย. 69) — ใช้ตัวจัดค่าเดียวกับใบ (_lead_lost_value) · ฐานที่ยังไม่มีใบ 0301 = ข้าม
+console.log("②คข เหตุผลปิดไม่สำเร็จในข้อมูลตั้งต้น (ใบ 0301) …");
+sh("docker", [...อาร์กิวเมนต์psql(container), "-X", "-q", "-v", "ON_ERROR_STOP=1"], { shell: false, stdio: ["pipe", "ignore", "inherit"],
+  input: `begin;
+set local session_replication_role = replica;
+do $lr$ begin
+  if to_regprocedure('public._lead_lost_value(text)') is null then return; end if;
+  update public.leads set lost_reason = public._lead_lost_value(lost_reason)
+   where btrim(coalesce(lost_reason, '')) <> '' and public._lead_lost_value(lost_reason) is distinct from lost_reason;
+  update public.quotations set lost_reason = public._lead_lost_value(lost_reason)
+   where btrim(coalesce(lost_reason, '')) <> '' and public._lead_lost_value(lost_reason) is distinct from lost_reason;
+  update public.quote_requests set lost_reason = public._lead_lost_value(lost_reason)
+   where btrim(coalesce(lost_reason, '')) <> '' and public._lead_lost_value(lost_reason) is distinct from lost_reason;
+end $lr$;
+commit;` });
+
 // ── ②ง เครื่องหมายฐานทดสอบ (ดูหัวไฟล์ส่วนเครื่องหมาย) — ฐานที่ล้างใหม่ไม่มีตารางนี้ ──────────────────────────────────────
 console.log("②ง เครื่องหมายฐานทดสอบ …");
 ใส่เครื่องหมายฐานทดสอบ();

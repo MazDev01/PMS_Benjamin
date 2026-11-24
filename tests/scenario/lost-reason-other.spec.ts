@@ -25,6 +25,10 @@ test("[ui·hq] หน้าตั้งค่า › รายการกลา
   const รายการ = page.locator('[data-option-list="lead_lost_reason"]');
   await expect(รายการ, "มีรายการเหตุผลปิดการขายไม่สำเร็จ").toHaveCount(1, { timeout: 20_000 });
   await expect(รายการ.getByRole("textbox", { name: "ชื่อตัวเลือก “อื่น ๆ (ระบุ)”", exact: true }), "อื่น ๆ (ระบุ) อยู่ในรายการเหมือนตัวอื่น").toHaveValue("อื่น ๆ (ระบุ)");
+  // บอสสั่ง 24 พ.ย. 69: "อื่น ๆ" ต้องมีในกล่องเหตุผลเสมอ — HQ ซ่อน/ลบไม่ได้ แก้ชื่อได้ (ฐานกันอีกชั้น ใบ 0303)
+  await expect(รายการ.getByRole("button", { name: "ซ่อน อื่น ๆ (ระบุ)", exact: true }), "ซ่อนอื่น ๆ ไม่ได้").toBeDisabled();
+  await expect(รายการ.getByRole("button", { name: "ลบ อื่น ๆ (ระบุ)", exact: true }), "ลบอื่น ๆ ไม่ได้").toBeDisabled();
+  await expect(รายการ.getByRole("textbox", { name: "ชื่อตัวเลือก “อื่น ๆ (ระบุ)”", exact: true }), "แก้ชื่อได้").toBeEditable();
 });
 
 test("[func] ตัวเลือก 'อื่น ๆ (ระบุ)' = กดแล้วพิมพ์เอง · ไม่เก็บคำว่าอื่น ๆ ลอย ๆ ลงฐานข้อมูล", async ({ page }) => {
@@ -51,6 +55,7 @@ test("[func] ตัวเลือก 'อื่น ๆ (ระบุ)' = กด
     const ปุ่มอื่นๆ = page.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true });
     await expect(ปุ่มอื่นๆ, "ต้องมีปุ่มเดียว ไม่ซ้ำ").toHaveCount(1);
     await expect(page.getByRole("button", { name: "อื่นๆ (ระบุเอง)", exact: true }), "ไม่มีปุ่มชุดเดิมเติมซ้ำ").toHaveCount(0);
+    await expect(page.locator("[data-lost-picker] button").last(), "อื่น ๆ (ระบุ) อยู่ท้ายรายการ (บอสสั่ง 24 พ.ย. 69)").toHaveText("อื่น ๆ (ระบุ)");
 
     // กดแล้วต้องเปิดช่องพิมพ์ ไม่ใช่เลือกคำว่า "อื่น ๆ" ไปบันทึกตรง ๆ
     await ปุ่มอื่นๆ.click();
@@ -85,4 +90,45 @@ test("[ui·hq] ตารางลูกค้าเป้าหมายทั�
     await expect(แถว(1)).not.toContainText("budget");
     await expect(แถว(2), "ข้อความเดิม = อื่น ๆ: ข้อความ").toContainText("อื่น ๆ: ลูกค้าเลื่อนโครงการ");
   } finally { await ส.ลบ(); }
+});
+
+// ── บอสสั่ง 24 พ.ย. 69 (ดู localhost): "ต้องมี อื่น ๆ ในหน้าปิดการขายไม่สำเร็จ บางทีจะไม่อยู่ในตัวเลือก" ──
+//   ① HQ เคยซ่อน "อื่น ๆ (ระบุ)" ไว้ (ข้อมูลก่อนใบ 0303 · ใส่ตรงที่ฐาน ปิดตัวดัก) → กล่องปิดไม่สำเร็จ/ช่องเหตุผลในแผงยังมี "อื่น ๆ (ระบุ)" ท้ายรายการ
+//   ② ช่องเหตุผลในแผงลีดที่ปิดไม่สำเร็จแล้ว: เลือก "อื่น ๆ (ระบุ)" = มีช่องพิมพ์ · ยังไม่พิมพ์ = บันทึกไม่ได้
+//   ตกบนโค้ดเดิม (246581bf): ตัวที่ซ่อนถูกกรองทิ้งจากกล่องเหตุผลและช่องเลือก
+test("[func·dealer] HQ ซ่อน 'อื่น ๆ (ระบุ)' ไว้ → กล่องปิดไม่สำเร็จ + ช่องเหตุผลในแผงยังมีท้ายรายการ · เลือกแล้วต้องพิมพ์", async ({ page }) => {
+  const ส = await สร้างสาขาของข้อ();
+  const ซ่อน = (ค่า: boolean) => รันSQLในฐาน(`set local session_replication_role = replica;
+    update public.option_lists set hidden = ${ค่า} where list = 'lead_lost_reason' and code = 'other';
+    set local session_replication_role = origin;`);
+  try {
+    const ฐาน = 1_970_800_000 + Math.floor(Math.random() * 400_000) * 10, ชื่อ = `ZZTEST อื่นๆต้องมี ${ส.รหัส}`;
+    const ผล = รันSQLในฐาน(`set local session_replication_role = replica;
+      insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, lost_reason, created_date) values
+        ('#L-${ฐาน + 1}', ${ฐาน + 1}, '${ส.รหัส}', '${ชื่อ}-เปิด', '${ชื่อ}-เปิด', 'ผู้ทดสอบ', '000-000-0331', 'ตราด', 'BULLET', null, current_date),
+        ('#L-${ฐาน + 2}', ${ฐาน + 2}, '${ส.รหัส}', '${ชื่อ}-ปิด', '${ชื่อ}-ปิด', 'ผู้ทดสอบ', '000-000-0332', 'ตราด', 'CANCELLED', 'budget', current_date);
+      set local session_replication_role = origin;`);
+    if (ผล === null) throw new Error("ไม่พบฐานทดสอบในเครื่อง (docker) — วางข้อมูลของข้อไม่ได้");
+    expect(ซ่อน(true), "ซ่อนอื่น ๆ (แบบข้อมูลก่อนใบ 0303)").not.toBeNull();
+    await loginUI(page, DEALER_ORIGIN, "/login", ส.บัญชี);
+    // ① กล่องปิดไม่สำเร็จ (ลีดที่ยังเปิด)
+    await page.goto(`${DEALER_ORIGIN}/leads?open=${encodeURIComponent(`#L-${ฐาน + 1}`)}`, { waitUntil: "domcontentloaded" }); await settle(page);
+    await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: "ปิดไม่สำเร็จ", exact: true }).click({ timeout: 25_000 });
+    const ปุ่ม = page.locator("[data-lost-picker] button");
+    await expect(ปุ่ม.last(), "① ซ่อนไว้ก็ยังมี อื่น ๆ (ระบุ) ท้ายรายการ").toHaveText("อื่น ๆ (ระบุ)", { timeout: 15_000 });
+    await ปุ่ม.last().click();
+    await expect(page.getByPlaceholder("พิมพ์เหตุผล…", { exact: true }), "เลือกแล้วมีช่องพิมพ์").toBeVisible();
+    await expect(page.getByRole("button", { name: "ยืนยันปิดการขาย", exact: true }), "ยังไม่พิมพ์ = ยืนยันไม่ได้").toBeDisabled();
+    await page.locator("[data-dialog-cancel]").click();
+    // ② ช่องเหตุผลในแผงลีดที่ปิดไม่สำเร็จแล้ว
+    await page.goto(`${DEALER_ORIGIN}/leads?open=${encodeURIComponent(`#L-${ฐาน + 2}`)}`, { waitUntil: "domcontentloaded" }); await settle(page);
+    const ช่อง = page.locator("#ov-lost");
+    await expect(ช่อง.locator("option").last(), "② ช่องเหตุผลในแผง: อื่น ๆ (ระบุ) ท้ายรายการ").toHaveText("อื่น ๆ (ระบุ)", { timeout: 25_000 });
+    await ช่อง.selectOption("other");
+    await expect(page.getByLabel("ระบุเหตุผลที่ปิดการขายไม่สำเร็จ", { exact: true }), "เลือกแล้วมีช่องพิมพ์").toBeVisible();
+    await expect(page.getByRole("button", { name: "บันทึกการแก้ไข", exact: true }), "ยังไม่พิมพ์ = บันทึกไม่ได้").toBeDisabled();
+  } finally {
+    ซ่อน(false);
+    await ส.ลบ();
+  }
 });

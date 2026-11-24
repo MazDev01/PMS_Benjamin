@@ -32,7 +32,7 @@ import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
 import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useOptionList } from "@pms/shared/lib/useOptionList";
-import { จัดค่าเหตุผล, แยกค่าระบุเอง, ค่าระบุเอง } from "@pms/shared/lib/optionLists";
+import { จัดค่าเหตุผล, แยกค่าระบุเอง, ค่าระบุเอง, ตัวเลือกเหตุผลฟอร์ม } from "@pms/shared/lib/optionLists";
 import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
@@ -407,7 +407,7 @@ function OverviewEditor({ lead, persons, onSave }: {
               <select id="ov-lost" aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={ระบุเหตุผล ? ระบุเหตุผล.item.code : f.lostReason}
                 onChange={e=>{ const v = e.target.value; const ตัว = เหตุผลกลาง.items.find(x => x.code === v); set("lostReason", ตัว?.freeText ? ค่าระบุเอง(v, "") : v); }} style={inp}>
                 <option value="">— เลือก —</option>
-                {เหตุผลกลาง.ตัวเลือกฟอร์ม(ระบุเหตุผล ? ระบุเหตุผล.item.code : f.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {ตัวเลือกเหตุผลฟอร์ม(เหตุผลกลาง.items, ระบุเหตุผล ? ระบุเหตุผล.item.code : f.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               {ระบุเหตุผล && (
                 <input aria-label="ระบุเหตุผลที่ปิดการขายไม่สำเร็จ" value={ระบุเหตุผล.ข้อความ} onChange={e=>set("lostReason", ค่าระบุเอง(ระบุเหตุผล.item.code, e.target.value))}
