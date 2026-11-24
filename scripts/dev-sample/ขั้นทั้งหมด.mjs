@@ -214,10 +214,10 @@ export async function สร้าง(ctx) {
       if (i === 12) ต้อง(await sb.rpc("close_won_quotation", { p_dealer: s.code, p_known_customer_id: null, p_lead_company: company, p_target_quote_id: id,
         p_cascade_won: false, p_customer_payload: { company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province),
           phone: เบอร์งาน(n), province: s.province } }), "ลูกค้าตอบรับ");
-      if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "ราคาสูงกว่าคู่แข่ง" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");
+      if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "competitor" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");   // รหัสในรายการกลาง (ใบ 0301)
     }
     // 14 D8y ปิดไม่สำเร็จ
-    { const { n, จด } = await เริ่ม(14); await จด(1); ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n), p_intent: { stage: { status: "CANCELLED", lostReason: "ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
+    { const { n, จด } = await เริ่ม(14); await จด(1); ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n), p_intent: { stage: { status: "CANCELLED", lostReason: "other:ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
     console.log(`✓ ${s.code}: ลีดตัวอย่าง ${สถานการณ์.length} ราย ครบขั้น 1–5 · ปิดสำเร็จ · ปิดไม่สำเร็จ · คำขอราคา · ใบ HQ · ใบลูกค้า · นัดหมาย`);
   }
   ย้อน.พัก();

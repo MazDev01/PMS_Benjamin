@@ -19,7 +19,9 @@ const สาขา = [
   { code: "SKN", province: "สกลนคร", base: 996_530_000, งาน: 8, ลีดอย่างเดียว: true },
 ];
 const แบบ = ["won", "won", "lost", "won", "cancel", "won", "sent", "waiting"];
-const เหตุผลแพ้ = ["ราคาสูงกว่าคู่แข่ง", "ลูกค้าเลื่อนโครงการ", "ลูกค้าเลือกผู้รับเหมารายอื่น"];
+// เหตุผลปิดไม่สำเร็จ/ลูกค้าปฏิเสธ = รหัสในรายการกลาง lead_lost_reason (ใบ 0301 · บอสตัดสิน 23 พ.ย. 69 ข้อ 14) — กระจาย 4 ตัวให้กราฟ HQ เห็นหลายชิ้น
+//   ("อื่น ๆ: ข้อความ" มี 2 รายที่ ใบเสนอราคา.mjs / ขั้นทั้งหมด.mjs ให้เห็นทั้งสองแบบ)
+const เหตุผลแพ้ = ["price_high", "competitor", "budget", "no_response"];
 
 export const มีแล้ว = (ctx) => มีลีดในช่วง(ctx, ช่วง);
 export function ลบ(ctx) { ctx.sql(sqlลบงานขาย([ช่วง], ["บริษัท ยอดย้อนหลัง %"])); }
@@ -44,11 +46,11 @@ export async function สร้าง(ctx) {
       const จด = ย้อน.งาน(s.code, n, เส้น.map(v => Math.min(360, v)), i % 5);
       await จด(0);
       const { company } = await ง.ลีด(n, { ย้อนวัน: Math.min(360, เส้น[0]), เรื่อง: `งานย้อนหลัง (${ชนิด})`, ขนาด });
-      if (ชนิด === "cancel") { await จด(1); await ง.ปิดไม่สำเร็จ(n, เหตุผลแพ้[i % 3]); }
+      if (ชนิด === "cancel") { await จด(1); await ง.ปิดไม่สำเร็จ(n, เหตุผลแพ้[i % เหตุผลแพ้.length]); }
       else if (ชนิด !== "waiting") {
         const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด, บวก, จด });
         if (ชนิด === "won") { await จด(4); await ง.ตอบรับ(n, company, qid); }
-        if (ชนิด === "lost") { await จด(4); await ง.ปฏิเสธ(qid, เหตุผลแพ้[i % 3]); }
+        if (ชนิด === "lost") { await จด(4); await ง.ปฏิเสธ(qid, เหตุผลแพ้[(i + 1) % เหตุผลแพ้.length]); }
       }
       นับ[ชนิด] = (นับ[ชนิด] ?? 0) + 1;
     }

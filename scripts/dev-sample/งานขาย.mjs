@@ -163,9 +163,10 @@ export async function งานขายของสาขา(ctx, { code, provi
     p_dealer: code, p_known_customer_id: customerId, p_lead_company: company, p_target_quote_id: id, p_cascade_won: false,
     p_customer_payload: { company, name: company, contact: ผู้ติดต่อ(n), address: ที่อยู่สมจริง(`${code}:${n}`, province),
       phone: เบอร์งาน(n), email: `sample-${code.toLowerCase()}-${n % 100_000}@example.test`, province } }), `ลูกค้าตอบรับ ${id}`);
-  const ปฏิเสธ = async (id, เหตุผล = "ราคาสูงกว่าคู่แข่ง") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
+  // เหตุผลตั้งต้น = รหัสในรายการกลาง lead_lost_reason (ใบ 0301) · ข้อความที่ไม่ตรงรายการ ฐานเก็บเป็น "อื่น ๆ: ข้อความ"
+  const ปฏิเสธ = async (id, เหตุผล = "price_high") => ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: เหตุผล })
     .eq("dealer_code", code).eq("id", id), `ลูกค้าปฏิเสธ ${id}`);
-  const ปิดไม่สำเร็จ = async (n, เหตุผล = "ลูกค้าไม่สนใจแล้ว") => ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n),
+  const ปิดไม่สำเร็จ = async (n, เหตุผล = "no_response") => ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n),
     p_intent: { stage: { status: "CANCELLED", lostReason: เหตุผล }, fields: {} } }), `ปิดไม่สำเร็จ ${n}`);
   /** นัดหมาย (สร้างที่แผงลีด › นัดหมาย) · สถานะเริ่ม upcoming แล้วค่อยกดเสร็จ/ยกเลิก แบบหน้าปฏิทิน */
   const นัด = async (n, company, { ห่างวัน = 0, เวลา = "10:00", type = "visit", ลำดับ = 1, เรื่อง = "นัดดูหน้างาน" } = {}) => {
