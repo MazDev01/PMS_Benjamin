@@ -28,7 +28,8 @@ grant execute on all functions in schema flowtest to authenticated;
 do $lk$ begin
   loop
     begin
-      lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospects, dealer_prospect_activities, dealer_territories, hq_quotes, quote_requests, quote_request_events, quotations, leads
+      -- dealers (24 พ.ย. 69): ป้ายจังหวัดว่างของใบ 0298 ขึ้นกับจังหวัดที่ดีลเลอร์ตั้งอยู่ — ข้อทดสอบหน้าจอที่รันพร้อมกันสร้างดีลเลอร์ชั่วคราว (ตราด ฯลฯ) ต้องรอจนรายการนี้จบ
+      lock table dealer_proposal_payments, dealer_package_proposals, dealer_prospects, dealer_prospect_activities, dealer_territories, hq_quotes, quote_requests, quote_request_events, quotations, leads, dealers
         in share row exclusive mode nowait;
       exit;
     exception when lock_not_available then perform pg_sleep(0.02);
@@ -41,9 +42,16 @@ delete from hq_quotes; delete from quote_request_events; set local pms.quote_req
 
 -- กล่อง 1 · หาดีลเลอร์ใหม่: ผู้สนใจ new 2 · meeting 1 · considering 1 · won 1 · lost 1
 -- จังหวัดของผู้สนใจ (ใบ 0298 · ป้ายจังหวัดที่มีผู้สนใจแต่ยังไม่มีดีลเลอร์ นับจากผู้สนใจที่ยังไม่ปิด):
---   ตราด 2 (นับ) · ระยอง = มีเขตขาย (ไม่นับ) · จังหวัดที่ CNX ตั้งอยู่ = มีดีลเลอร์ (ไม่นับ) · สตูล = ปิดแล้วทั้งคู่ won/lost (ไม่นับ)
+--   จังหวัดว่าง 2 (นับ) · ระยอง = มีเขตขาย (ไม่นับ) · จังหวัดที่ CNX ตั้งอยู่ = มีดีลเลอร์ (ไม่นับ) · สตูล = ปิดแล้วทั้งคู่ won/lost (ไม่นับ)
+--   "จังหวัดว่าง" เลือกตอนรันจาก th_provinces ที่ไม่มีดีลเลอร์ตั้งอยู่ (หลังล็อก dealers) — เดิมตายตัว "ตราด" ผ่านบนฐาน dev แต่ตกในรอบเต็ม deploy32
+--   (ได้ [] · ข้อทดสอบหน้าจอที่รันพร้อมกันสร้างดีลเลอร์ชั่วคราวจังหวัดตราด) — คนรวมงานสั่ง 24 พ.ย. 69
+create temp table zz_ov_จังหวัดว่าง on commit drop as
+  select p.name from th_provinces p
+   where p.name not in ('ระยอง', 'สตูล')
+     and not exists (select 1 from dealers d where btrim(coalesce(d.province, '')) = p.name)
+   order by p.name limit 1;
 insert into dealer_prospects (id, name, status, province) values
-  (9001, 'ZZOV ก', 'new', 'ตราด'), (9002, 'ZZOV ข', 'new', 'ตราด'), (9003, 'ZZOV ค', 'meeting', 'ระยอง'),
+  (9001, 'ZZOV ก', 'new', (select name from zz_ov_จังหวัดว่าง)), (9002, 'ZZOV ข', 'new', (select name from zz_ov_จังหวัดว่าง)), (9003, 'ZZOV ค', 'meeting', 'ระยอง'),
   (9004, 'ZZOV ง', 'considering', (select province from dealers where code = 'CNX')), (9005, 'ZZOV จ', 'won', 'สตูล'), (9006, 'ZZOV ฉ', 'lost', 'สตูล');
 -- ใบค่าแฟรนไชส์รอตอบ (ส่งแล้ว) 2 ใบ รวม 450,000 · ร่าง/ตอบรับ ไม่นับ
 insert into dealer_package_proposals (id, prospect_id, proposal_no, amount, status) values
@@ -94,8 +102,10 @@ do $$
 declare
   hq  uuid := (select id from profiles where role = 'SUPER_ADMIN' limit 1);
   cnx uuid := (select id from profiles where role = 'DEALER_ADMIN' and dealer_code = 'CNX' limit 1);
+  จังหวัดว่าง text := (select name from zz_ov_จังหวัดว่าง);   -- อ่านก่อนสลับบทบาท (ตารางชั่วคราวของเจ้าของรายการ)
   o jsonb;
 begin
+  perform flowtest.ok(จังหวัดว่าง is not null, 'มีจังหวัดที่ไม่มีดีลเลอร์ตั้งอยู่ให้ใช้ทดสอบ');
   perform flowtest.as_hq(hq);
   o := hq_overview();
 
@@ -104,7 +114,7 @@ begin
     format('ผู้สนใจแต่ละขั้น (ได้ %s)', o #> '{recruit,stages}'));
   perform flowtest.ok(o #> '{recruit,proposalsWaiting}' = '{"count":2,"amount":450000}'::jsonb,
     format('ใบค่าแฟรนไชส์ที่รอตอบ 2 ใบ 450,000 (ได้ %s)', o #> '{recruit,proposalsWaiting}'));
-  perform flowtest.ok(o #> '{recruit,provincesNoDealer}' = '[{"province":"ตราด","leads":2}]'::jsonb,
+  perform flowtest.ok(o #> '{recruit,provincesNoDealer}' = jsonb_build_array(jsonb_build_object('province', จังหวัดว่าง, 'leads', 2)),
     format('จังหวัดที่มีผู้สนใจ (ยังไม่ปิด) แต่ไม่มีดีลเลอร์/เขตขาย — ไม่นับลูกค้าเป้าหมาย (ใบ 0298 · ได้ %s)', o #> '{recruit,provincesNoDealer}'));
 
   -- กล่อง 2
