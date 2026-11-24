@@ -83,7 +83,7 @@ begin
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"PAID"}}')$q$, 'lead_won_needs_accepted_quote', 'ปิดสำเร็จที่ลีด (ไม่มีใบที่ตอบรับ · ใบ 0232)');
   perform latest.must_fail($q$select lead_apply('#L-ZLA1', '{"stage":{"status":"CANCELLED"}}')$q$, 'lead_lost_needs_reason', 'ปิดไม่สำเร็จโดยไม่มีเหตุผล');
   r := lead_apply('#L-ZLA1', '{"stage":{"status":"CANCELLED","lostReason":"งบไม่พอ"},"log":false}');
-  perform latest.ok(r.status = 'CANCELLED' and r.lost_reason = 'งบไม่พอ', 'ปิดไม่สำเร็จพร้อมเหตุผล');
+  perform latest.ok(r.status = 'CANCELLED' and r.lost_reason = 'other:งบไม่พอ', 'ปิดไม่สำเร็จพร้อมเหตุผล (ไม่ตรงรายการกลาง = other:ข้อความ · ใบ 0301)');
   perform latest.ok(not (r.activities @> '[{"text":"เปลี่ยนขั้นเป็น \"ปิดการขายไม่สำเร็จ\""}]'), 'log=false ไม่จดไทม์ไลน์');
 
   -- ⑦ ผู้รับผิดชอบเปลี่ยน → ไทม์ไลน์ · กิจกรรมที่ส่งมาต่อท้าย · เลขต่อเนื่อง

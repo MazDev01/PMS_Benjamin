@@ -48,15 +48,26 @@ export function Sidebar({ mobileOpen = false, onNavigate, onSamePage }: { mobile
     <aside className={`erp-sidebar${mobileOpen ? " open" : ""}`}>
       {/* Brand — แบรนด์ Benjamin เท่านั้นทุกบทบาท (ดีลเลอร์เปลี่ยนโลโก้/แบรนด์เองไม่ได้)
           ไม่มีคำบรรยายใต้ชื่อแบรนด์ (บอสสั่ง 1 ก.ย. 69) · ชื่อหน้าจริง (h1) อยู่ที่หัวหน้าเพจ */}
-      <div className="sidebar-brand">
-        <div className="brand-mark">
-          { }
-          <img src="/benjamin-logo-white.png" alt="Benjamin" style={{ width: 26, height: 26, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-        </div>
-        <div className="brand-text">
-          <div className="brand-name">BENJAMIN</div>
-        </div>
-      </div>
+      {/* กดโลโก้ = กลับหน้าหลัก (บอสสั่ง 24 พ.ย. 69) — HQ → /hq/dashboard · ดีลเลอร์ → /dashboard · ลิงก์จริงชื่อ "ไปหน้าหลัก"
+          เมนูมือถือ: กดแล้วปิดเมนู (onNavigate) · อยู่หน้าหลักอยู่แล้ว = รีเซ็ตหน้า (onSamePage) แบบเดียวกับกดเมนูของหน้าที่อยู่
+          ยังไม่รู้ว่าเป็นแอปไหน (ก่อนรู้ตัวตน) = ไม่ใส่ลิงก์ — เดาจาก URL ไม่ได้ (เหตุผลเดียวกับเมนูด้านล่าง) */}
+      {(() => {
+        const หน้าหลัก = isHQ ? "/hq/dashboard" : "/dashboard";
+        const เนื้อ = (<>
+          <div className="brand-mark">
+            { }
+            <img src="/benjamin-logo-white.png" alt="" style={{ width: 26, height: 26, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+          </div>
+          <div className="brand-text">
+            <div className="brand-name">BENJAMIN</div>
+          </div>
+        </>);
+        return ready ? (
+          <Link href={หน้าหลัก} aria-label="ไปหน้าหลัก" title="ไปหน้าหลัก" data-brand-home className="sidebar-brand"
+            onClick={() => { onNavigate?.(); if (pathname === หน้าหลัก) onSamePage?.(); }}
+            style={{ textDecoration: "none", color: "inherit" }}>{เนื้อ}</Link>
+        ) : <div className="sidebar-brand">{เนื้อ}</div>;
+      })()}
 
       <nav aria-label="เมนูหลัก">
         {nav.map(g => {

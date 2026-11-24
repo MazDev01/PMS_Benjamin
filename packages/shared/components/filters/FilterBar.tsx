@@ -183,7 +183,8 @@ export function SelectFilter({ caption, value, options, onChange }: {
       {open && (
         <Menu>
           <div style={{ maxHeight: 300, overflowY: "auto", padding: "4px 0" }}>
-            <MenuItem selected={value === ALL} label={`${caption}ทั้งหมด`} onClick={() => { onChange(ALL); setOpen(false); }} />
+            {/* ป้ายที่ขึ้นต้นด้วย "ทุก…" ครบความแล้ว — ไม่ต่อ "ทั้งหมด" (เดิม "ทุกดีลเลอร์ (ทั้งเครือ)ทั้งหมด" · ผู้ตรวจ 23 พ.ย. 69 ข้อ 13) */}
+            <MenuItem selected={value === ALL} label={caption.startsWith("ทุก") ? caption : `${caption}ทั้งหมด`} onClick={() => { onChange(ALL); setOpen(false); }} />
             {options.map(o => (
               <MenuItem key={o.value} selected={value === o.value} label={o.label}
                 onClick={() => { onChange(o.value); setOpen(false); }} />

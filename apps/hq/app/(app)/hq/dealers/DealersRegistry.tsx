@@ -105,9 +105,15 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
   const [มุมมอง, setมุมมอง] = useState<"card" | "table">("table");
   // ?view=card / ?view=table → เปิดตามที่ระบุ (ลิงก์ตรง/เทสต์) · ตั้งหลังเปิดหน้า ไม่ใช่ค่าเริ่มของ state
   //   ค่าเริ่มที่อ่านจาก URL จะไม่ตรงกับหน้าที่เซิร์ฟเวอร์เรนเดอร์ไว้ แล้วเบราว์เซอร์ฟ้องข้อผิดพลาด
+  // ?codes=A,B&from=prospects-month = มาจากการ์ด "เป็นดีลเลอร์แล้วเดือนนี้" ของหน้าผู้สนใจ → ตารางเหลือเฉพาะรายในการ์ด (ผู้ตรวจ 23 พ.ย. 69)
+  //   ป้ายบนตารางบอกว่ากรองอยู่ + ปุ่มแสดงทั้งหมด · ว่าง (0 ราย) = ตารางว่าง ไม่ใช่ทั้งหมด
+  const [เฉพาะรหัส, setเฉพาะรหัส] = useState<Set<string> | null>(null);
   useEffect(() => {
-    const v = new URLSearchParams(window.location.search).get("view");
+    const sp = new URLSearchParams(window.location.search);
+    const v = sp.get("view");
     if (v === "card" || v === "table") setมุมมอง(v);
+    if (sp.get("from") === "prospects-month" && sp.has("codes"))
+      setเฉพาะรหัส(new Set((sp.get("codes") ?? "").split(",").map(x => x.trim().toUpperCase()).filter(Boolean)));
   }, []);
   // รูปของแต่ละสาขา — ใช้เฉพาะรูปที่มีจริง ไม่มี = ตัวย่อชื่อ (ห้ามเอารูปอื่นมาใส่แทน)
   //   1) โลโก้ที่ดีลเลอร์ตั้งเองในหน้าตั้งค่าของสาขา  2) รูปประจำตัวตอนเป็นผู้สนใจเป็นดีลเลอร์ ของสาขานั้น
@@ -155,6 +161,7 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
     if (!นับเป็นดีลเลอร์(d)) return false;   // HQD (ขายตรง · ใบ 0287) ไม่นับเป็นดีลเลอร์ · แผง ?open=HQD ยังเปิดได้
     if (statusFilter !== "all" && dealerStatus(d) !== statusFilter) return false;
     if (กลุ่มเคลื่อนไหว && !รหัสกลุ่ม.has(d.code)) return false;
+    if (เฉพาะรหัส && !เฉพาะรหัส.has(d.code.toUpperCase())) return false;
     return ตรงตัวกรองอื่น(d);
     // ดีลเลอร์ที่เพิ่มล่าสุดขึ้นก่อน (บอสสั่ง 21 ก.ย. 69 ทุกตาราง) · เพิ่มพร้อมกัน/ไม่มีเวลา → ตามยอดขายเดิม
   }).sort((a, b) => เวลาเพิ่ม(b) - เวลาเพิ่ม(a) || a.code.localeCompare(b.code));
@@ -197,6 +204,13 @@ export function DealersRegistry({ เปิดรหัส }: { เปิดร�
           actionLabel={กลุ่มเคลื่อนไหว === "idle" ? "กดอีกครั้งเพื่อแสดงทั้งหมด" : "ดูรายการ"} onClick={() => กดกลุ่ม("idle", "all")} />
       </KpiRow>
 
+      {เฉพาะรหัส && (
+        <div data-only-codes={[...เฉพาะรหัส].join(",")} role="status" className="card" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "8px 14px", fontSize: "0.8rem", color: "#374151" }}>
+          <span>แสดงเฉพาะดีลเลอร์ที่ตั้งจากผู้สนใจเดือนนี้ <b>{เฉพาะรหัส.size.toLocaleString("th-TH")}</b> ราย</span>
+          <button type="button" className="btn btn-secondary btn-sm" style={{ marginLeft: "auto" }}
+            onClick={() => { setเฉพาะรหัส(null); setPage(0); router.replace("/hq/dealers", { scroll: false }); }}>แสดงทั้งหมด</button>
+        </div>
+      )}
       {/* Toolbar — ค้นหา + ดีลเลอร์/ภาค/สถานะ รวมแถวเดียว (เหมือนหน้าอื่นทั้งระบบ) */}
       <div className="card hq-sticky-filter" style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap", padding: "10px 14px" }}>
         <div className="search-bar">

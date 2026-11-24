@@ -4,7 +4,7 @@
 //   ขั้น: อัปโหลด → จับคู่คอลัมน์ (ระบบเดา แก้ได้ จำไว้ครั้งหน้าตามหัวตาราง) → ตรวจ 3 กลุ่ม พร้อม/ต้องตรวจ/ข้าม → นำเข้า → สรุป + ดาวน์โหลดแถวที่ข้าม
 //   ไม่บังคับใช้แม่แบบ: หาแถวหัวตารางเอง · ข้ามแถวหัวข้อแทรก · แยกแถวรวมช่องเดียว · จับคู่จังหวัด 77 · ถามปีครั้งเดียว · ตารางแปลงช่องทางแก้ได้
 //   ฐานตัดสินสุดท้าย (เบอร์ซ้ำ · ขั้น · จังหวัด · ไม่เกิน 1,000 แถว · ทั้งชุด) · ยกเลิกทั้งชุดได้ · ตรรกะล้วนอยู่ lib/prospectImport.ts
-import { ตัวเลือกฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
+import { ตัวเลือกเหตุผลฟอร์ม, type ตัวเลือกกลาง } from "@pms/shared/lib/optionLists";
 import { fmtISOToThai } from "@pms/shared/lib/mock";
 import { APP_NOW_ISO } from "@pms/shared/lib/appTime";
 import { useEffect, useMemo, useState } from "react";
@@ -239,7 +239,10 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
           <div style={{ padding: 18, overflowY: "auto", display: "grid", gap: 14 }}>
             {/* 1 · ลิงก์ Google Sheets หรือ อัปโหลดไฟล์ในหน้าต่าง (บอสสั่ง 23 พ.ย. 69 · ปุ่มบนหน้ายังไม่มี) · แบบฟอร์มตัวอย่าง */}
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {ไฟล์.ตาราง.length.toLocaleString()} แถวที่มีข้อมูล</span>}
+              {/* จำนวนแถวข้อมูล ไม่นับแถวหัวตาราง (ผู้ตรวจ 23 พ.ย. 69: ไฟล์ 8 แถว ขึ้น 9) · ไฟล์ Facebook = แถวที่อ่านได้ทุกชีต · ยังไม่รู้หัว = ทุกแถว */}
+              {ไฟล์ && <span data-testid="import-file" style={{ fontSize: "0.78rem" }}>{ไฟล์.ชื่อ} · {(เฟซบุ๊ก ? เฟซบุ๊ก.length
+                : แถวหัว >= 0 ? ไฟล์.ตาราง.slice(แถวหัว + 1).filter(r => r.some(c => String(c ?? "").trim() !== "")).length
+                : ไฟล์.ตาราง.length).toLocaleString()} แถวที่มีข้อมูล</span>}
               <button type="button" data-act="import-template" onClick={ดาวน์โหลดแบบฟอร์ม}
                 style={{ marginLeft: "auto", background: "none", border: "none", padding: 0, color: "#003366", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Download size={13} /> ดาวน์โหลดแบบฟอร์มตัวอย่าง
@@ -447,7 +450,7 @@ export function ProspectImportModal({ open, onClose, onImported, เบอร์
                                   <><select className="form-select" aria-label={`เหตุผล แถว ${r.row}`} value={r.lostReason ?? ""} onChange={e => { แก้แถว(r.row, { lostReason: e.target.value || null }); บังคับ.ล้าง(`reason:${r.row}`); }}
                                     {...บังคับ.ผูก(`reason:${r.row}`)} style={{ marginTop: 4, ...บังคับ.ผูก(`reason:${r.row}`).style }}>
                                     <option value="">— ยังไม่ระบุ —</option>
-                                    {ตัวเลือกฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    {ตัวเลือกเหตุผลฟอร์ม(เหตุผลไม่สำเร็จ, r.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                   <FieldError>{บังคับ.ผิด[`reason:${r.row}`]}</FieldError></>
                                 )}

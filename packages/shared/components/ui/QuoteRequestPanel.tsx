@@ -99,6 +99,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
   const บังคับขอ = useRequiredFields();
   const [เติม, setเติม] = useState<Partial<Record<ช่องลีด, string>>>({});
   const { บันทึกลีดรอฐาน } = useSales();
+  const [รอบไฟล์, setรอบไฟล์] = useState(0);
 
   const dealerCode = dealerCodeOf(lead);
   // คืน Promise — หลังยกเลิก/ขอแก้ราคา กล่องรอรายการใหม่ก่อนปิด (จอไม่ค้างสถานะเก่า)
@@ -106,11 +107,17 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
     if (!REAL_BACKEND || !dealerCode || lead.numId == null) return;
     await repo.listForLead(dealerCode, lead.numId).then(setรายการ).catch(e => logRepoRead("quoteRequests.listForLead", e));
   }, [dealerCode, lead.numId]);
-  useEffect(() => { void โหลด(); }, [โหลด]);
+  // สถานะลูกค้าเป้าหมายเปลี่ยน (บันทึกผลตอบรับ/ปฏิเสธ · ปิดไม่สำเร็จ) = ถามรายการคำขอใหม่ — ฐานปิดคำขอให้ในธุรกรรมเดียวกัน
+  //   เดิมถามแค่ตอนเปิดแผง → บันทึกผลแล้วกล่องยังขึ้น "ส่งแล้ว รอดีลเลอร์" + ปุ่มขอแก้ราคา (ผู้ตรวจ scn-flow 23 พ.ย. 69)
+  useEffect(() => { void โหลด(); }, [โหลด, lead.status]);
 
   const ล่าสุด = รายการ?.[0];
   const เปิด = ล่าสุด && คำขอเปิดอยู่(ล่าสุด.status) ? ล่าสุด : null;
-  const ได้ราคา = เปิด?.status === "quoted" ? เปิด.id : 0;
+  // ปิดการขายแล้ว (ลูกค้าตอบรับ/ปฏิเสธหลังได้ใบ HQ) = คำขอ won/lost — ยังแสดงคำขอ + ใบ HQ ให้ดูย้อน แบบอ่านอย่างเดียว
+  //   เดิมคำขอที่ไม่ "เปิดอยู่" หายจากกล่อง ขึ้น "ขอราคาจาก HQ ได้ในขั้น 1…" แทน (ผู้ตรวจ scn-flow 23 พ.ย. 69)
+  const ปิดหลังได้ใบ = ล่าสุด && (ล่าสุด.status === "won" || ล่าสุด.status === "lost") ? ล่าสุด : null;
+  const แสดง = เปิด ?? ปิดหลังได้ใบ;
+  const ได้ราคา = เปิด?.status === "quoted" ? เปิด.id : ปิดหลังได้ใบ ? ปิดหลังได้ใบ.id : 0;
   useEffect(() => {
     if (!ได้ราคา) { setใบHQ(null); return; }
     let alive = true;
@@ -214,6 +221,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
       for (const f of ไฟล์รอส่ง) {
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
+      if (ไฟล์รอส่ง.length) setรอบไฟล์(n => n + 1);   // กล่องไฟล์ที่ขึ้นมาก่อนอัปโหลดเสร็จ → โหลดรายการใหม่
       await หลังทำ();
       setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setรายการขอ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
@@ -222,7 +230,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
   };
 
   // ขอแก้ราคาได้ (เงื่อนไขเดิม): ได้ราคาแล้ว · ลีดยังไม่ปิดการขาย (ใบ 0221) · ราคายังไม่หมดอายุ (หมดแล้ว = "ขอราคาใหม่" ในกล่องขั้นต่อไป)
-  const ขอแก้ได้ = (r: NonNullable<typeof เปิด>) => r.status === "quoted" && lead.status !== "PAID"
+  const ขอแก้ได้ = (r: NonNullable<typeof เปิด>) => r.status === "quoted" && lead.status !== "PAID" && lead.status !== "CANCELLED"
     && !(ใบHQ?.validUntil && ใบHQ.validUntil < new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10));
 
   return (
@@ -232,22 +240,22 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
         <strong style={{ fontSize: "0.86rem", color: "#3b0764" }}>ราคาจาก HQ</strong>
       </div>
 
-      {เปิด && ใบHQ && โหมด === "ดู" && !กางเอง ? (
+      {แสดง && ใบHQ && โหมด === "ดู" && !กางเอง ? (
         <div data-quote-request-folded style={{ fontSize: "0.8rem", color: "#374151", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span>คำขอ <b>{เปิด.requestNo}</b> ·</span>
-          <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
-            {quoteRequestStatusLabel[เปิด.status]}
+          <span>คำขอ <b>{แสดง.requestNo}</b> ·</span>
+          <span className="badge" style={{ background: quoteRequestStatusColor[แสดง.status].bg, color: quoteRequestStatusColor[แสดง.status].text }}>
+            {quoteRequestStatusLabel[แสดง.status]}
           </span>
           {ใบHQ && <span>· ใบ HQ <b>{ใบHQ.quoteNo}</b> ฉบับ {ใบHQ.version} · {ใบHQ.lineItems.length} รายการ</span>}
           <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             {/* ขอแก้ราคา = ปุ่มเดิม (เงื่อนไขเดิม) — อยู่ในบรรทัดพับด้วย ไม่ต้องกางก่อน */}
-            {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+            {ขอแก้ได้(แสดง) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(แสดง)}>ขอแก้ราคา</button>}
             <button type="button" className="btn btn-secondary btn-sm" aria-expanded={false} onClick={() => setกางเอง(true)}>
               ดูคำขอและใบ HQ <ChevronDown size={13} />
             </button>
           </span>
         </div>
-      ) : เปิด ? (
+      ) : แสดง ? (
         <div style={{ fontSize: "0.8rem", color: "#374151", lineHeight: 1.8 }}>
           {ใบHQ && โหมด === "ดู" && (
             <button type="button" className="btn btn-secondary btn-sm" aria-expanded onClick={() => setกางเอง(false)} style={{ float: "right" }}>
@@ -255,17 +263,17 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
             </button>
           )}
           <div>
-            คำขอ <b><DataLink เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{เปิด.requestNo}</DataLink></b> ·{" "}
-            <span className="badge" style={{ background: quoteRequestStatusColor[เปิด.status].bg, color: quoteRequestStatusColor[เปิด.status].text }}>
-              {quoteRequestStatusLabel[เปิด.status]}
+            คำขอ <b><DataLink เป้า={{ ชนิด: "request", รหัส: lead.numId, สาขา: lead.dealerCode }}>{แสดง.requestNo}</DataLink></b> ·{" "}
+            <span className="badge" style={{ background: quoteRequestStatusColor[แสดง.status].bg, color: quoteRequestStatusColor[แสดง.status].text }}>
+              {quoteRequestStatusLabel[แสดง.status]}
             </span>
-            {เกินกำหนด(เปิด) && <span className="badge" style={{ marginLeft: 6, background: "#fee2e2", color: "#b91c1c" }}>เกินกำหนด</span>}
-            {เปิด.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
+            {เกินกำหนด(แสดง) && <span className="badge" style={{ marginLeft: 6, background: "#fee2e2", color: "#b91c1c" }}>เกินกำหนด</span>}
+            {แสดง.status === "quoted" && <span className="badge" style={{ marginLeft: 6, background: "#dcfce7", color: "#166534" }}>{ป้ายได้ราคาแล้ว}</span>}
           </div>
-          <div>งานที่ขอราคา: {เปิด.product}{เปิด.subtype ? ` · ${เปิด.subtype}` : ""}{เปิด.spec ? ` · ${เปิด.spec}` : ""}</div>
+          <div>งานที่ขอราคา: {แสดง.product}{แสดง.subtype ? ` · ${แสดง.subtype}` : ""}{แสดง.spec ? ` · ${แสดง.spec}` : ""}</div>
           {/* ราคาประเมินจากวัสดุ: เอาออก (บอสสั่ง 20 พ.ย. 69) · รายการในคำขอ (ดีลเลอร์พิมพ์เอง · ไม่มีราคา) แสดงเป็นตารางอ่านอย่างเดียว */}
-          <RequestItemsTable items={เปิด.estimateItems} />
-          {อยู่กับHQ(เปิด.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(เปิด.dueAt)}{เปิด.assigneeName ? ` · ผู้รับผิดชอบ ${เปิด.assigneeName}` : ""}</div>}
+          <RequestItemsTable items={แสดง.estimateItems} />
+          {อยู่กับHQ(แสดง.status) && <div>กำหนดส่งใบ HQ: {วันไทยสั้น(แสดง.dueAt)}{แสดง.assigneeName ? ` · ผู้รับผิดชอบ ${แสดง.assigneeName}` : ""}</div>}
           {/* ใบ HQ แบบย่อ (บอสสั่ง 3 พ.ย. 69): บรรทัดสรุปเดียว · "ดูรายการ" กางตาราง · ไม่ซ้อนกรอบเพิ่ม (กล่องม่วง = ชั้นเดียว)
               ใต้ใบ = เฉพาะไฟล์ที่ HQ แนบกับใบฉบับนี้ ไม่มี = ไม่แสดงกล่อง ("ให้แสดงเฉพาะไฟล์ที่ HQ แนบมา") · ปุ่มทำใบให้ลูกค้าอยู่ที่กล่องขั้นต่อไปเหมือนเดิม */}
           {ใบHQ && (
@@ -292,14 +300,16 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
                 {ใบHQ.note && <div style={{ color: "#4b5563" }}>หมายเหตุจาก HQ: {ใบHQ.note}</div>}
                 <div style={{ fontSize: "0.72rem", color: "#6b7280" }}>ราคานี้เป็นต้นทุนของคุณ ไม่แสดงต่อลูกค้า — ทำใบเสนอราคาให้ลูกค้าโดยบวก % จากใบนี้</div>
               </>}
-              <QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["hq"]} เฉพาะใบHQ={ใบHQ.id} ซ่อนเมื่อว่าง
+              <QuoteFilesBox requestId={แสดง.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["hq"]} เฉพาะใบHQ={ใบHQ.id} ซ่อนเมื่อว่าง
                 onLoaded={fs => setไฟล์จากHQ(fs.length)} />
             </div>
           )}
           {/* ไฟล์ที่ดีลเลอร์แนบเอง: ก่อน HQ ส่งใบ = กล่องแนบ · หลังส่ง = ดูย้อนได้ (พับไว้) — ไฟล์ไม่หายไปจากระบบ */}
-          {อยู่กับHQ(เปิด.status) ? (
+          {อยู่กับHQ(แสดง.status) ? (
             <div style={{ marginTop: 8 }}>
-              <QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload กลุ่มที่แสดง={["dealer"]} />
+              {/* key มีรอบไฟล์ = ส่งคำขอพร้อมไฟล์แล้วโหลดรายการไฟล์ใหม่หลังอัปโหลดเสร็จ (ข้อตกรอบ deploy33 24 พ.ย. 69):
+                  สถานะลีดเปลี่ยนตอนส่ง → แผงโหลดคำขอใหม่ทันที → กล่องนี้ขึ้นและถามรายการไฟล์ก่อนไฟล์ขึ้นถังเสร็จ = ว่างค้าง */}
+              <QuoteFilesBox key={`${แสดง.id}-${รอบไฟล์}`} requestId={แสดง.id} uploadSide="dealer" canUpload กลุ่มที่แสดง={["dealer"]} />
             </div>
           ) : (
             <div style={{ marginTop: 6 }}>
@@ -307,15 +317,15 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
                 style={{ background: "none", border: "none", padding: 0, color: "#6b21a8", fontWeight: 700, fontSize: "0.76rem", cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <Paperclip size={12} /> ไฟล์ที่คุณแนบกับคำขอ {ดูไฟล์ของฉัน ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
-              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={เปิด.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="แก้ไม่ได้แล้ว (HQ ส่งใบแล้ว)" /></div>}
+              {ดูไฟล์ของฉัน && <div style={{ marginTop: 6 }}><QuoteFilesBox requestId={แสดง.id} uploadSide="dealer" canUpload={false} กลุ่มที่แสดง={["dealer"]} lockedReason="แก้ไม่ได้แล้ว (HQ ส่งใบแล้ว)" /></div>}
             </div>
           )}
           {โหมด === "ดู" && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {อยู่กับHQ(เปิด.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(เปิด)}>ยกเลิกคำขอ</button>}
+              {อยู่กับHQ(แสดง.status) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ยกเลิกคำขอ(แสดง)}>ยกเลิกคำขอ</button>}
               {/* ลีดปิดการขายแล้ว = ขอแก้ราคาไม่ได้ (ใบ 0221 กันที่ฐาน) */}
               {/* ราคาหมดอายุ = ปุ่ม "ขอราคาใหม่" ในกล่องขั้นต่อไป (ไม่ซ้ำสองปุ่ม · รอบ 4) */}
-              {ขอแก้ได้(เปิด) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(เปิด)}>ขอแก้ราคา</button>}
+              {ขอแก้ได้(แสดง) && <button type="button" className="btn btn-secondary btn-sm" onClick={() => void ขอแก้ราคา(แสดง)}>ขอแก้ราคา</button>}
             </div>
           )}
         </div>

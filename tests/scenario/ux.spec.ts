@@ -183,7 +183,8 @@ test("[ux·hq] Dealer Detail อ่านอย่างเดียว + แท
 const ชนิดของHQ = ["request_new", "request_reprice", "requests_overdue", "customer_accepted", "franchise_payment_overdue",
   "request_cancelled", "prospect_followup_due", "prospect_idle", "proposal_awaiting", "proposal_expired",
   "won_reverted_by_dealer",    // ใบ 0288 (19 พ.ย. 69): ดีลเลอร์ย้อนการตอบรับ → แจ้ง HQ (H9 · จำเป็น)
-  "prospect_sheet_imported", "prospect_sheet_failed"];   // ใบ 0295 (23 พ.ย. 69): ดึงชีตอัตโนมัติ (H10)
+  "prospect_sheet_imported", "prospect_sheet_failed",   // ใบ 0295 (23 พ.ย. 69): ดึงชีตอัตโนมัติ (H10)
+  "quote_rejected"];   // ใบ 0302 (บอสตัดสิน 23 พ.ย. 69 ข้อ 15): ลูกค้าปฏิเสธ → กระดิ่ง HQ (H11)
 const ชนิดของดีลเลอร์ = ["hq_quote_sent", "hq_quote_expiring", "hq_quote_expired", "quote_expiring", "appointment_due", "lead_from_hq", "won_reverted"];
 
 // ใบ 0274 (บอสสั่ง 3 พ.ย. 69 · ทับ "ไม่มีสวิตช์รายหมวด"): สวิตช์มีเฉพาะรายเรื่องในตารางของ HQ — กลับด้านจากข้อเดิม · หัวข้อกฎเดิมยังไม่มี

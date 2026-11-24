@@ -172,7 +172,8 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: /ปิดไม่สำเร็จ/ }).click();
   await page.waitForTimeout(500);
 
-  const other = page.getByRole("button", { name: /อื่นๆ \(ระบุเอง\)/ });
+  // เหตุผลปิดไม่สำเร็จ = รายการกลาง (ใบ 0301 · 24 พ.ย. 69): ตัวระบุเอง "อื่น ๆ (ระบุ)" เก็บ "other:ข้อความ"
+  const other = page.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true });
   await other.first().click();
   await page.waitForTimeout(400);
 
@@ -186,6 +187,6 @@ test("[func] ปิดการขายไม่สำเร็จ: เลื�
   await page.waitForTimeout(2500);
 
   const d = (await sb.from("leads").select("status,lost_reason").eq("company", LOST_COMPANY).single()).data as { status: string; lost_reason: string };
-  expect(d.lost_reason).toBe("ลูกค้าเลื่อนโครงการไปปีหน้า");
+  expect(d.lost_reason, "เก็บรหัสตัวระบุเอง + ข้อความที่พิมพ์ (ใบ 0301)").toBe("other:ลูกค้าเลื่อนโครงการไปปีหน้า");
   await cleanup(sb, "RYG", NS);
 });

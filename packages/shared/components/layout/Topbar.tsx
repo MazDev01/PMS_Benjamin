@@ -3,7 +3,7 @@ import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
 import { มูลค่าลีด } from "@pms/shared/lib/mock";   // มูลค่าลีด = ยอดใบเสนอราคาล่าสุด (ใบ 0223)
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { fmtLeadValue } from "@pms/shared/lib/format";
+import { fmtLeadValue, ยอดใบเสนอราคา } from "@pms/shared/lib/format";
 import { useRouter, usePathname } from "next/navigation";
 import { useRole } from "@pms/shared/context/RoleContext";
 import { useUserProfile } from "@pms/shared/lib/useUserProfile";
@@ -226,7 +226,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void } = {}) {
       ...srcQuotations
         .filter((qt: QuotationMock) => has(qt.id) || has(qt.customer) || has(qt.project))
         .slice(0, 5)
-        .map((qt: QuotationMock) => ({ type: "ใบเสนอราคา", label: qt.id, sub: `${qt.customer} · ${qt.total}`, href: "/quotations" })),
+        .map((qt: QuotationMock) => ({ type: "ใบเสนอราคา", label: qt.id, sub: `${qt.customer} · ${ยอดใบเสนอราคา(qt)}`, href: "/quotations" })),
       // ดีลเลอร์ — เฉพาะ role HQ (dealer ไม่มีสิทธิ์เข้าหน้า /hq)
       ...(isHQ ? dealers.filter(ไม่ใช่แถวHQ)
         .filter((d: DealerRow) => has(d.name) || has(d.code) || has(d.region))

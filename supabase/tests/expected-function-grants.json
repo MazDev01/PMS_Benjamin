@@ -1,5 +1,5 @@
 {
- "migration": "0297",
+ "migration": "0302",
  "functions": [
   {
    "f": "_audit_baht(n numeric)",
@@ -177,6 +177,20 @@
    "definer": false
   },
   {
+   "f": "_lead_lost_reason_code()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_lead_lost_value(p text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_lead_missing_for_quote(l leads)",
    "anon": false,
    "authenticated": false,
@@ -352,6 +366,13 @@
    "definer": false
   },
   {
+   "f": "_prospect_deleted_cleanup()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
    "f": "_prospect_import_key(p_name text, p_digits text, p_entered timestamp with time zone)",
    "anon": false,
    "authenticated": false,
@@ -457,11 +478,25 @@
    "definer": false
   },
   {
+   "f": "_quote_lock_rev(v text)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_quote_lock_text(v text)",
    "anon": false,
    "authenticated": false,
    "service_role": false,
    "definer": false
+  },
+  {
+   "f": "_quote_rejected_notify()",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "_quote_request_is_test_row(p_dealer_code text)",
@@ -479,6 +514,13 @@
   },
   {
    "f": "_quote_request_vars(r quote_requests)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "_quote_revision_default()",
    "anon": false,
    "authenticated": false,
    "service_role": false,

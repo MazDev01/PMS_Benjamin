@@ -16,7 +16,8 @@ import { useSales } from "@pms/shared/context/SalesContext";
 import { ขั้นต่อไป, type NextStepAction } from "@pms/shared/lib/leadNextStep";
 import { ชื่อขั้น, ชื่อขั้นการขาย, จำนวนขั้น, สภาพแถบขั้น, สีแถบขั้น, type เลขขั้น } from "@pms/shared/lib/leadStage";
 import { ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
-import { useLostReasons } from "@pms/shared/lib/useHQConfig";
+import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
+import { ป้ายเหตุผล } from "@pms/shared/lib/optionLists";
 import { quoteBelongsToLead } from "@pms/shared/lib/leadQuote";
 import type { HqQuote, QuoteRequest } from "@pms/shared/lib/quoteRequests";
 import type { LeadRow, QuotationMock } from "@pms/shared/lib/mock";
@@ -54,7 +55,8 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
   const [คำขอทั้งหมด, setคำขอทั้งหมด] = useState<QuoteRequest[] | undefined>(undefined);
   const [ใบHQ, setใบHQ] = useState<HqQuote | null>(null);
   const [ใบHQพร้อม, setใบHQพร้อม] = useState(false);   // คำสั่งจากบอร์ดรอผลใบ HQ (ราคาหมดอายุ? · L4) ไม่เดา
-  const lostReasons = useLostReasons();
+  // เหตุผลปิดไม่สำเร็จ = รายการกลาง lead_lost_reason (บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) — เก็บรหัส · อื่น ๆ (ระบุ) = other:ข้อความ
+  const เหตุผลกลาง = useOptionList("lead_lost_reason");
   const [รอบ, setรอบ] = useState(0);
   const dealerCode = dealerCodeOf(lead);
 
@@ -170,10 +172,11 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
     const รอHQ = !!คำขอ && (คำขอ.status === "new" || คำขอ.status === "pricing");
     void ถามเหตุผล({
       หัวข้อ: รอHQ ? "ปิดการขายไม่สำเร็จ — ระบบยกเลิกคำขอใบเสนอราคาที่รอ HQ ให้ด้วย" : "ปิดการขายไม่สำเร็จ — เลือกเหตุผล",
-      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือกรหัส: ตัวเลือกกล่องเหตุผล(เหตุผลกลาง.items),
       ปุ่มตกลง: "ยืนยันปิดการขาย", ปุ่มกำลังทำ: "กำลังปิดการขาย…", อันตราย: true,
       ทำ: async reason => {
-        if (รอHQ) await repo.cancel(คำขอ!.id, reason, true);
+        // เหตุผลยกเลิกคำขอเป็นข้อความ (คิว HQ แสดงตามที่บันทึก) — ส่งชื่อ ไม่ใช่รหัส
+        if (รอHQ) await repo.cancel(คำขอ!.id, ป้ายเหตุผล(เหตุผลกลาง.items, reason, reason), true);
         await onLost(reason, รอHQ);
         setรอบ(n => n + 1);
       },
@@ -203,7 +206,7 @@ export function LeadNextStep({ lead, onAction, onLost, onRequests, คำสั�
           <div style={{ flex: "1 1 260px", minWidth: 0 }}>
             <div style={{ fontSize: "0.66rem", fontWeight: 700, color: สีกล่อง.text, opacity: 0.85 }}>{จบแล้ว ? "สถานะ" : "ขั้นต่อไป"}</div>
             <div style={{ fontSize: "0.92rem", fontWeight: 800, color: สีกล่อง.text }}>{ขั้น.title}</div>
-            <div style={{ fontSize: "0.74rem", color: สีกล่อง.text }}>{ขั้น.detail}{ขั้น.key === "lost" && lead.lostReason ? ` · เหตุผล: ${lead.lostReason}` : ""}</div>
+            <div style={{ fontSize: "0.74rem", color: สีกล่อง.text }}>{ขั้น.detail}{ขั้น.key === "lost" && lead.lostReason ? ` · เหตุผล: ${ป้ายเหตุผล(เหตุผลกลาง.items, lead.lostReason)}` : ""}</div>
           </div>
           {ขั้น.ปิดไม่สำเร็จได้ && (
             <button type="button" onClick={ปิดไม่สำเร็จ}

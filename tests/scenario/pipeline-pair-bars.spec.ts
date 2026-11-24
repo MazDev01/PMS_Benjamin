@@ -93,7 +93,19 @@ for (const กว้าง of [1440, 760]) {
     const ยอด = ข้อมูล.filter(d => d.ชุด === "ยอดขายในเดือน"), เป้า = ข้อมูล.filter(d => d.ชุด === "เป้ารายเดือน");
     expect(ยอด.length, "แท่งยอดขายครบทุกเดือน").toBe(คาดเดือน.length);
     for (let i = 1; i < ยอด.length; i++) expect(ยอด[i].x, "เดือนเรียงซ้าย→ขวา").toBeGreaterThan(ยอด[i - 1].x);
-    for (const d of เป้า) expect(d.v, `เป้ารายเดือน ${d.key} = เป้าทั้งปีของข้อ ÷ 12`).toBe(3_000_000);
+    // เป้ารายเดือน = เป้าทั้งปี × วันของเดือนที่อยู่ในช่วง ÷ 365 (ปัดสะสม) → ผลรวม = เป้าตามช่วงของการ์ด round(เป้า × วันทั้งช่วง ÷ 365)
+    //   (ผู้ตรวจ 23 พ.ย. 69: เดิม ÷ 12 เต็มเดือนทุกแถว — ช่วง 3 เดือน 4 แถว รวมแถว 23.2M แต่การ์ด ≈ 17.8M) · ตกบนโค้ดเดิม e2b941e1
+    const วันUTC = (iso: string) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86_400_000;
+    const [ต้นช่วง, ท้ายช่วง] = [วันUTC(start!), วันUTC(end!)];
+    let สะสม = 0;
+    const คาดเป้า = คาดเดือน.map((_, i) => {
+      const y = Number(start!.slice(0, 4)), m0 = Number(start!.slice(5, 7)) - 1 + i;
+      const ต้น = Math.max(ต้นช่วง, Date.UTC(y, m0, 1) / 86_400_000), ท้าย = Math.min(ท้ายช่วง, Date.UTC(y, m0 + 1, 0) / 86_400_000);
+      const ก่อน = สะสม; สะสม += ท้าย - ต้น + 1;
+      return Math.round(36_000_000 * สะสม / 365) - Math.round(36_000_000 * ก่อน / 365);
+    });
+    expect(เป้า.map(d => d.v), "เป้ารายเดือนตามวันของเดือนที่อยู่ในช่วง").toEqual(คาดเป้า);
+    expect(เป้า.reduce((a, d) => a + d.v, 0), "ผลรวมเป้ารายเดือน = เป้าตามช่วงของการ์ด").toBe(Math.round(36_000_000 * (ท้ายช่วง - ต้นช่วง + 1) / 365));
 
     // ค่าแท่งยอดขาย = ตารางรายเดือนแถวเดียวกัน
     const ตาราง = await page.locator("table[aria-label='ตารางผลงานรายเดือน'] tbody tr").evaluateAll(trs => trs.map(tr => ({

@@ -140,7 +140,7 @@ begin
   update quotations set status = 'lost', lost_reason = 'ราคาสูงกว่าคู่แข่ง' where id = q.id and dealer_code = 'CNX';
   perform flowtest.as_root();
   perform flowtest.ok((select status from leads where dealer_code = 'CNX' and num_id = c.lead_ids[2]) = 'CANCELLED'
-                  and (select lost_reason from leads where dealer_code = 'CNX' and num_id = c.lead_ids[2]) = 'ราคาสูงกว่าคู่แข่ง'
+                  and (select lost_reason from leads where dealer_code = 'CNX' and num_id = c.lead_ids[2]) = 'other:ราคาสูงกว่าคู่แข่ง'   -- ใบ 0301: ไม่ตรงรายการกลาง = other:ข้อความ
                   and (select r.status from quote_requests r join hq_quotes h on h.request_id = r.id where h.id = h2) = 'lost',
     'ลูกค้าปฏิเสธ → ลูกค้าเป้าหมาย CANCELLED + เหตุผล · คำขอปิด lost');
   select count(*) into n from email_outbox o join hq_quotes h on o.ref_id = h.request_id::text where h.id = h2 and o.kind not in ('request_new', 'hq_quote_sent');

@@ -317,7 +317,8 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
     await row.getByTitle("ดูรายละเอียด").click();
     await page.getByRole("status", { name: "ขั้นต่อไป" }).getByRole("button", { name: "ปิดไม่สำเร็จ", exact: true }).click({ timeout: 20_000 });
 
-    const otherBtn = page.getByRole("button", { name: "อื่นๆ (ระบุเอง)" });
+    // เหตุผลปิดไม่สำเร็จ = รายการกลาง (ใบ 0301 · 24 พ.ย. 69): ตัวระบุเอง "อื่น ๆ (ระบุ)" เก็บ "other:ข้อความ"
+    const otherBtn = page.locator("[data-lost-picker]").getByRole("button", { name: "อื่น ๆ (ระบุ)", exact: true });
     await expect(otherBtn).toBeVisible({ timeout: 10_000 });
     await otherBtn.click();
 
@@ -330,7 +331,7 @@ test("[edge] พิมพ์เหตุผลปิดไม่สำเร็�
     await expect.poll(async () =>
       (await sb.from("leads").select("lost_reason").eq("id", COMPANY).single()).data?.lost_reason,
       { timeout: 15_000, message: "เหตุผลที่บันทึกใน DB ต้องมีวรรคกลางคำครบ ไม่ถูกตัดคำติดกัน" },
-    ).toBe(CUSTOM_REASON);
+    ).toBe(`other:${CUSTOM_REASON}`);
     assertNoErrors(errs, "พิมพ์เหตุผลปิดไม่สำเร็จแบบมีวรรคกลางคำ");
   } finally {
     await sb.from("leads").delete().eq("id", COMPANY);

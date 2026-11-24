@@ -55,7 +55,7 @@ export async function สร้าง(ctx) {
     { const { n, company, จด } = await ลีด(4); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(4), จด });
       await จด(4); const v2 = await ง.ฉบับใหม่(qid, 13); await ง.ส่งใบ(v2); await ง.ตอบรับ(n, company, v2); }
     { const { n, company, จด } = await ลีด(5); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(5), จด }); await จด(4); await ง.ตอบรับ(n, company, qid); }
-    { const { n, company, จด } = await ลีด(6); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(6), จด }); await จด(4); await ง.ปฏิเสธ(qid, "ลูกค้าเลือกผู้รับเหมารายอื่น"); }
+    { const { n, company, จด } = await ลีด(6); const { qid } = await ง.ถึงส่งใบ(n, company, { ขนาด: ขนาด(6), จด }); await จด(4); await ง.ปฏิเสธ(qid, "other:ลูกค้าเลือกผู้รับเหมารายอื่น"); }   // "อื่น ๆ (ระบุ)" ให้ demo เห็นแบบระบุเอง (ใบ 0301)
     ย้อน.พัก(); ย้อน.สั่ง();
     // 7 หมดอายุ: งานนี้เกิดเมื่อ 40 วันก่อน (ใบ HQ ยืนราคา 30 วัน → หมดไปแล้ว) แล้วให้งานตามเวลาของฐานทำงาน (ตัวย้อนแยก · สั่งก่อนงานตามเวลา)
     { const ย้อน7 = await ตัวย้อนเวลา(ctx); const จด = ย้อน7.งาน(s.code, s.base + 7, [40, 39, 38, 36, 36], 1);

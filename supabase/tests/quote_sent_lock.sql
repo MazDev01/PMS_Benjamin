@@ -110,7 +110,7 @@ begin
   -- 6) ขั้นตอนขายยังเดินได้: ลูกค้าปฏิเสธ (พร้อมเหตุผล) · ผูกลูกค้า
   update quotations set status = 'lost', lost_reason = 'ZZTEST-ราคาสูง' where dealer_code = 'CNX' and id = qid;
   select * into q from quotations where dealer_code = 'CNX' and id = qid;
-  perform sltest.ok(q.status = 'lost' and q.lost_reason = 'ZZTEST-ราคาสูง', '6) ส่งแล้ว → ลูกค้าปฏิเสธพร้อมเหตุผลได้');
+  perform sltest.ok(q.status = 'lost' and q.lost_reason = 'other:ZZTEST-ราคาสูง', '6) ส่งแล้ว → ลูกค้าปฏิเสธพร้อมเหตุผลได้ (ไม่ตรงรายการกลาง = other:ข้อความ · ใบ 0301)');
   perform sltest.as_db();
   update quotations set customer_id = (select id from customers where dealer_code = 'CNX' order by id limit 1) where dealer_code = 'CNX' and id = qid;
   perform sltest.ok((select customer_id from quotations where dealer_code = 'CNX' and id = qid) is not null, '6) ผูกลูกค้าได้หลังส่ง (งานปิดการขาย)');

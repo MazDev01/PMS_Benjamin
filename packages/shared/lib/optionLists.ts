@@ -4,6 +4,7 @@
 //   lead_source          ช่องทางที่มาลูกค้าเป้าหมาย   → leads.source
 //   appointment_type     ประเภทนัดหมาย               → appointments.type
 //   prospect_lost_reason เหตุผลผู้สนใจไม่สำเร็จ        → dealer_prospects.lost_reason · ใบค่าแฟรนไชส์ที่ปฏิเสธ (close_reason)
+//   lead_lost_reason     เหตุผลปิดการขายไม่สำเร็จ       → leads/quotations/quote_requests.lost_reason (ปิดไม่สำเร็จ · ลูกค้าปฏิเสธ · ใบ 0301)
 // กติกา:
 //   • ข้อมูลเก็บ "รหัส" (code) — เปลี่ยนชื่อแล้วข้อมูลเก่าเห็นชื่อใหม่ทันที
 //   • ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ แต่ข้อมูลเดิมยังแสดงชื่อ · ลบได้เฉพาะตัวที่ไม่มีข้อมูลใช้ (ฐานกัน option_in_use)
@@ -14,12 +15,13 @@
 // ไฟล์นี้เป็นตรรกะล้วน (ไม่พึ่ง React/ชั้นข้อมูล) — ทั้งหน้าจอ ฝั่งเซิร์ฟเวอร์ และข้อทดสอบใช้ชุดเดียวกัน
 // ข้อทดสอบ: tests/unit/optionLists.test.ts
 
-export type รายการกลาง = "lead_source" | "appointment_type" | "prospect_lost_reason";
-export const รายการกลางทั้งหมด: readonly รายการกลาง[] = ["lead_source", "appointment_type", "prospect_lost_reason"];
+export type รายการกลาง = "lead_source" | "appointment_type" | "prospect_lost_reason" | "lead_lost_reason";
+export const รายการกลางทั้งหมด: readonly รายการกลาง[] = ["lead_source", "appointment_type", "prospect_lost_reason", "lead_lost_reason"];
 export const ชื่อรายการกลาง: Record<รายการกลาง, string> = {
   lead_source: "ช่องทางที่มาลูกค้าเป้าหมาย",
   appointment_type: "ประเภทนัดหมาย",
   prospect_lost_reason: "เหตุผลผู้สนใจไม่สำเร็จ",
+  lead_lost_reason: "เหตุผลปิดการขายไม่สำเร็จ",
 };
 
 export type ตัวเลือกกลาง = {
@@ -69,6 +71,14 @@ export const ตัวเลือกตั้งต้น: Record<รายก�
     { code: "not_ready", label: "ยังไม่พร้อม" },
     { code: "other_brand", label: "เลือกแบรนด์อื่น" },
     { code: "bad_location", label: "ทำเลไม่เหมาะ" },
+    { code: "other", label: "อื่น ๆ (ระบุ)", freeText: true },
+  ],
+  // ใบ 0301 (บอสตัดสิน 23 พ.ย. 69 ข้อ 14): ปิดการขายไม่สำเร็จ · ลูกค้าปฏิเสธใบเสนอราคา — ตั้งต้นจากรายการเดิมของ HQ (hq_sales_journey.lost)
+  lead_lost_reason: [
+    { code: "price_high", label: "ราคาสูงเกินงบประมาณ" },
+    { code: "competitor", label: "คู่แข่งให้ข้อเสนอดีกว่า" },
+    { code: "budget", label: "งบประมาณไม่พร้อม" },
+    { code: "no_response", label: "ลูกค้าไม่ตอบสนอง" },
     { code: "other", label: "อื่น ๆ (ระบุ)", freeText: true },
   ],
 };
@@ -135,6 +145,22 @@ export function ตัวเลือกฟอร์ม(items: readonly ตั�
   if (v && !ผล.some(o => o.value === v)) ผล.unshift({ value: v, label: ป้ายของ(items, v) });
   return ผล;
 }
+/** ตัวเลือกของช่องเลือกเหตุผล (ปิดไม่สำเร็จ · ผู้สนใจไม่สำเร็จ): แบบตัวเลือกฟอร์ม แต่ตัวระบุเอง ("อื่น ๆ (ระบุ)") อยู่ท้ายเสมอ
+ *  แม้ถูกซ่อน — บอสสั่ง 24 พ.ย. 69 "ต้องมี อื่น ๆ ในหน้าปิดการขายไม่สำเร็จ บางทีจะไม่อยู่ในตัวเลือก" (ฐานกันซ่อน/ลบอีกชั้น ใบ 0303) */
+export function ตัวเลือกเหตุผลฟอร์ม(items: readonly ตัวเลือกกลาง[], ค่าปัจจุบัน?: string | null): ตัวเลือกช่อง[] {
+  const ระบุ = เรียง(items).filter(x => x.freeText).map(x => ({ value: x.code, label: x.label }));
+  const อื่น = ตัวเลือกฟอร์ม(items.filter(x => !x.freeText), ค่าปัจจุบัน && !ระบุ.some(o => o.value === ค่าปัจจุบัน) ? ค่าปัจจุบัน : null);
+  return [...อื่น, ...ระบุ];
+}
+
+/** ตัวเลือกของกล่องเหตุผลกลาง (ถามเหตุผล · ตัวเลือกรหัส) — ตัวที่ไม่ซ่อน + ตัวระบุเอง ("อื่น ๆ (ระบุ)") ท้ายเสมอแม้ถูกซ่อน
+ *  บอสสั่ง 24 พ.ย. 69 "ต้องมี อื่น ๆ ในหน้าปิดการขายไม่สำเร็จ บางทีจะไม่อยู่ในตัวเลือก" — เดิมกรองตัวที่ซ่อนทิ้งทั้งหมด ซ่อนแล้วหายทุกกล่อง
+ *  เลือกแล้วกล่องให้พิมพ์ข้อความ (ว่าง = ยืนยันไม่ได้) · ฐานกันซ่อน/ลบตัวระบุเองอีกชั้น (ใบ 0303) */
+export const ตัวเลือกกล่องเหตุผล = (items: readonly ตัวเลือกกลาง[]) => [
+  ...เรียง(items).filter(x => !x.hidden && !x.freeText),
+  ...เรียง(items).filter(x => x.freeText),
+].map(x => ({ ค่า: x.code, ป้าย: x.label, พิมพ์เอง: x.freeText }));
+
 /** ตัวเลือกของตัวกรอง: ทุกตัวในรายการ (รวมที่ซ่อน — ข้อมูลเก่ายังใช้) + ค่าในข้อมูลที่ไม่ตรงรายการ */
 export function ตัวเลือกตัวกรอง(items: readonly ตัวเลือกกลาง[], ค่าในข้อมูล: readonly (string | null | undefined)[] = []): ตัวเลือกช่อง[] {
   const ผล = เรียง(items).map(x => ({ value: x.code, label: x.label }));
@@ -156,6 +182,37 @@ export function หารหัสจากป้าย(items: readonly ตั�
   if (!k) return null;
   const ลำดับ = [...เรียง(items).filter(x => !x.hidden), ...เรียง(items).filter(x => x.hidden)];
   return (ลำดับ.find(x => คีย์ป้าย(x.label) === k) ?? ลำดับ.find(x => x.code.toLowerCase() === k))?.code ?? null;
+}
+
+// ── เหตุผลปิดการขายไม่สำเร็จ (lead_lost_reason · ใบ 0301) ─────────────────────────────────────────────────────
+/** จัดค่าเหตุผลให้เป็นรหัส — กติกาเดียวกับ _lead_lost_value ในฐาน (ฐานจัดซ้ำทุกทางเขียน):
+ *  รหัส / รหัส:ข้อความ = คงเดิม · ชื่อตรงรายการ = รหัส (ตัวที่แสดงก่อน) · "อื่น ๆ: x" = other:x · อื่น ๆ = other:ข้อความเดิม
+ *  ใช้ตอนแสดง/จัดกลุ่มค่าเก่าที่ยังเป็นข้อความ (ข้อมูลตัวอย่างในเครื่อง) ให้จอเหมือนฐานจริง */
+export function จัดค่าเหตุผล(items: readonly ตัวเลือกกลาง[], value: string | null | undefined): string {
+  const v = String(value ?? "").trim();
+  if (!v) return "";
+  if (items.some(x => x.code === v) || แยกค่าระบุเอง(items, v)) return v;
+  const k = คีย์ป้าย(v);
+  const ตรง = [...เรียง(items).filter(x => !x.hidden && !x.freeText), ...เรียง(items).filter(x => x.hidden && !x.freeText)].find(x => คีย์ป้าย(x.label) === k);
+  if (ตรง) return ตรง.code;
+  const อื่น = items.find(x => x.code === "other" && x.freeText);
+  if (!อื่น) return v;
+  const i = v.indexOf(":");
+  if (k.startsWith(คีย์ป้าย("อื่น ๆ")) && i > 0 && v.slice(i + 1).trim()) return ค่าระบุเอง("other", v.slice(i + 1).slice(0, 200));
+  return ค่าระบุเอง("other", v.slice(0, 200));
+}
+/** ป้ายของเหตุผล (จัดค่าก่อน) — ค่าเก่าที่เป็นข้อความ = "อื่น ๆ: ข้อความ" แบบเดียวกับฐานหลังใบ 0301 */
+export const ป้ายเหตุผล = (items: readonly ตัวเลือกกลาง[], value: string | null | undefined, ว่าง = "—") =>
+  ป้ายของ(items, จัดค่าเหตุผล(items, value), ว่าง);
+/** กลุ่มของเหตุผลสำหรับกราฟ/สรุป: รหัสในรายการ = กลุ่มของตัวนั้น · ระบุเอง = กลุ่มของตัวระบุเอง (ข้อความเก็บใน ข้อความ) */
+export function กลุ่มเหตุผล(items: readonly ตัวเลือกกลาง[], value: string | null | undefined): { key: string; label: string; ข้อความ?: string } | null {
+  const v = จัดค่าเหตุผล(items, value);
+  if (!v) return null;
+  const ตรง = items.find(x => x.code === v);
+  if (ตรง) return { key: ตรง.code, label: ตรง.label };
+  const ระบุ = แยกค่าระบุเอง(items, v);
+  if (ระบุ) return { key: ระบุ.item.code, label: ป้ายหัวระบุเอง(ระบุ.item.label), ข้อความ: ระบุ.ข้อความ || undefined };
+  return { key: v, label: `${v}${คำต่อท้ายนอกรายการ}` };
 }
 
 /** ตรวจร่างก่อนบันทึก (ฐานตรวจซ้ำ) — คืนข้อความผิดข้อแรก หรือ null */

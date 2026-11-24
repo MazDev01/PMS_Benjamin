@@ -6,6 +6,7 @@
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
 import { useOptionList } from "@pms/shared/lib/useOptionList";
+import { กลุ่มเหตุผล } from "@pms/shared/lib/optionLists";
 import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useRouter } from "next/navigation";
 import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
@@ -115,17 +116,28 @@ export function รอข้อมูลรายเดือน({ ข้อค�
 // ── รายเดือน (ใบ 0268) ─────────────────────────────────────────────────────────────────────────────────────
 const ชื่อเดือน = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 export type แถวเดือน = { key: string; label: string; y: number; m: number; รวม: รวม };
-/** เดือนในช่วง (ทุกเดือน แม้ไม่มีข้อมูล) · ผลรวมด้วย รวมผลงาน() · เป้าเดือน = ผลรวมเป้าทั้งปี ÷ 12 ของสาขาที่ตั้งเป้า */
+/** เดือนในช่วง (ทุกเดือน แม้ไม่มีข้อมูล) · ผลรวมด้วย รวมผลงาน()
+ *  เป้าเดือน = เป้าตามช่วงแบบเดียวกับการ์ด (เป้าทั้งปี × วันของเดือนที่อยู่ในช่วง ÷ 365) ของสาขาที่ตั้งเป้า
+ *    เดิม = เป้าทั้งปี ÷ 12 เต็มเดือนทุกแถว → ช่วง 3 เดือน (4 แถว เดือนต้น/ท้ายไม่เต็ม) รวมแถว 23.2M แต่การ์ด ≈ 17.8M (ผู้ตรวจ 23 พ.ย. 69)
+ *    ปัดแบบสะสมรายสาขา: เดือนที่ i = round(เป้า × วันสะสมถึงเดือน i ÷ 365) − round(เป้า × วันสะสมถึงเดือนก่อน ÷ 365)
+ *    → ผลรวมทุกเดือนของสาขา = round(เป้า × วันทั้งช่วง ÷ 365) = ตัวที่ฐานใช้บนการ์ด พอดีถึงบาท (ไม่ต่างจากการปัดทีละเดือน) */
 export function จัดรายเดือน(rows: ผลงานรายเดือน[], codes: Set<string>, start: string, end: string, เป้าทั้งปี: Map<string, number | null>): แถวเดือน[] {
   const out: แถวเดือน[] = [];
   const s = new Date(`${start}T00:00:00`), e = new Date(`${end}T00:00:00`);
-  const เป้า = [...codes].map(c => เป้าทั้งปี.get(c) ?? null).filter((v): v is number => v != null);
+  // ฐานนับ "ตั้งเป้า" = เป้า > 0 (0 = ยังไม่ตั้ง · ใบ 0264 revenue_target = 0 → null)
+  const เป้า = [...codes].map(c => เป้าทั้งปี.get(c) ?? null).filter((v): v is number => v != null && v > 0);
+  const วันละ = 86_400_000;
+  let วันสะสม = 0;
   for (let d = new Date(s.getFullYear(), s.getMonth(), 1); d <= e; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
     const y = d.getFullYear(), m = d.getMonth();
     const ของเดือน = rows.filter(r => r.y === y && r.m === m && codes.has(r.code));
     const ร = รวมผลงาน(ของเดือน.map(r => ({ ...r, name: "", region: "", province: "", status: "", latest: null, rate: null, target: null, pct: null,
       marginPct: null, ytd: 0, onTarget: false })));
-    const target = เป้า.length ? Math.round(เป้า.reduce((a, b) => a + b, 0) / 12) : null;
+    // วันของเดือนนี้ที่อยู่ในช่วง (นับรวมวันแรกและวันสุดท้าย เหมือนฐาน p_end - p_start + 1)
+    const ต้น = d < s ? s : d, ท้ายเดือน = new Date(y, m + 1, 0), ท้าย = ท้ายเดือน > e ? e : ท้ายเดือน;
+    const วันในเดือน = Math.round((Date.UTC(ท้าย.getFullYear(), ท้าย.getMonth(), ท้าย.getDate()) - Date.UTC(ต้น.getFullYear(), ต้น.getMonth(), ต้น.getDate())) / วันละ) + 1;
+    const ก่อน = วันสะสม; วันสะสม += Math.max(0, วันในเดือน);
+    const target = เป้า.length ? เป้า.reduce((a, t) => a + Math.round(t * วันสะสม / 365) - Math.round(t * ก่อน / 365), 0) : null;
     out.push({ key: `${y}-${m}`, label: `${ชื่อเดือน[m]} ${y + 543}`, y, m, รวม: { ...ร, target, pct: target ? Math.round(100 * ร.sales / target) : null, onTarget: 0 } });
   }
   return out;
@@ -154,7 +166,7 @@ export function ตารางรายเดือน({ แถว, รวม�
           ) : <tr key={g.key}><td data-month-row={g.key}><strong>{g.label}</strong></td>{ช่อง(g.รวม)}<td /></tr>)}
         </tbody>
       </table>
-      <div data-target-note style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือน = เป้าทั้งปี ÷ 12 · ตัวเลขรวมดูที่การ์ดด้านบน (คิดตามจำนวนวัน จึงต่างเล็กน้อย)<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365 จึงต่างจากผลรวมรายเดือนเล็กน้อย</InfoTip></div>
+      <div data-target-note style={{ padding: "8px 14px", fontSize: "0.7rem", color: MUTED }}>เป้ารายเดือนคิดตามจำนวนวันของเดือนที่อยู่ในช่วง · ตัวเลขรวมดูที่การ์ดด้านบน (รวมทุกเดือน = การ์ด)<InfoTip label="วิธีคิดเป้าตามช่วง">เป้าตามช่วง = เป้าทั้งปี × จำนวนวัน ÷ 365 · เดือนแรก/เดือนสุดท้ายที่ไม่เต็มเดือนคิดเฉพาะวันที่อยู่ในช่วง</InfoTip></div>
     </div>
   );
 }
@@ -338,7 +350,16 @@ export function BottomBoxes({ รวมทั้งหมด, ขั้นตอ
   ระดับ: string; ช่วง: { start: string; end: string } }) {
   const ช่องทางกลาง = useOptionList("lead_source");   // ชื่อแหล่งที่มาจากรายการกลาง (ใบ 0296 · ข้อมูลเก็บรหัส)
   const ขั้น = เลขขั้นเปิด.map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
-  const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
+  // เหตุผลปิดไม่สำเร็จ = รายการกลาง lead_lost_reason (ใบ 0301 · บอสตัดสิน 23 พ.ย. 69 ข้อ 14) — ชื่อในรายการ · อื่น ๆ (ระบุ) ทุกข้อความรวมชิ้นเดียว
+  const เหตุผลกลาง = useOptionList("lead_lost_reason");
+  const รวมเหตุผล = new Map<string, { label: string; value: number }>();
+  for (const r of ในช่วง?.byLostReason ?? []) {
+    if (!(r.count > 0)) continue;
+    const g = กลุ่มเหตุผล(เหตุผลกลาง.items, r.reason);
+    const k = g?.key ?? "", เดิม = รวมเหตุผล.get(k) ?? { label: g?.label ?? "ไม่ระบุเหตุผล", value: 0 };
+    เดิม.value += r.count; รวมเหตุผล.set(k, เดิม);
+  }
+  const เหตุผล = [...รวมเหตุผล.values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "th")).map((r, i) => ({ ...r, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: !r.source || r.source === "ไม่ระบุ" ? "ไม่ระบุ" : ช่องทางกลาง.ป้าย(r.source), value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [
     { label: "ลูกค้าเป้าหมายใหม่", value: รวมทั้งหมด.leads, color: "#003366" },

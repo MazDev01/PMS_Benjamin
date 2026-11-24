@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/hqDealerRow";
 
 // ─── HQ · ตั้งค่า (Enterprise Administration) ──────────────────────────────────
@@ -14,7 +14,7 @@ import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/h
 // กติกาของหน้านี้: ทุกช่องตั้งค่าต้องมีโค้ดอ่านไปใช้จริง — ห้ามมีช่องที่กดแล้วไม่เกิดอะไร
 //   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของดีลเลอร์แล้ว — ดีลเลอร์ตั้งเอง แยกรายสาขา)
 //   อีเมลผู้รับแจ้งเตือน  → ตัววางจดหมายของฐาน (_email_enqueue_hq · ใบ 0231)
-//   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของดีลเลอร์ (loadLostReasons)
+//   เหตุผลปิดไม่สำเร็จ     → ย้ายไปแท็บ "รายการกลาง" (lead_lost_reason · ใบ 0301 · บอสตัดสิน 23 พ.ย. 69 ข้อ 14)
 //   รายการกลาง (ใบ 0296)   → ช่องทางที่มา · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ ทุกฟอร์ม/ตัวกรอง/ป้ายทั้งเครือ (useOptionList)
 //   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดดีลเลอร์
 import {
@@ -52,7 +52,6 @@ import {
   LOST_REASONS,
   type HQPolicy, type HQTargets, type HQNotifRules,
   type DealerRow, type LeadTaskDef, type ขั้นรายการ,
-  OTHER_REASON_OPTION,
 } from "@pms/shared/lib/mock";
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
@@ -131,8 +130,7 @@ function Row({ label, desc, children, error, info }: { label: string; desc?: str
 // (เดิมอยู่แท็บ "กฎธุรกิจ" ซึ่งยุบไปแล้ว — คีย์ hq_sales_journey เหมือนเดิม ค่าที่ตั้งไว้ไม่หาย)
 // เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งดีลเลอร์ (คนละ origin)
 // อ่านไม่เห็นเลย รายการที่ตั้งไว้จึงไม่เคยมีผลกับใคร (ค่าเริ่มต้นใช้ LOST_REASONS แหล่งเดียวกับดีลเลอร์)
-type Journey = { lost: string[] };
-const DEFAULT_JOURNEY: Journey = { lost: [...LOST_REASONS] };
+// 24 พ.ย. 69: เหตุผลปิดไม่สำเร็จย้ายไปรายการกลาง (lead_lost_reason · ใบ 0301) — hq_sales_journey.lost คงไว้ในฐาน ไม่มีที่อ่านแล้ว
 
 // ── ตัวช่วยของการ์ด "ขั้นตอนการขายมาตรฐาน" ────────────────────────────────────
 // รหัสงาน (key) ผูกกับ checklist ที่บันทึกไว้ในลูกค้าเป้าหมายทุกใบ — งานใหม่ต้องได้ key ที่ไม่ซ้ำของเดิม
@@ -149,27 +147,18 @@ function JourneyTab() {
   // บันทึกไม่ผ่านต้องบอกผู้ใช้เสมอ — ไม่งั้นหน้าจอโชว์ค่าใหม่ทั้งที่ DB ยังเป็นค่าเก่า (พังเงียบ)
   const toast = useToast();
   const pol = useRepoDraft<HQPolicy>(() => settingsRepo.getPolicy(), (v) => settingsRepo.savePolicy(v), DEFAULT_HQ_POLICY);
-  const jn = useRepoDraft<Journey>(
-    async () => ({ lost: await settingsRepo.getLostReasons() }),
-    // เดิม void ทิ้ง error ทั้งดุ้น บันทึกไม่ผ่านก็ไม่มีใครรู้
-    (v) => { settingsRepo.saveLostReasons(v.lost).catch(e => toast("บันทึกรายการเหตุผลไม่สำเร็จ: " + friendlyError(e))); },
-    DEFAULT_JOURNEY,
-  );
   // งานมาตรฐานรายขั้น — ของจริงที่ดีลเลอร์เช็ก (บันทึกผ่านปุ่มบันทึกกลางเหมือนการ์ดอื่นในหน้านี้)
   const tk = useRepoDraft<LeadTaskDef[]>(
     () => settingsRepo.getLeadTasks(),
     (v) => { settingsRepo.saveLeadTasks(v).catch(e => toast("บันทึกงานมาตรฐานไม่สำเร็จ: " + friendlyError(e))); },
     [...LEAD_TASK_TEMPLATE],
   );
-  const [newLost, setNewLost] = useState("");
-  const saveAll = useCallback(() => { pol.save(); jn.save(); tk.save(); }, [pol.save, jn.save, tk.save]);
+  const saveAll = useCallback(() => { pol.save(); tk.save(); }, [pol.save, tk.save]);
   useReport(useMemo(() => ({
-    dirty: pol.dirty || jn.dirty || tk.dirty,
+    dirty: pol.dirty || tk.dirty,
     save: saveAll,
-    reset: () => { pol.reset(); jn.reset(); tk.reset(); },
-  }), [pol.dirty, jn.dirty, tk.dirty, saveAll, pol.reset, jn.reset, tk.reset]));
-
-  const addLost = () => { if (newLost.trim()) { jn.set(p => ({ ...p, lost: [...p.lost, newLost.trim()] })); setNewLost(""); } };
+    reset: () => { pol.reset(); tk.reset(); },
+  }), [pol.dirty, tk.dirty, saveAll, pol.reset, tk.reset]));
   const ขั้นทั้งหมด = [1, 2, 3, 4] as const;
   const tasksOf = (n: ขั้นรายการ) => tk.draft.filter(t => t.step === n);
   // แก้ได้แค่ชื่อ — key คงเดิมเสมอ (ผูกกับ checklist ของลูกค้าเป้าหมายที่บันทึกไว้แล้ว)
@@ -248,37 +237,11 @@ function JourneyTab() {
           · เลขที่ Q-2026- / 1101 (DEFAULT_QUOTE_NUMBERING) — ใช้ออกเลขใบเสนอราคาใหม่
           pol/sys ยังคงอยู่ เพราะกลไกบันทึกรวมของหน้านี้ (saveAll/dirty/reset) ใช้ร่วมกับการ์ดอื่น */}
 
-      {/* เหตุผลปิดการขายไม่สำเร็จ — ปลายทาง "ปิดไม่สำเร็จ" ของเส้นทางการขาย (ย้ายมาจากแท็บ "กฎธุรกิจ") */}
-      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ดีลเลอร์ต้องเลือกตอนปิดการขายไม่สำเร็จ">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-          {jn.draft.lost.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>
-              <span style={{ flex: 1, fontSize: "0.8rem", color: STEEL }}>{r}</span>
-              <button onClick={() => jn.set(p => ({ ...p, lost: p.lost.filter((_, x) => x !== i) }))}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex", padding: 2 }}><Trash2 size={13} /></button>
-            </div>
-          ))}
-          {!jn.draft.lost.length && (
-            <div style={{ fontSize: "0.78rem", color: "#b45309", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "9px 12px" }}>
-              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นดีลเลอร์จะไม่มีตัวเลือกตอนปิดการขายไม่สำเร็จ
-            </div>
-          )}
-
-          {/* ── "อื่นๆ (ระบุเอง)" อยู่ในรายการจริงแล้ว (บอสสั่ง 21 ส.ค. 69) ────────────────
-              เพิ่ม/ลบ/แก้ได้เหมือนเหตุผลอื่นทุกประการ — ดีลเลอร์เห็นตรงกับที่ตั้งไว้ที่นี่เป๊ะ
-              ⚠️ ตัวเลือกนี้พิเศษตรงที่ "กดแล้วให้พิมพ์เอง": ระบบเก็บข้อความที่ดีลเลอร์พิมพ์
-                 ไม่ได้เก็บคำว่า "อื่นๆ" — รายงานจึงยังเห็นเหตุผลจริงรายใบ ไม่ใช่กองรวมกัน */}
-          <div style={{ fontSize: "0.7rem", color: "#8a929c", marginTop: 2 }}>
-            ตัวเลือก “{OTHER_REASON_OPTION}” ในรายการนี้ = ดีลเลอร์กดแล้วพิมพ์เหตุผลเองได้ · ระบบเก็บข้อความที่พิมพ์จริง
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, marginTop: 10, maxWidth: 420 }}>
-          {/* ช่องตั้งรายการเหตุผลของ HQ — ไม่ใช่กล่องเหตุผล (ตัวตรวจ check-reason-dialogs) */}
-          <input className="form-input" value={newLost} placeholder="เพิ่มเหตุผล…" onChange={e => setNewLost(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") addLost(); }} />
-          <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={addLost}><Plus size={14} /></button>
-        </div>
-      </SectionCard>
+      {/* เหตุผลปิดการขายไม่สำเร็จ ย้ายไปแท็บ "รายการกลาง" (บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) — ชุดเดียวทั้งฟอร์มดีลเลอร์และกราฟเหตุผลของ HQ
+          ข้อมูลเก็บรหัส (แก้ชื่อแล้วข้อมูลเดิมเห็นชื่อใหม่) · ที่นี่เหลือบรรทัดบอกทาง ไม่มีช่องแก้ซ้ำสองที่ */}
+      <div data-lost-reasons-moved style={{ fontSize: "0.78rem", color: "#4b5563", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px" }}>
+        เหตุผลปิดการขายไม่สำเร็จ (ลูกค้าปฏิเสธ) ตั้งที่แท็บ “รายการกลาง” — ใช้ทั้งตอนดีลเลอร์ปิดการขายไม่สำเร็จและกราฟเหตุผลของสำนักงานใหญ่
+      </div>
 
 
     </>
@@ -403,19 +366,24 @@ function RecruitTab() {
 // ═══════════════════════ 4b · รายการกลาง (บอสตัดสิน 19 พ.ย. 69 · ใบ 0296) ═══════════════════════════════
 // สามรายการที่ใช้ทั้งเครือ: ช่องทางที่มาลูกค้าเป้าหมาย · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ (ใช้ร่วมกับปฏิเสธใบค่าแฟรนไชส์)
 //   เพิ่ม · แก้ชื่อ (แก้ในที่เดิม) · เลื่อนขึ้น/ลง · ซ่อน/แสดง · ลบได้เฉพาะตัวที่ไม่มีข้อมูลใช้ (ปุ่มลบปิด + บอกเหตุผล · ฐานกันซ้ำ option_in_use)
-//   ข้อมูลเก็บรหัส → แก้ชื่อแล้วข้อมูลเก่าเห็นชื่อใหม่ทันที · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ ข้อมูลเดิมยังแสดงชื่อ
+//   ข้อมูลเก็บรหัส → แก้ชื่อแล้วข้อมูลเก่าเห็นชื่อใหม่ทันที (บันทึกการติดต่อ = ข้อความ ณ ตอนบันทึก ไม่เปลี่ยนตาม · ผู้ตรวจ 23 พ.ย. 69 · เลือกแก้คำ ไม่แปลงข้อมูล) · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ ข้อมูลเดิมยังแสดงชื่อ
 //   บันทึกด้วยปุ่มบันทึกกลาง (ทีละรายการที่แก้ · ฐานลงบันทึกการใช้งาน) · ไม่ผ่าน = บอกเหตุผล แล้วโหลดค่าจริงจากฐาน
 type แถวร่าง = ร่างตัวเลือก & { key: string; ชื่อเดิม: string; freeText: boolean };
 const เป็นร่าง = (items: ตัวเลือกกลาง[]): แถวร่าง[] =>
   items.map(x => ({ key: x.code, code: x.code, label: x.label, hidden: x.hidden, ชื่อเดิม: x.label, freeText: x.freeText }));
 const ร่างของ = (all: ตัวเลือกกลาง[]) =>
   Object.fromEntries(รายการกลางทั้งหมด.map(l => [l, เป็นร่าง(ของรายการ(all, l))])) as Record<รายการกลาง, แถวร่าง[]>;
+// "อื่น ๆ" อยู่ท้ายรายการเสมอ (ผู้ตรวจ 23 พ.ย. 69: เพิ่มตัวเลือกใหม่แล้วไปต่อท้าย "อื่น ๆ (ระบุ)")
+//   = ตัวเลือกรหัส other หรือชื่อขึ้นต้นด้วย "อื่น ๆ" · ตัวเลือกใหม่แทรกก่อน · บันทึก = ย้ายไปท้าย (ลำดับในกลุ่มคงเดิม)
+const เป็นอื่นๆ = (r: Pick<แถวร่าง, "code" | "label">) => r.code === "other" || คีย์ป้าย(r.label).startsWith(คีย์ป้าย("อื่น ๆ"));
+const อื่นๆไว้ท้าย = <T extends Pick<แถวร่าง, "code" | "label">>(rows: T[]): T[] => [...rows.filter(r => !เป็นอื่นๆ(r)), ...rows.filter(เป็นอื่นๆ)];
 const ส่วนที่บันทึก = (rows: แถวร่าง[]): ร่างตัวเลือก[] =>
-  rows.map(r => ({ ...(r.code ? { code: r.code } : {}), label: จัดป้าย(r.label), hidden: r.hidden }));
+  อื่นๆไว้ท้าย(rows).map(r => ({ ...(r.code ? { code: r.code } : {}), label: จัดป้าย(r.label), hidden: r.hidden }));
 const คำอธิบายรายการ: Record<รายการกลาง, string> = {
   lead_source: "ฟอร์ม/ตัวกรอง/ตารางลูกค้าเป้าหมายของดีลเลอร์ทุกราย + หน้าลูกค้าเป้าหมายของสำนักงานใหญ่",
   appointment_type: "ฟอร์มนัดหมาย (แผงลูกค้าเป้าหมาย · ปฏิทิน) และชื่อประเภทนัดทุกที่",
   prospect_lost_reason: "ปิดผู้สนใจว่าไม่สำเร็จ · ปฏิเสธใบค่าแฟรนไชส์ · นำเข้าผู้สนใจจากไฟล์ (จับคู่จากชื่อ)",
+  lead_lost_reason: "ดีลเลอร์ปิดการขายไม่สำเร็จ · ลูกค้าปฏิเสธใบเสนอราคา · กราฟ/ตารางเหตุผลของสำนักงานใหญ่",
 };
 
 function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {
@@ -434,7 +402,9 @@ function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {
     if (!t) return;
     if (rows.some(r => !r.hidden && คีย์ป้าย(r.label) === คีย์ป้าย(t))) { setบอก(`“${t}” มีอยู่แล้ว`); return; }
     if (rows.length >= จำนวนตัวเลือกสูงสุด) { setบอก(`ใส่ได้ไม่เกิน ${จำนวนตัวเลือกสูงสุด} ตัวเลือก`); return; }
-    onChange([...rows, { key: `ใหม่-${Date.now()}`, label: t, hidden: false, ชื่อเดิม: "", freeText: false }]);
+    const แถวใหม่: แถวร่าง = { key: `ใหม่-${Date.now()}`, label: t, hidden: false, ชื่อเดิม: "", freeText: false };
+    const ที่ = rows.findIndex(เป็นอื่นๆ);   // แทรกก่อน "อื่น ๆ" · ไม่มี = ต่อท้าย
+    onChange(ที่ < 0 ? [...rows, แถวใหม่] : [...rows.slice(0, ที่), แถวใหม่, ...rows.slice(ที่)]);
     setใหม่(""); setบอก("");
   };
   return (
@@ -454,11 +424,13 @@ function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {
               {ล็อก && <span style={{ fontSize: "0.66rem", color: "#0369a1", whiteSpace: "nowrap" }}>มีข้อมูลใช้</span>}
               <button type="button" aria-label={`เลื่อน ${ป้าย} ขึ้น`} disabled={i === 0} onClick={() => เลื่อน(i, -1)} style={ปุ่มไอคอน(i === 0)}><ArrowUp size={13} /></button>
               <button type="button" aria-label={`เลื่อน ${ป้าย} ลง`} disabled={i === rows.length - 1} onClick={() => เลื่อน(i, 1)} style={ปุ่มไอคอน(i === rows.length - 1)}><ArrowDown size={13} /></button>
-              <button type="button" aria-label={r.hidden ? `แสดง ${ป้าย}` : `ซ่อน ${ป้าย}`} title={r.hidden ? "แสดงให้เลือกตอนกรอกใหม่" : "ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ)"}
-                onClick={() => แก้(i, { hidden: !r.hidden })} style={ปุ่มไอคอน(false)}>{r.hidden ? <Eye size={13} /> : <EyeOff size={13} />}</button>
-              <button type="button" aria-label={`ลบ ${ป้าย}`} disabled={ล็อก}
-                title={ล็อก ? "มีข้อมูลใช้ตัวเลือกนี้อยู่ ลบไม่ได้ — ซ่อนแทน" : "ลบตัวเลือกนี้"}
-                onClick={() => onChange(rows.filter((_, k) => k !== i))} style={{ ...ปุ่มไอคอน(ล็อก), color: ล็อก ? "#cbd5e1" : "#dc2626" }}><Trash2 size={13} /></button>
+              {/* "อื่น ๆ (ระบุ)" (ตัวระบุเอง) ต้องมีในกล่องเหตุผลเสมอ — ซ่อน/ลบไม่ได้ แก้ชื่อได้ (บอสสั่ง 24 พ.ย. 69 · ฐานกันอีกชั้น ใบ 0303) */}
+              <button type="button" aria-label={r.hidden ? `แสดง ${ป้าย}` : `ซ่อน ${ป้าย}`} disabled={r.freeText && !r.hidden}
+                title={r.freeText && !r.hidden ? "ตัวเลือกนี้ต้องมีให้เลือกเสมอ — ซ่อนไม่ได้ (แก้ชื่อได้)" : r.hidden ? "แสดงให้เลือกตอนกรอกใหม่" : "ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ)"}
+                onClick={() => แก้(i, { hidden: !r.hidden })} style={ปุ่มไอคอน(r.freeText && !r.hidden)}>{r.hidden ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <button type="button" aria-label={`ลบ ${ป้าย}`} disabled={ล็อก || r.freeText}
+                title={r.freeText ? "ตัวเลือกนี้ต้องมีให้เลือกเสมอ — ลบไม่ได้ (แก้ชื่อได้)" : ล็อก ? "มีข้อมูลใช้ตัวเลือกนี้อยู่ ลบไม่ได้ — ซ่อนแทน" : "ลบตัวเลือกนี้"}
+                onClick={() => onChange(rows.filter((_, k) => k !== i))} style={{ ...ปุ่มไอคอน(ล็อก || r.freeText), color: ล็อก || r.freeText ? "#cbd5e1" : "#dc2626" }}><Trash2 size={13} /></button>
             </div>
           );
         })}
@@ -522,7 +494,7 @@ function OptionListsTab() {
           <OptionListEditor list={l} rows={draft[l]} onChange={next => setDraft(p => p && { ...p, [l]: next })}
             ใช้อยู่={new Set(ใช้อยู่.filter(u => u.list === l).map(u => u.code))} />
           <div style={{ fontSize: "0.7rem", color: "#8a929c", marginTop: 8, lineHeight: 1.5 }}>
-            แก้ชื่อแล้วข้อมูลเดิมเห็นชื่อใหม่ทันที · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ) · ตัวที่มีข้อมูลใช้ลบไม่ได้ — ซ่อนแทน
+            แก้ชื่อแล้วข้อมูลเดิมเห็นชื่อใหม่ทันที (ยกเว้นข้อความในบันทึกการติดต่อ ซึ่งจดไว้ ณ ตอนบันทึก) · ซ่อน = ไม่ให้เลือกตอนกรอกใหม่ (ข้อมูลเดิมยังแสดงชื่อ) · ตัวที่มีข้อมูลใช้ลบไม่ได้ — ซ่อนแทน
           </div>
         </SectionCard>
       ))}

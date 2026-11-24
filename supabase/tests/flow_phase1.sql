@@ -170,7 +170,7 @@ begin
   update quotations set status = 'lost', lost_reason = 'ราคาสูงเกินงบประมาณ' where dealer_code = 'CNX' and id = 'T-CNX-3';
   select * into r from quote_requests where id = r.id;
   select status::text, lost_reason into s, lines from (select status, to_jsonb(lost_reason) as lost_reason from leads where dealer_code = 'CNX' and num_id = l2) x;
-  perform flowtest.ok(r.status = 'lost' and r.lost_reason = 'ราคาสูงเกินงบประมาณ' and s = 'CANCELLED' and lines #>> '{}' = 'ราคาสูงเกินงบประมาณ',
+  perform flowtest.ok(r.status = 'lost' and r.lost_reason = 'price_high' and s = 'CANCELLED' and lines #>> '{}' = 'price_high',   -- ใบ 0301: ชื่อในรายการกลาง = เก็บรหัส
                      'ลูกค้าปฏิเสธ → คำขอปิด (lost) · ลูกค้าเป้าหมาย ปิดไม่สำเร็จ + เหตุผล');
 
   -- ══ ฉ. เกินกำหนด 14 วัน + ประวัติ ══

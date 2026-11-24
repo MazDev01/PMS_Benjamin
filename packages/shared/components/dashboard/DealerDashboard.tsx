@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { อัตราปิดการขาย, ชื่ออัตราปิดการขาย, คำอธิบายอัตราปิดการขาย } from "@pms/shared/lib/winRate";
 import { useSales } from "@pms/shared/context/SalesContext";
-import { fmtLeadValue } from "@pms/shared/lib/format";
+import { fmtLeadValue, ยอดใบเสนอราคา } from "@pms/shared/lib/format";
 import { useFilters, APP_NOW_ISO, APP_NOW } from "@pms/shared/context/FilterContext";
 import { KpiRow, KpiCard } from "@pms/shared/components/ui/KpiCard";
 import { useKpiCards } from "@pms/shared/lib/useKpiCards";
@@ -511,7 +511,7 @@ export default function DealerDashboard() {
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "0.84rem", fontWeight: 700, color: TEXT, fontFamily: "monospace" }}>{q.id}</span>
                     <span style={{ display: "block", fontSize: "0.76rem", color: SUB, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.customer}</span>
-                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 800, color: NAVY }}>{q.total}</span>
+                    <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 800, color: NAVY }}>{ยอดใบเสนอราคา(q)}</span>
                   </span>
                   <span style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                     <span className="badge" style={{ background: sc.bg, color: sc.text }}>{quotationStatusLabel[q.status]}</span>

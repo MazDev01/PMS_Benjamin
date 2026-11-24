@@ -48,10 +48,12 @@ export async function มีแล้ว(ctx) {
 
 // ลบชุดเดิมด้วย SQL ในคำสั่งเดียว — ใบที่ลูกค้าตอบรับ/ใบ HQ ที่ส่งแล้ว/บันทึกการชำระ ฐานกันการลบ จึงปิดตัวกันชั่วคราวในธุรกรรมเดียว
 //   แบบเดียวกับตัวล้างของข้อทดสอบ (tests/scenario/legacyQuotes.ts) · เลือกเฉพาะแถวของชุดตัวอย่าง (เลขลีด 996xxxxxx · ชื่อ "… ตัวอย่าง …")
+// ชุดนำเข้าตัวอย่าง (ใบ 0295 · ป้ายเบอร์ซ้ำ/ข้อมูลไม่ครบ) — ใช้ทั้งตอนลบ (ลบชุดเดิม) และตอนสร้าง (นำเข้า) จึงอยู่ระดับไฟล์
+//   เดิมประกาศในฟังก์ชันลบ → ขั้นสร้างตก "ชุดเฟซบุ๊กตัวอย่าง is not defined" ตอนสร้างฐาน dev ใหม่ (คนรวมงาน 24 พ.ย. 69)
+const ชุดเฟซบุ๊กตัวอย่าง = "ไฟล์ Facebook ตัวอย่าง.xlsx";
 export function ลบ(ctx) {
   const เลข = [...สาขา.flatMap(s => สถานการณ์.map((_, i) => s.base + i)), 996_900_000, 996_900_001, 996_900_002].join(",");
   // ผู้สนใจของส่วน = อีเมล sample-prospect-…@example.test (ชื่อสมจริงตั้งแต่ 18 พ.ย. 69) หรือชื่อแบบเดิม "ผู้สนใจตัวอย่าง …"
-  const ชุดเฟซบุ๊กตัวอย่าง = "ไฟล์ Facebook ตัวอย่าง.xlsx";   // ชุดนำเข้าตัวอย่าง (ใบ 0295 · ป้ายเบอร์ซ้ำ/ข้อมูลไม่ครบ)
   const ผู้สนใจของส่วน = `(d.email like 'sample-prospect-%@example.test' or d.name like 'ผู้สนใจตัวอย่าง %')`;
   const sql = `begin;
     create temp table ชื่อในส่วน on commit drop as select distinct company from public.leads where num_id in (${เลข}) and coalesce(company, '') <> '';
@@ -212,10 +214,10 @@ export async function สร้าง(ctx) {
       if (i === 12) ต้อง(await sb.rpc("close_won_quotation", { p_dealer: s.code, p_known_customer_id: null, p_lead_company: company, p_target_quote_id: id,
         p_cascade_won: false, p_customer_payload: { company, contact: ผู้ติดต่อสมจริง(`${s.code}:${n}`), address: ที่อยู่สมจริง(`${s.code}:${n}`, s.province),
           phone: เบอร์งาน(n), province: s.province } }), "ลูกค้าตอบรับ");
-      if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "ราคาสูงกว่าคู่แข่ง" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");
+      if (i === 13) ต้อง(await sb.from("quotations").update({ status: "lost", lost_reason: "competitor" }).eq("dealer_code", s.code).eq("id", id), "ลูกค้าปฏิเสธ");   // รหัสในรายการกลาง (ใบ 0301)
     }
     // 14 D8y ปิดไม่สำเร็จ
-    { const { n, จด } = await เริ่ม(14); await จด(1); ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n), p_intent: { stage: { status: "CANCELLED", lostReason: "ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
+    { const { n, จด } = await เริ่ม(14); await จด(1); ต้อง(await sb.rpc("lead_apply", { p_id: รหัสลีด(n), p_intent: { stage: { status: "CANCELLED", lostReason: "other:ลูกค้าไม่สนใจแล้ว" }, fields: {} } }), "ปิดไม่สำเร็จ"); }
     console.log(`✓ ${s.code}: ลีดตัวอย่าง ${สถานการณ์.length} ราย ครบขั้น 1–5 · ปิดสำเร็จ · ปิดไม่สำเร็จ · คำขอราคา · ใบ HQ · ใบลูกค้า · นัดหมาย`);
   }
   ย้อน.พัก();
