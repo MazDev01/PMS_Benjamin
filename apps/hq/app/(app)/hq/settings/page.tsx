@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/hqDealerRow";
 
 // ─── HQ · ตั้งค่า (Enterprise Administration) ──────────────────────────────────
@@ -14,7 +14,7 @@ import { นับเป็นดีลเลอร์ } from "@pms/shared/lib/h
 // กติกาของหน้านี้: ทุกช่องตั้งค่าต้องมีโค้ดอ่านไปใช้จริง — ห้ามมีช่องที่กดแล้วไม่เกิดอะไร
 //   (เกณฑ์ 48 ชม. / 7 วัน ย้ายไปหน้าตั้งค่าของดีลเลอร์แล้ว — ดีลเลอร์ตั้งเอง แยกรายสาขา)
 //   อีเมลผู้รับแจ้งเตือน  → ตัววางจดหมายของฐาน (_email_enqueue_hq · ใบ 0231)
-//   เหตุผลปิดไม่สำเร็จ     → ตัวเลือกตอนปิดดีลของดีลเลอร์ (loadLostReasons)
+//   เหตุผลปิดไม่สำเร็จ     → ย้ายไปแท็บ "รายการกลาง" (lead_lost_reason · ใบ 0301 · บอสตัดสิน 23 พ.ย. 69 ข้อ 14)
 //   รายการกลาง (ใบ 0296)   → ช่องทางที่มา · ประเภทนัดหมาย · เหตุผลผู้สนใจไม่สำเร็จ ทุกฟอร์ม/ตัวกรอง/ป้ายทั้งเครือ (useOptionList)
 //   เป้าทั้งปี            → แดชบอร์ด HQ + แดชบอร์ดดีลเลอร์
 import {
@@ -52,7 +52,6 @@ import {
   LOST_REASONS,
   type HQPolicy, type HQTargets, type HQNotifRules,
   type DealerRow, type LeadTaskDef, type ขั้นรายการ,
-  OTHER_REASON_OPTION,
 } from "@pms/shared/lib/mock";
 // แท็บ "บริษัท" / "ผู้ใช้งาน" ฝังหน้าจัดการจริงเต็ม
 import { CompanyPanel } from "@pms/shared/components/hq/CompanyPanel";
@@ -131,8 +130,7 @@ function Row({ label, desc, children, error, info }: { label: string; desc?: str
 // (เดิมอยู่แท็บ "กฎธุรกิจ" ซึ่งยุบไปแล้ว — คีย์ hq_sales_journey เหมือนเดิม ค่าที่ตั้งไว้ไม่หาย)
 // เก็บผ่าน repository — เดิมเขียนลง localStorage ของ origin ฝั่ง HQ ซึ่งดีลเลอร์ (คนละ origin)
 // อ่านไม่เห็นเลย รายการที่ตั้งไว้จึงไม่เคยมีผลกับใคร (ค่าเริ่มต้นใช้ LOST_REASONS แหล่งเดียวกับดีลเลอร์)
-type Journey = { lost: string[] };
-const DEFAULT_JOURNEY: Journey = { lost: [...LOST_REASONS] };
+// 24 พ.ย. 69: เหตุผลปิดไม่สำเร็จย้ายไปรายการกลาง (lead_lost_reason · ใบ 0301) — hq_sales_journey.lost คงไว้ในฐาน ไม่มีที่อ่านแล้ว
 
 // ── ตัวช่วยของการ์ด "ขั้นตอนการขายมาตรฐาน" ────────────────────────────────────
 // รหัสงาน (key) ผูกกับ checklist ที่บันทึกไว้ในลูกค้าเป้าหมายทุกใบ — งานใหม่ต้องได้ key ที่ไม่ซ้ำของเดิม
@@ -149,27 +147,18 @@ function JourneyTab() {
   // บันทึกไม่ผ่านต้องบอกผู้ใช้เสมอ — ไม่งั้นหน้าจอโชว์ค่าใหม่ทั้งที่ DB ยังเป็นค่าเก่า (พังเงียบ)
   const toast = useToast();
   const pol = useRepoDraft<HQPolicy>(() => settingsRepo.getPolicy(), (v) => settingsRepo.savePolicy(v), DEFAULT_HQ_POLICY);
-  const jn = useRepoDraft<Journey>(
-    async () => ({ lost: await settingsRepo.getLostReasons() }),
-    // เดิม void ทิ้ง error ทั้งดุ้น บันทึกไม่ผ่านก็ไม่มีใครรู้
-    (v) => { settingsRepo.saveLostReasons(v.lost).catch(e => toast("บันทึกรายการเหตุผลไม่สำเร็จ: " + friendlyError(e))); },
-    DEFAULT_JOURNEY,
-  );
   // งานมาตรฐานรายขั้น — ของจริงที่ดีลเลอร์เช็ก (บันทึกผ่านปุ่มบันทึกกลางเหมือนการ์ดอื่นในหน้านี้)
   const tk = useRepoDraft<LeadTaskDef[]>(
     () => settingsRepo.getLeadTasks(),
     (v) => { settingsRepo.saveLeadTasks(v).catch(e => toast("บันทึกงานมาตรฐานไม่สำเร็จ: " + friendlyError(e))); },
     [...LEAD_TASK_TEMPLATE],
   );
-  const [newLost, setNewLost] = useState("");
-  const saveAll = useCallback(() => { pol.save(); jn.save(); tk.save(); }, [pol.save, jn.save, tk.save]);
+  const saveAll = useCallback(() => { pol.save(); tk.save(); }, [pol.save, tk.save]);
   useReport(useMemo(() => ({
-    dirty: pol.dirty || jn.dirty || tk.dirty,
+    dirty: pol.dirty || tk.dirty,
     save: saveAll,
-    reset: () => { pol.reset(); jn.reset(); tk.reset(); },
-  }), [pol.dirty, jn.dirty, tk.dirty, saveAll, pol.reset, jn.reset, tk.reset]));
-
-  const addLost = () => { if (newLost.trim()) { jn.set(p => ({ ...p, lost: [...p.lost, newLost.trim()] })); setNewLost(""); } };
+    reset: () => { pol.reset(); tk.reset(); },
+  }), [pol.dirty, tk.dirty, saveAll, pol.reset, tk.reset]));
   const ขั้นทั้งหมด = [1, 2, 3, 4] as const;
   const tasksOf = (n: ขั้นรายการ) => tk.draft.filter(t => t.step === n);
   // แก้ได้แค่ชื่อ — key คงเดิมเสมอ (ผูกกับ checklist ของลูกค้าเป้าหมายที่บันทึกไว้แล้ว)
@@ -248,37 +237,11 @@ function JourneyTab() {
           · เลขที่ Q-2026- / 1101 (DEFAULT_QUOTE_NUMBERING) — ใช้ออกเลขใบเสนอราคาใหม่
           pol/sys ยังคงอยู่ เพราะกลไกบันทึกรวมของหน้านี้ (saveAll/dirty/reset) ใช้ร่วมกับการ์ดอื่น */}
 
-      {/* เหตุผลปิดการขายไม่สำเร็จ — ปลายทาง "ปิดไม่สำเร็จ" ของเส้นทางการขาย (ย้ายมาจากแท็บ "กฎธุรกิจ") */}
-      <SectionCard icon={<X size={19} />} title="เหตุผลปิดการขายไม่สำเร็จ" desc="ตัวเลือกมาตรฐานที่ดีลเลอร์ต้องเลือกตอนปิดการขายไม่สำเร็จ">
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-          {jn.draft.lost.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>
-              <span style={{ flex: 1, fontSize: "0.8rem", color: STEEL }}>{r}</span>
-              <button onClick={() => jn.set(p => ({ ...p, lost: p.lost.filter((_, x) => x !== i) }))}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex", padding: 2 }}><Trash2 size={13} /></button>
-            </div>
-          ))}
-          {!jn.draft.lost.length && (
-            <div style={{ fontSize: "0.78rem", color: "#b45309", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "9px 12px" }}>
-              ต้องมีอย่างน้อย 1 เหตุผล — ไม่งั้นดีลเลอร์จะไม่มีตัวเลือกตอนปิดการขายไม่สำเร็จ
-            </div>
-          )}
-
-          {/* ── "อื่นๆ (ระบุเอง)" อยู่ในรายการจริงแล้ว (บอสสั่ง 21 ส.ค. 69) ────────────────
-              เพิ่ม/ลบ/แก้ได้เหมือนเหตุผลอื่นทุกประการ — ดีลเลอร์เห็นตรงกับที่ตั้งไว้ที่นี่เป๊ะ
-              ⚠️ ตัวเลือกนี้พิเศษตรงที่ "กดแล้วให้พิมพ์เอง": ระบบเก็บข้อความที่ดีลเลอร์พิมพ์
-                 ไม่ได้เก็บคำว่า "อื่นๆ" — รายงานจึงยังเห็นเหตุผลจริงรายใบ ไม่ใช่กองรวมกัน */}
-          <div style={{ fontSize: "0.7rem", color: "#8a929c", marginTop: 2 }}>
-            ตัวเลือก “{OTHER_REASON_OPTION}” ในรายการนี้ = ดีลเลอร์กดแล้วพิมพ์เหตุผลเองได้ · ระบบเก็บข้อความที่พิมพ์จริง
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, marginTop: 10, maxWidth: 420 }}>
-          {/* ช่องตั้งรายการเหตุผลของ HQ — ไม่ใช่กล่องเหตุผล (ตัวตรวจ check-reason-dialogs) */}
-          <input className="form-input" value={newLost} placeholder="เพิ่มเหตุผล…" onChange={e => setNewLost(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") addLost(); }} />
-          <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={addLost}><Plus size={14} /></button>
-        </div>
-      </SectionCard>
+      {/* เหตุผลปิดการขายไม่สำเร็จ ย้ายไปแท็บ "รายการกลาง" (บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) — ชุดเดียวทั้งฟอร์มดีลเลอร์และกราฟเหตุผลของ HQ
+          ข้อมูลเก็บรหัส (แก้ชื่อแล้วข้อมูลเดิมเห็นชื่อใหม่) · ที่นี่เหลือบรรทัดบอกทาง ไม่มีช่องแก้ซ้ำสองที่ */}
+      <div data-lost-reasons-moved style={{ fontSize: "0.78rem", color: "#4b5563", background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px" }}>
+        เหตุผลปิดการขายไม่สำเร็จ (ลูกค้าปฏิเสธ) ตั้งที่แท็บ “รายการกลาง” — ใช้ทั้งตอนดีลเลอร์ปิดการขายไม่สำเร็จและกราฟเหตุผลของสำนักงานใหญ่
+      </div>
 
 
     </>
@@ -420,6 +383,7 @@ const คำอธิบายรายการ: Record<รายการก�
   lead_source: "ฟอร์ม/ตัวกรอง/ตารางลูกค้าเป้าหมายของดีลเลอร์ทุกราย + หน้าลูกค้าเป้าหมายของสำนักงานใหญ่",
   appointment_type: "ฟอร์มนัดหมาย (แผงลูกค้าเป้าหมาย · ปฏิทิน) และชื่อประเภทนัดทุกที่",
   prospect_lost_reason: "ปิดผู้สนใจว่าไม่สำเร็จ · ปฏิเสธใบค่าแฟรนไชส์ · นำเข้าผู้สนใจจากไฟล์ (จับคู่จากชื่อ)",
+  lead_lost_reason: "ดีลเลอร์ปิดการขายไม่สำเร็จ · ลูกค้าปฏิเสธใบเสนอราคา · กราฟ/ตารางเหตุผลของสำนักงานใหญ่",
 };
 
 function OptionListEditor({ list, rows, ใช้อยู่, onChange }: {

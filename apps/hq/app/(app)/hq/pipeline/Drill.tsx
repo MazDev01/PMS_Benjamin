@@ -6,6 +6,7 @@
 //   ลีดตามขั้น/เหตุผล/แหล่งที่มา = lead_summary ชุดสาขาเดียวกับตาราง
 //   "รายเดือน" (แท็บ · ที่มารายเดือนตอนเลือกดีลเลอร์) = hq_pipeline_months (ใบ 0268) · ฐานยังไม่ถึงใบนั้น = "รอข้อมูล" — ห้ามคิดเองจากรายการดิบในหน้าเว็บ
 import { useOptionList } from "@pms/shared/lib/useOptionList";
+import { กลุ่มเหตุผล } from "@pms/shared/lib/optionLists";
 import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useRouter } from "next/navigation";
 import { useDealerNames } from "@pms/shared/lib/dealerDisplay";
@@ -349,7 +350,16 @@ export function BottomBoxes({ รวมทั้งหมด, ขั้นตอ
   ระดับ: string; ช่วง: { start: string; end: string } }) {
   const ช่องทางกลาง = useOptionList("lead_source");   // ชื่อแหล่งที่มาจากรายการกลาง (ใบ 0296 · ข้อมูลเก็บรหัส)
   const ขั้น = เลขขั้นเปิด.map(n => ({ label: ชื่อขั้น(n), value: ขั้นตอนนี้?.byStage.find(s => s.stage === n)?.count ?? 0, color: สีกราฟขั้น[n] }));
-  const เหตุผล = (ในช่วง?.byLostReason ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: r.reason || "ไม่ระบุเหตุผล", value: r.count, color: สีชุด[i % สีชุด.length] }));
+  // เหตุผลปิดไม่สำเร็จ = รายการกลาง lead_lost_reason (ใบ 0301 · บอสตัดสิน 23 พ.ย. 69 ข้อ 14) — ชื่อในรายการ · อื่น ๆ (ระบุ) ทุกข้อความรวมชิ้นเดียว
+  const เหตุผลกลาง = useOptionList("lead_lost_reason");
+  const รวมเหตุผล = new Map<string, { label: string; value: number }>();
+  for (const r of ในช่วง?.byLostReason ?? []) {
+    if (!(r.count > 0)) continue;
+    const g = กลุ่มเหตุผล(เหตุผลกลาง.items, r.reason);
+    const k = g?.key ?? "", เดิม = รวมเหตุผล.get(k) ?? { label: g?.label ?? "ไม่ระบุเหตุผล", value: 0 };
+    เดิม.value += r.count; รวมเหตุผล.set(k, เดิม);
+  }
+  const เหตุผล = [...รวมเหตุผล.values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "th")).map((r, i) => ({ ...r, color: สีชุด[i % สีชุด.length] }));
   const แหล่ง = (ในช่วง?.bySource ?? []).filter(r => r.count > 0).sort((a, b) => b.count - a.count).map((r, i) => ({ label: !r.source || r.source === "ไม่ระบุ" ? "ไม่ระบุ" : ช่องทางกลาง.ป้าย(r.source), value: r.count, color: สีชุด[i % สีชุด.length] }));
   const เส้นทาง = [
     { label: "ลูกค้าเป้าหมายใหม่", value: รวมทั้งหมด.leads, color: "#003366" },

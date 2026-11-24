@@ -1,5 +1,6 @@
 "use client";
 import { useOptionList } from "@pms/shared/lib/useOptionList";
+import { ป้ายเหตุผล, กลุ่มเหตุผล } from "@pms/shared/lib/optionLists";
 import { DataLink } from "@pms/shared/components/ui/RecordLink";
 import { useOpenFromUrl, usePanelInUrl } from "@pms/shared/lib/panelUrl";
 import { ไม่ใช่แถวHQ } from "@pms/shared/lib/hqDealerRow";
@@ -191,6 +192,7 @@ export default function HQLeadsPage() {
   const optsSummary = useLeadSummary(useMemo(() => ({ dateStart: isoDateOf(timeRange.start), dateEnd: isoDateOf(timeRange.end) }), [timeRange.start, timeRange.end]));
   // แหล่งที่มา = รายการกลาง (ใบ 0296 · ข้อมูลเก็บรหัส) ทุกตัว + ค่านอกรายการที่พบในข้อมูล ("‹ค่า› (ตามที่บันทึกไว้)") + ไม่ระบุ (ถ้ามี)
   const ช่องทางกลาง = useOptionList("lead_source");
+  const เหตุผลกลาง = useOptionList("lead_lost_reason");   // เหตุผลปิดไม่สำเร็จ = รายการกลาง (ใบ 0301)
   const ป้ายแหล่ง = useCallback((v: string | null | undefined) => (!v || v === "ไม่ระบุ" ? "ไม่ระบุ" : ช่องทางกลาง.ป้าย(v)), [ช่องทางกลาง]);
   const srcOpts = useMemo(() => {
     const ในข้อมูล = optsSummary ? optsSummary.bySource.map(s => s.source) : [...new Set(scoped.map(l => l.source || "ไม่ระบุ"))];
@@ -358,11 +360,19 @@ export default function HQLeadsPage() {
 
   // ── Section 4 · เหตุผลที่ปิดการขายไม่สำเร็จ ────────────────────────────────
   // นับเฉพาะลูกค้าเป้าหมายที่ปิดไม่สำเร็จ "และบันทึกเหตุผลไว้จริง" — ไม่เดาเหตุผลให้ลูกค้าเป้าหมายที่ไม่ได้ระบุ
-  // รายการเหตุผลเป็นของ HQ (ตั้งค่า › เส้นทางการขาย) ใช้ร่วมทุกดีลเลอร์
+  // รายการเหตุผล = รายการกลาง lead_lost_reason (ตั้งค่า › รายการกลาง · บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) ชุดเดียวกับฟอร์มดีลเลอร์
+  //   ชิ้นกราฟ = ชื่อในรายการ · "อื่น ๆ (ระบุ)" ทุกข้อความรวมเป็นชิ้น "อื่น ๆ" ชิ้นเดียว (ข้อความจริงดูในตาราง/ส่งออก)
   const lostReasons = useMemo(() => {
-    const ดิบ = chartSummary
-      ? chartSummary.byLostReason.map(r => ({ reason: r.reason, count: r.count }))
-      : (() => { const m = new Map<string, number>(); kpiBase.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => m.set(l.lostReason!, (m.get(l.lostReason!) ?? 0) + 1)); return [...m.entries()].map(([reason, count]) => ({ reason, count })); })();
+    const รวม = new Map<string, { reason: string; count: number }>();
+    const นับ = (ค่า: string | null | undefined, n: number) => {
+      const g = กลุ่มเหตุผล(เหตุผลกลาง.items, ค่า);
+      if (!g) return;
+      const เดิม = รวม.get(g.key) ?? { reason: g.label, count: 0 };
+      เดิม.count += n; รวม.set(g.key, เดิม);
+    };
+    if (chartSummary) chartSummary.byLostReason.forEach(r => นับ(r.reason, r.count));
+    else kpiBase.filter(l => l.status === "CANCELLED" && l.lostReason).forEach(l => นับ(l.lostReason, 1));
+    const ดิบ = [...รวม.values()];
     // โชว์ทุกเหตุผลตามจริง · ยุบเฉพาะหางยาวที่เกิน 6 ชิ้น (ดู groupLostReasons)
     // แล้วเติมก้อน "อื่นๆ (ไม่ได้ระบุเหตุผล)" ให้ผลรวมของชิ้นเท่ากับเลขกลางวงเสมอ
     const ปิดไม่สำเร็จทั้งหมด = chartSummary
@@ -370,7 +380,7 @@ export default function HQLeadsPage() {
       : kpiBase.filter(l => l.status === "CANCELLED").length;
     const มีเหตุผล = ดิบ.reduce((s, r) => s + r.count, 0);
     return withUnspecified(groupLostReasons(ดิบ), ปิดไม่สำเร็จทั้งหมด - มีเหตุผล);
-  }, [chartSummary, kpiBase]);
+  }, [chartSummary, kpiBase, เหตุผลกลาง.items]);
 
 
 
@@ -382,7 +392,7 @@ export default function HQLeadsPage() {
     needsFollowUp(l, rulesOf(l.dealerCode).followUpAlertDays) ? "ต้องติดตาม" : "—",
     l.assigned || "—", ชื่อขั้น(เลขขั้นแถว(l)),
     // เหตุผลที่ปิดไม่สำเร็จ — มีเฉพาะดีลที่ปิดไม่สำเร็จ (บอสสั่ง 21 ส.ค. 69)
-    l.status === "CANCELLED" ? (l.lostReason || "ไม่ได้ระบุเหตุผล") : "—",
+    l.status === "CANCELLED" ? ป้ายเหตุผล(เหตุผลกลาง.items, l.lostReason, "ไม่ได้ระบุเหตุผล") : "—",
   ];
   const exportGetRows = leadsPage
     ? async () => {
@@ -654,10 +664,10 @@ export default function HQLeadsPage() {
                         <span data-stage-sub style={{ display: "block", fontSize: "0.65rem", color: "#6b7280", fontWeight: 600, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ป้ายย่อยแถว(l)}</span>
                       )}
                       {l.status === "CANCELLED" && (
-                        <span title={l.lostReason || "ไม่ได้ระบุเหตุผล"}
+                        <span title={ป้ายเหตุผล(เหตุผลกลาง.items, l.lostReason, "ไม่ได้ระบุเหตุผล")}
                           style={{ display: "block", fontSize: "0.65rem", color: l.lostReason ? "#dc2626" : "#9ca3af", marginTop: 3,
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {l.lostReason || "— ไม่ได้ระบุเหตุผล"}
+                          {ป้ายเหตุผล(เหตุผลกลาง.items, l.lostReason, "— ไม่ได้ระบุเหตุผล")}
                         </span>
                       )}
                     </td>
@@ -822,7 +832,7 @@ export default function HQLeadsPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.62rem", fontWeight: 800, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}><AlertTriangle size={13} color="#F87171" /> เหตุผลที่ปิดการขายไม่สำเร็จ</div>
                     <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 14, padding: "12px 14px",
                       fontSize: "0.8rem", fontWeight: 700, color: "#DC2626" }}>
-                      {l.lostReason || "— ไม่ได้ระบุเหตุผล"}
+                      {ป้ายเหตุผล(เหตุผลกลาง.items, l.lostReason, "— ไม่ได้ระบุเหตุผล")}
                     </div>
                   </section>
                 )}

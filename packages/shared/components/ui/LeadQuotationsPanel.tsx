@@ -5,7 +5,7 @@ import { FilePlus, Eye, Pencil, Printer, Copy, CopyPlus, Trash2, X, ArrowLeft, S
 import { ยืนยัน, ถามเหตุผล, แจ้งพลาด, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
 import { ModalPortal } from "@pms/shared/components/ui/ModalPortal";
 import { ModalCard } from "@pms/shared/components/ui/ModalCard";
-import { useLostReasons } from "@pms/shared/lib/useHQConfig";
+import { useOptionList, ตัวเลือกกล่องเหตุผล } from "@pms/shared/lib/useOptionList";
 import { PendingButton } from "@pms/shared/components/ui/BusyButton";
 import { useSales } from "@pms/shared/context/SalesContext";
 import {
@@ -69,7 +69,8 @@ type LeadQuotationsPanelProps =
 
 export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal, openViewSignal, onWon, onFormOpenChange, onSignalUsed }: LeadQuotationsPanelProps) {
   const { quotations, createQuotation, updateQuotation, sendQuotation, deleteQuotation, newQuotationVersion, setQuotationStatus, refreshSales } = useSales();
-  const lostReasons = useLostReasons();   // เหตุผล "ลูกค้าปฏิเสธ" = รายการของ HQ (กล่องเหตุผลกลาง)
+  // เหตุผล "ลูกค้าปฏิเสธ" = รายการกลาง lead_lost_reason (บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) — เก็บรหัส
+  const เหตุผลกลาง = useOptionList("lead_lost_reason");
   const [mode, setMode] = useState<"list" | "create" | "edit" | "view">("list");
   // เปิดฟอร์มทำใบ/แก้ใบ = บอกหน้าแม่ให้พับส่วนคำขอ/ใบ HQ ข้างบน แล้วเลื่อนจอมาที่ฟอร์มเอง (บอสสั่ง 20 พ.ย. 69
   //   "พับข้างบนไว้แล้วเด้งเลื่อนมาให้อัตโนมัติ" · เดิมตารางรายการในคำขอยาวดันฟอร์มลงไปข้างล่าง ต้องเลื่อนหาเอง)
@@ -302,7 +303,7 @@ export function LeadQuotationsPanel({ lead, customer, onToast, openCreateSignal,
     if (!(await ถามเหตุผล({
       หัวข้อ: `ลูกค้าปฏิเสธใบ ${q.id} — เลือกเหตุผล`,
       รายละเอียด: "ลูกค้าเป้าหมายปิดการขายไม่สำเร็จให้อัตโนมัติ",
-      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือก: lostReasons,
+      ป้ายช่อง: "เหตุผลที่ปิดการขายไม่สำเร็จ", ตัวเลือกรหัส: ตัวเลือกกล่องเหตุผล(เหตุผลกลาง.items),
       ปุ่มตกลง: "ยืนยันลูกค้าปฏิเสธ", ปุ่มกำลังทำ: "กำลังบันทึกลูกค้าปฏิเสธ…", อันตราย: true,
       ทำ: async reason => {
         const ผิด = await updateQuotation({ ...q, status: "lost", lostReason: reason });

@@ -180,8 +180,8 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
 });
 
 // รอบ 4 (บอสสั่ง 21 ต.ค. 69 · ใบ 0231): กระดิ่งอ่านจากตารางกลาง · ชื่อเรื่องตามตาราง · กดแล้วเปิดใบของคำขอนั้นตรง ๆ
-//   ลูกค้าปฏิเสธ "ไม่" เข้ากระดิ่ง HQ แล้ว (เปลี่ยนจาก 20 ต.ค. — HQ ไม่ต้องทำอะไรต่อ)
-test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอแก้ราคา เข้ากระดิ่ง · ลูกค้าปฏิเสธไม่เข้า · กดแล้วเปิดใบของคำขอนั้น", async ({ page }) => {
+//   ลูกค้าปฏิเสธ: รอบ 4 (21 ต.ค. 69) ไม่เข้ากระดิ่ง → บอสตัดสิน 23 พ.ย. 69 ข้อ 15 (ใบ 0302): เข้ากระดิ่ง HQ "ลูกค้าปฏิเสธ · ดีลเลอร์ … · เหตุผล …" (กระดิ่งเท่านั้น)
+test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอแก้ราคา · ลูกค้าปฏิเสธ เข้ากระดิ่ง · กดแล้วเปิดใบของคำขอนั้น", async ({ page }) => {
   const sb = await db(RYG);
   เลขขอราคา = เลขลูกค้าเป้าหมายทดสอบ();
   const l = await sb.from("leads").insert({ id: `#L-${เลขขอราคา}`, num_id: เลขขอราคา, dealer_code: "RYG", company: ขอราคา, name: ขอราคา,
@@ -230,8 +230,11 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   await expect(page.locator('[data-notif-kind="request_reprice"]').filter({ hasText: คำขอสอง.request_no }).first(),
     "HQ ได้เรื่องขอแก้ราคา (แยกจากคำขอใหม่)").toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-notif-kind="request_new"]').filter({ hasText: คำขอสอง.request_no }), "ขอแก้ราคาไม่ซ้ำเป็นคำขอใหม่").toHaveCount(0);
-  await expect(page.locator("[data-notif-kind]").filter({ hasText: /ปฏิเสธ/ }).filter({ hasText: ขอราคา }),
-    "ลูกค้าปฏิเสธไม่เข้ากระดิ่ง HQ (รอบ 4)").toHaveCount(0);
+  const ปฏิเสธ = page.locator('[data-notif-kind="quote_rejected"]').filter({ hasText: q.id });
+  await expect(ปฏิเสธ, "ลูกค้าปฏิเสธเข้ากระดิ่ง HQ 1 เรื่อง (ใบ 0302)").toHaveCount(1, { timeout: 20_000 });
+  await expect(ปฏิเสธ, "มีดีลเลอร์ + เหตุผล (ข้อความไม่ตรงรายการ = อื่น ๆ: ข้อความ)").toContainText("อื่น ๆ: ราคา");
+  await ปฏิเสธ.click();
+  await expect(page, "กดแล้วเปิดใบเสนอราคานั้น").toHaveURL(new RegExp(`/hq/quotations\\?open=${encodeURIComponent(q.id)}`), { timeout: 15_000 });
 });
 
 test("[ค·8] ยังไม่ตั้งเป้า = \"—\" ไม่ใช่ 0% · ไม่มีป้ายล้าหลังเป้า (รายละเอียด · ทะเบียน · ภาพรวมยอดขาย · อัตราตอบรับ · อัตราปิดดีล · แดชบอร์ดดีลเลอร์)", async ({ page }) => {

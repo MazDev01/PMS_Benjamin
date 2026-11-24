@@ -95,8 +95,9 @@ begin
     'proposal_awaiting/H8/hq/true/false '
     'won_reverted_by_dealer/H9/hq/true/true '   -- ใบ 0288: ดีลเลอร์ย้อนการตอบรับ → แจ้ง HQ
     'proposal_expired/H8/hq/true/false '
-    'prospect_sheet_imported/H10/hq/true/false prospect_sheet_failed/H10/hq/true/false',   -- ใบ 0295: ดึงชีตอัตโนมัติ (นำเข้า N ราย · ดึงไม่ได้)
-    '0) ตารางกลางมี 20 ชนิด (16 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
+    'prospect_sheet_imported/H10/hq/true/false prospect_sheet_failed/H10/hq/true/false '   -- ใบ 0295: ดึงชีตอัตโนมัติ (นำเข้า N ราย · ดึงไม่ได้)
+    'quote_rejected/H11/hq/true/false',   -- ใบ 0302: ลูกค้าปฏิเสธใบเสนอราคา → กระดิ่ง HQ (บอสตัดสิน 23 พ.ย. 69 ข้อ 15)
+    '0) ตารางกลางมี 21 ชนิด (17 แถว) ตรงตาราง FLOW (ได้ ' || bad || ')');
 
   -- ══ 1) H1 คำขอราคาใหม่ → HQ กระดิ่ง + อีเมล · ดีลเลอร์ (คนทำ) ไม่ได้อะไร ══
   n1 := ntest.lead('ZZTEST-แจ้งเตือน-1');
@@ -149,7 +150,8 @@ begin
   perform ntest.ok(not exists (select 1 from notifications where audience = 'dealer' and kind in ('won_reverted', 'won_reverted_by_dealer')),
     '4) ดีลเลอร์ที่ย้อนเองไม่ได้แจ้งเตือน');
 
-  -- ══ 5) H6 ดีลเลอร์ยกเลิกคำขอ → HQ กระดิ่ง + อีเมล พร้อมเหตุผล (คืนตาม FLOW D3x · ใบ 0236) · ลูกค้าปฏิเสธ = ห้ามแจ้ง ══
+  -- ══ 5) H6 ดีลเลอร์ยกเลิกคำขอ → HQ กระดิ่ง + อีเมล พร้อมเหตุผล (คืนตาม FLOW D3x · ใบ 0236)
+  --       H11 ลูกค้าปฏิเสธ → กระดิ่ง HQ เท่านั้น พร้อมเหตุผล (ใบ 0302 · ทับกฎห้ามแจ้งเดิม) · ดีลเลอร์ (คนกด) ไม่ได้ · ไม่มีอีเมล ══
   total := (select count(*) from notifications);
   n2 := ntest.lead('ZZTEST-แจ้งเตือน-2');
   perform ntest.as_dealer();
@@ -177,8 +179,13 @@ begin
   perform ntest.as_db(); c := (select coalesce(max(id), 0) from notifications); perform ntest.as_dealer();
   update quotations set status = 'lost', lost_reason = 'ราคาสูง' where dealer_code = 'CNX' and id = q;
   perform ntest.as_db();
-  perform ntest.ok(not exists (select 1 from notifications where id > c) and (select status from quote_requests where id = rid3) = 'lost',
-    '5) ลูกค้าปฏิเสธ → ไม่มีแจ้งเตือน (เพิ่ม: ' || coalesce((select string_agg(dedupe_key, ', ') from notifications where id > c), '-') || ')');
+  perform ntest.ok((select status from quote_requests where id = rid3) = 'lost'
+    and (select count(*) from notifications where id > c) = 1
+    and (select count(*) from notifications where id > c and kind = 'quote_rejected' and audience = 'hq') = 1
+    and (select body from notifications where id > c and kind = 'quote_rejected') like '%' || q || '%อื่น ๆ: ราคาสูง%'
+    and (select href from notifications where id > c and kind = 'quote_rejected') = '/hq/quotations?open=' || q,
+    '5) ลูกค้าปฏิเสธ → กระดิ่ง HQ 1 เรื่อง (ใบ + เหตุผลจากรายการกลาง) · ดีลเลอร์ไม่ได้ (เพิ่ม: ' || coalesce((select string_agg(dedupe_key, ', ') from notifications where id > c), '-') || ')');
+  perform ntest.ok(not exists (select 1 from email_outbox where kind = 'quote_rejected'), '5) ลูกค้าปฏิเสธ → ไม่มีอีเมล (กระดิ่งเท่านั้น)');
 
   -- ══ 6) คนทำเองไม่ได้ · ชนิดนอกตาราง = ปฏิเสธ ══
   perform ntest.as_hq();

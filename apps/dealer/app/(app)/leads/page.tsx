@@ -10,7 +10,7 @@ import { ยืนยัน, แจ้งพลาด } from "@pms/shared/compon
 import {
   leadStatusLabel, buildLeadReport, applyTaskTemplate, findAppointmentTask,
   seedLeadTasks, fmtISOToThai, APPOINTMENT_TASK_KEY, FOLLOW_TASK_KEY,
-  DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, OTHER_LOST_REASON, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
+  DEALER_FILES_EVENT, extOfName, guessFileCategory, DEFAULT_DEALER_CODE, มูลค่าลีด, วันที่สร้างอ่านง่าย, นัดยังเปิด,
   type LeadStatus, type LeadRow, type ApptType, type DealerFile,
 } from "@pms/shared/lib/mock";
 import { FilePreviewModal } from "@pms/shared/components/ui/FilePreviewModal";
@@ -30,8 +30,9 @@ import { ลบไฟล์, ลบไฟล์ได้ } from "@pms/shared/lib
 import { PersonPicker, AssigneeAvatars } from "@pms/shared/components/ui/PersonPicker";
 import { matchCustomers } from "@pms/shared/lib/customerMatch";
 import { useLeadRules } from "@pms/shared/lib/useHQRules";
-import { useLostReasons, useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
+import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useOptionList } from "@pms/shared/lib/useOptionList";
+import { จัดค่าเหตุผล, แยกค่าระบุเอง, ค่าระบุเอง } from "@pms/shared/lib/optionLists";
 import { ช่อง, กลุ่มช่อง, ตัวอย่างช่อง } from "@pms/shared/lib/fieldLabels";
 import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, ตรวจช่องบังคับ, สรุปช่องที่ขาด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
@@ -100,9 +101,8 @@ const VALUE_BANDS = [
   { v:"5to10", l:"5 – 10 ล้าน",     min:"5",  max:"10" },
   { v:"gte10", l:"มากกว่า 10 ล้าน", min:"10", max:""   },
 ];
-// เหตุผลปิดการขายไม่สำเร็จมาจากรายการที่ HQ กำหนดเท่านั้น (useLostReasons) — ถ้าเหตุผลจริงไม่ตรงกับ
-// รายการนั้นเลย ต้องมีทางกรอกเอง (บอสสั่ง 31 ก.ค. 69) ใช้ sentinel นี้เฉพาะตอนเลือกใน <select> เพื่อ
-// สลับเป็นช่องพิมพ์เอง — ไม่เคยถูกบันทึกลง DB จริง (lostReason ที่บันทึกคือข้อความที่กรอก)
+// เหตุผลปิดการขายไม่สำเร็จ = รายการกลาง lead_lost_reason (บอสตัดสิน 23 พ.ย. 69 ข้อ 14 · ใบ 0301) — เก็บรหัส
+//   เหตุผลจริงไม่ตรงรายการ = เลือก "อื่น ๆ (ระบุ)" แล้วพิมพ์ (เก็บ "other:ข้อความ" · บอสสั่ง 31 ก.ค. 69 ให้มีทางกรอกเอง)
 
 const THAI_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
 function thaiDateStr(d: Date) { return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543}`; }
@@ -267,7 +267,7 @@ function ช่องบังคับของลีด(v: { company: string; 
 function OverviewEditor({ lead, persons, onSave }: {
   lead: LeadRow; persons: string[]; onSave: (intent: LeadIntent) => void;
 }) {
-  const lostReasons = useLostReasons(); // เหตุผลปิดไม่สำเร็จที่ HQ กำหนด (ผ่าน repo)
+  const เหตุผลกลาง = useOptionList("lead_lost_reason"); // เหตุผลปิดไม่สำเร็จ = รายการกลาง (ใบ 0301)
   const myProvinces = useMyProvinces();  // จังหวัดตามภาคของสาขาที่ล็อกอิน
   const ช่องทางกลาง = useOptionList("lead_source");
   const seed = () => ({
@@ -278,7 +278,7 @@ function OverviewEditor({ lead, persons, onSave }: {
     assigned: lead.assigned ?? "",
     area: lead.area != null ? String(lead.area) : "",
     project: lead.project ?? "",
-    note: lead.note ?? "", lostReason: lead.lostReason ?? "", logo: lead.logo ?? "",
+    note: lead.note ?? "", lostReason: จัดค่าเหตุผล(เหตุผลกลาง.items, lead.lostReason), logo: lead.logo ?? "",
   });
   const [f, setF] = useState(seed);
   // ค่าตอนเปิดฟอร์ม — บันทึกส่งเฉพาะช่องที่ต่างจากนี้ (ไม่ใช่ค่าล่าสุดบนจอ: ช่องที่ฐาน/แท็บอื่นเพิ่งเปลี่ยนต้องไม่ถูกส่งทับ)
@@ -302,7 +302,10 @@ function OverviewEditor({ lead, persons, onSave }: {
     f.assigned !== (lead.assigned ?? "") ||
     f.area !== (lead.area != null ? String(lead.area) : "") ||
     f.project !== (lead.project ?? "") ||
-    f.note !== (lead.note ?? "") || f.lostReason !== (lead.lostReason ?? "") || f.logo !== (lead.logo ?? "");
+    f.note !== (lead.note ?? "") || f.lostReason !== จัดค่าเหตุผล(เหตุผลกลาง.items, lead.lostReason) || f.logo !== (lead.logo ?? "");
+  // เหตุผลครบ = เลือกตัวในรายการ หรือ "อื่น ๆ (ระบุ)" + พิมพ์ข้อความแล้ว
+  const ระบุเหตุผล = แยกค่าระบุเอง(เหตุผลกลาง.items, f.lostReason);
+  const เหตุผลครบ = ระบุเหตุผล ? !!ระบุเหตุผล.ข้อความ : !!f.lostReason.trim();
 
   const inp = OV_INP;
 
@@ -315,10 +318,10 @@ function OverviewEditor({ lead, persons, onSave }: {
       // เว้นว่าง = ไม่มีข้อมูลพื้นที่ (undefined) ไม่ใช่ 0
       area: f.area.trim() && Number(f.area) > 0 ? Number(f.area) : undefined,
       project: f.project.trim() || undefined,
-      lostReason: f.status === "CANCELLED" && f.lostReason.trim() && f.lostReason !== OTHER_LOST_REASON ? f.lostReason.trim() : undefined,
+      lostReason: f.status === "CANCELLED" && เหตุผลครบ ? f.lostReason.trim() : undefined,
     };
     // ส่วนต่างจากตอนเปิดฟอร์ม · ขั้น/เหตุผลปิด = เจตนาเปลี่ยนขั้น (ฐานเป็นเจ้าของ — ไม่ส่งทาง fields)
-    const ขั้นเปลี่ยน = หลัง.status !== ต้นฉบับ.status || (หลัง.status === "CANCELLED" && (หลัง.lostReason ?? "") !== (ต้นฉบับ.lostReason ?? ""));
+    const ขั้นเปลี่ยน = หลัง.status !== ต้นฉบับ.status || (หลัง.status === "CANCELLED" && (หลัง.lostReason ?? "") !== จัดค่าเหตุผล(เหตุผลกลาง.items, ต้นฉบับ.lostReason));
     onSave({
       fields: diffLeadFields(ต้นฉบับ, หลัง),
       ...(ขั้นเปลี่ยน ? { stage: { status: หลัง.status, ...(หลัง.lostReason ? { lostReason: หลัง.lostReason } : {}) } } : {}),
@@ -398,21 +401,19 @@ function OverviewEditor({ lead, persons, onSave }: {
         </Cell>
         {f.status === "CANCELLED" && (
           <Cell icon={XCircle} label="เหตุผลที่ปิดไม่สำเร็จ" ป้าย={<FieldLabel htmlFor="ov-lost" required className="" style={OV_CELL_LBL}>เหตุผลที่ปิดไม่สำเร็จ</FieldLabel>}>
-            {/* เหตุผลไม่ตรงรายการที่ HQ กำหนดไว้เลย → กรอกเองได้ (ค่า lostReason เดิม/พิมพ์เองใหม่ ไม่ผูกกับ
-                รายการตายตัว) — เดิมเลือกได้แค่จากลิสต์ ถ้าเหตุผลจริงไม่มีในนั้นก็บันทึกไม่ได้เลย
-                ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม) — ไม่ใช่กล่องเหตุผล (ปิดไม่สำเร็จ = กล่องเหตุผลกลาง) */}
-            {lostReasons.includes(f.lostReason) || f.lostReason === "" ? (
-              <select id="ov-lost" aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason} onChange={e=>set("lostReason", e.target.value)} style={inp}>
+            {/* รายการกลาง lead_lost_reason (ใบ 0301) — ช่องแก้เหตุผลของลีดที่ปิดไปแล้ว (แก้ในที่เดิมตามการ์ดภาพรวม · ไม่ใช่กล่องเหตุผล)
+                "อื่น ๆ (ระบุ)" = เลือกแล้วพิมพ์ข้อความ (เก็บ other:ข้อความ) · ค่าเดิมที่ซ่อนอยู่ยังเลือกค้างได้ */}
+            <span style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
+              <select id="ov-lost" aria-label="เหตุผลที่ปิดการขายไม่สำเร็จ" value={ระบุเหตุผล ? ระบุเหตุผล.item.code : f.lostReason}
+                onChange={e=>{ const v = e.target.value; const ตัว = เหตุผลกลาง.items.find(x => x.code === v); set("lostReason", ตัว?.freeText ? ค่าระบุเอง(v, "") : v); }} style={inp}>
                 <option value="">— เลือก —</option>
-                {lostReasons.map(r => <option key={r} value={r}>{r}</option>)}
-                <option value={OTHER_LOST_REASON}>อื่นๆ (ระบุเอง)</option>
+                {เหตุผลกลาง.ตัวเลือกฟอร์ม(ระบุเหตุผล ? ระบุเหตุผล.item.code : f.lostReason).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-            ) : (
-              <span style={{ display:"flex", gap:6, alignItems:"center" }}>
-                <input id="ov-lost" aria-label="ระบุเหตุผลที่ปิดการขายไม่สำเร็จ" value={f.lostReason === OTHER_LOST_REASON ? "" : f.lostReason} onChange={e=>set("lostReason", e.target.value)} placeholder="ระบุเหตุผล…" style={inp} autoFocus />
-                <button type="button" onClick={()=>set("lostReason","")} title="กลับไปเลือกจากรายการ" style={{ background:"none", border:"none", cursor:"pointer", color:"#9ca3af", flexShrink:0, padding:4 }}><X size={14}/></button>
-              </span>
-            )}
+              {ระบุเหตุผล && (
+                <input aria-label="ระบุเหตุผลที่ปิดการขายไม่สำเร็จ" value={ระบุเหตุผล.ข้อความ} onChange={e=>set("lostReason", ค่าระบุเอง(ระบุเหตุผล.item.code, e.target.value))}
+                  placeholder="ระบุเหตุผล…" style={inp} />
+              )}
+            </span>
           </Cell>
         )}
         {/* สองแถวนี้ระบบคำนวณ/ประทับเอง — โชว์ไว้ให้ครบเหมือนมุมมองอ่านเดิม แต่แก้ไม่ได้
@@ -429,7 +430,7 @@ function OverviewEditor({ lead, persons, onSave }: {
         {(() => {
           // ปิดการขายไม่สำเร็จ ต้องเลือกเหตุผลก่อนถึงจะบันทึกได้ — ให้ตรงกับปุ่ม "ปิดการขายไม่สำเร็จ"
           // ในแผงเดียวกัน (พบจากผลตรวจสอบตรรกะระบบ 31 ก.ค. 69: เดิมช่องนี้ปล่อยผ่านได้โดยไม่กรอกเหตุผล)
-          const needsReason = f.status === "CANCELLED" && !f.lostReason;
+          const needsReason = f.status === "CANCELLED" && !เหตุผลครบ;
           const disabled = !dirty || needsReason;
           return (
             <button onClick={save} disabled={disabled} className="btn btn-primary btn-sm"
