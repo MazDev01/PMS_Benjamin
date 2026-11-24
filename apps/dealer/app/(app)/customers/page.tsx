@@ -47,7 +47,7 @@ import { useLeadTaskTemplate } from "@pms/shared/lib/useHQConfig";
 import { useCurrentDealer } from "@pms/shared/lib/useCurrentDealer";
 import { provincesOfRegion, เป็นจังหวัดมาตรฐาน, ALL_REGIONS } from "@pms/shared/lib/provinces";
 import { useRepoValue } from "@pms/shared/lib/useRepoState";
-import { leads as leadsRepo, dealers as dealersRepo, persons as personsRepo } from "@pms/shared/lib/data";
+import { leads as leadsRepo, dealers as dealersRepo, persons as personsRepo, customers as customersRepo } from "@pms/shared/lib/data";
 import type { DealerRow } from "@pms/shared/lib/data/types";
 import { useDealerVat } from "@pms/shared/lib/useDealerSettings";
 import { files as filesRepo, storage as fileStorage, quotations as quotationsRepo } from "@pms/shared/lib/data";
@@ -739,11 +739,19 @@ export default function CustomersPage(){
     if(savingImportRef.current) return; // กันกดนำเข้าซ้ำ (H8) — เดิมไม่มี guard กดรัวจะนำเข้าซ้ำทั้งชุด
     // ── ชื่อซ้ำต้องถามก่อนเสมอ ────────────────────────────────────────────────
     // เดิมนำเข้าไฟล์ที่มีลูกค้ารายเดิมอยู่แล้ว จะได้ลูกค้าชื่อเดียวกันสองแถวโดยไม่มีใครรู้
-    const ซ้ำ = importRows
-      .map(r => ({ row: r, เดิม: data.find(c => ชื่อเทียบ(c.company) === ชื่อเทียบ(r.company)) }))
-      .filter((x): x is { row: ImportRow; เดิม: CustomerRow } => !!x.เดิม);
-    if (ซ้ำ.length && !โหมดซ้ำ) { setซ้ำที่ต้องถาม(ซ้ำ); return; }
+    // ⚠️ เทียบกับรายชื่อล่าสุดจากฐาน ไม่ใช่ data ในหน้าอย่างเดียว (ข้อตกรอบ deploy33 24 พ.ย. 69):
+    //    เปิดหน้าแล้วกดนำเข้าก่อนรายชื่อโหลดเสร็จ (หรือเพิ่งมีคนเพิ่มจากอีกเครื่อง) → data ยังไม่มีรายเดิม → เพิ่มแถวซ้ำเงียบ ๆ
+    //    ดึงไม่สำเร็จ = ใช้ data ในหน้าแทน (พฤติกรรมเดิม) · ตั้ง savingImportRef ก่อนดึง กันกดรัวระหว่างรอ
     savingImportRef.current = true;
+    let รายชื่อ: CustomerRow[] = data;
+    try {
+      const สด = await customersRepo.list({ dealerCode: currentDealer.code, isHQ: false });
+      รายชื่อ = สด.filter(c => (c.dealerCode ?? DEFAULT_DEALER_CODE) === currentDealer.code);
+    } catch { /* ใช้ data ในหน้า */ }
+    const ซ้ำ = importRows
+      .map(r => ({ row: r, เดิม: รายชื่อ.find(c => ชื่อเทียบ(c.company) === ชื่อเทียบ(r.company)) }))
+      .filter((x): x is { row: ImportRow; เดิม: CustomerRow } => !!x.เดิม);
+    if (ซ้ำ.length && !โหมดซ้ำ) { savingImportRef.current = false; setซ้ำที่ต้องถาม(ซ้ำ); return; }
     try {
       await warnBeforeUnloadDuring(async () => {
         // id จริงออกจาก counter อะตอมมิกใน addCustomer · base ที่ส่งไปใช้แค่ seed สีให้ต่างกัน
@@ -751,7 +759,7 @@ export default function CustomersPage(){
         const base=Math.max(0,...data.map(c=>c.id));
         for(let i=0;i<importRows.length;i++){
           const r = importRows[i];
-          const เดิม = data.find(c => ชื่อเทียบ(c.company) === ชื่อเทียบ(r.company));
+          const เดิม = รายชื่อ.find(c => ชื่อเทียบ(c.company) === ชื่อเทียบ(r.company));
           if (เดิม) { ctxUpdateCustomer(รวมลูกค้า(เดิม, r, โหมดซ้ำ === "replace")); continue; }
           await ctxAddCustomer(makeImported(r, base+i+1));
         }

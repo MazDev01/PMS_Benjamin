@@ -99,6 +99,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
   const บังคับขอ = useRequiredFields();
   const [เติม, setเติม] = useState<Partial<Record<ช่องลีด, string>>>({});
   const { บันทึกลีดรอฐาน } = useSales();
+  const [รอบไฟล์, setรอบไฟล์] = useState(0);
 
   const dealerCode = dealerCodeOf(lead);
   // คืน Promise — หลังยกเลิก/ขอแก้ราคา กล่องรอรายการใหม่ก่อนปิด (จอไม่ค้างสถานะเก่า)
@@ -220,6 +221,7 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
       for (const f of ไฟล์รอส่ง) {
         try { await quoteFiles.upload(คำขอ.id, "dealer", f); } catch (e) { ไม่ผ่าน.push(`${f.name}: ${friendlyError(e)}`); }
       }
+      if (ไฟล์รอส่ง.length) setรอบไฟล์(n => n + 1);   // กล่องไฟล์ที่ขึ้นมาก่อนอัปโหลดเสร็จ → โหลดรายการใหม่
       await หลังทำ();
       setโหมด("ดู"); setProduct(""); setSpec(""); setArea(""); setรายการขอ([]); setไฟล์รอส่ง([]); setไฟล์ไม่ผ่านฟอร์ม([]);
       if (ไม่ผ่าน.length) setErr(`ส่งคำขอแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${ไม่ผ่าน.join(" · ")} (แนบใหม่ได้ที่กล่องไฟล์แนบ)`);
@@ -305,7 +307,9 @@ export function QuoteRequestPanel({ lead, onChanged, openSignal, พับ = fal
           {/* ไฟล์ที่ดีลเลอร์แนบเอง: ก่อน HQ ส่งใบ = กล่องแนบ · หลังส่ง = ดูย้อนได้ (พับไว้) — ไฟล์ไม่หายไปจากระบบ */}
           {อยู่กับHQ(แสดง.status) ? (
             <div style={{ marginTop: 8 }}>
-              <QuoteFilesBox requestId={แสดง.id} uploadSide="dealer" canUpload กลุ่มที่แสดง={["dealer"]} />
+              {/* key มีรอบไฟล์ = ส่งคำขอพร้อมไฟล์แล้วโหลดรายการไฟล์ใหม่หลังอัปโหลดเสร็จ (ข้อตกรอบ deploy33 24 พ.ย. 69):
+                  สถานะลีดเปลี่ยนตอนส่ง → แผงโหลดคำขอใหม่ทันที → กล่องนี้ขึ้นและถามรายการไฟล์ก่อนไฟล์ขึ้นถังเสร็จ = ว่างค้าง */}
+              <QuoteFilesBox key={`${แสดง.id}-${รอบไฟล์}`} requestId={แสดง.id} uploadSide="dealer" canUpload กลุ่มที่แสดง={["dealer"]} />
             </div>
           ) : (
             <div style={{ marginTop: 6 }}>
