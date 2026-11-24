@@ -77,3 +77,25 @@ test("[ui·hq] ผู้สนใจ: การ์ดเป็นดีลเล
   await expect.poll(async () => แถว.count(), { timeout: 20_000, message: "แสดงทั้งหมด = มากกว่า 1 ราย" }).toBeGreaterThan(1);
   assertNoErrors(errs, "การ์ดเป็นดีลเลอร์แล้วเดือนนี้");
 });
+
+// ── ข้อ 12 (บอสตัดสิน 23 พ.ย. 69): ตัวกรองหน้า HQ ไม่จำ — เปลี่ยนหน้าไป-กลับ / รีโหลด = 1 ปี · ทุกดีลเลอร์ ──
+//   ตกบนโค้ดเดิม (e2b941e1): ภาพรวมยอดขายจำช่วง 3 เดือนข้ามการเปลี่ยนหน้า/รีโหลด
+test("[ui·hq] ข้อ 12: ภาพรวมยอดขายเลือก 3 เดือน → ไปหน้าอื่นแล้วกลับ / รีโหลด = กลับเป็น 1 ปี", async ({ page }) => {
+  const errs = watchErrors(page);
+  const ช่วง = page.locator("[data-time-range]").first();
+  await loginUI(page, HQ_ORIGIN, "/hq/pipeline", ADMIN);
+  await settle(page);
+  await expect(ช่วง, "เริ่มที่ 1 ปี").toHaveAttribute("data-time-range", "y1", { timeout: 25_000 });
+  await ช่วง.locator("button").first().click();
+  await ช่วง.getByRole("button", { name: "3 เดือน", exact: true }).click();
+  await expect(ช่วง, "เลือก 3 เดือนได้").toHaveAttribute("data-time-range", "m3");
+  await page.goto(`${HQ_ORIGIN}/hq/leads`, { waitUntil: "domcontentloaded" }); await settle(page);
+  await page.goto(`${HQ_ORIGIN}/hq/pipeline`, { waitUntil: "domcontentloaded" }); await settle(page);
+  await expect(ช่วง, "ข้อ 12: เปลี่ยนหน้าแล้วกลับ = 1 ปี (ไม่จำ)").toHaveAttribute("data-time-range", "y1", { timeout: 25_000 });
+  await ช่วง.locator("button").first().click();
+  await ช่วง.getByRole("button", { name: "3 เดือน", exact: true }).click();
+  await expect(ช่วง).toHaveAttribute("data-time-range", "m3");
+  await page.reload({ waitUntil: "domcontentloaded" }); await settle(page);
+  await expect(ช่วง, "ข้อ 12: รีโหลด = 1 ปี (ไม่จำ)").toHaveAttribute("data-time-range", "y1", { timeout: 25_000 });
+  assertNoErrors(errs, "ตัวกรอง HQ ไม่จำ");
+});

@@ -176,7 +176,7 @@ export function AppShell({ children, notice }: { children: React.ReactNode; noti
         {notice}
         {/* ตัวกรองแยกอิสระต่อหน้า — key+storageKey ต่อ pathname (เปลี่ยนหน้า A ไม่กระทบหน้า B) */}
         <div className="content">
-          <FilterProvider key={`${pathname}#${รอบเมนู}`} storageKey={`bpms_filters:${pathname}`}>
+          <FilterProvider key={`${pathname}#${รอบเมนู}`} storageKey={`bpms_filters:${pathname}`} จำค่า={!pathname.startsWith("/hq")}>
             {children}
           </FilterProvider>
         </div>

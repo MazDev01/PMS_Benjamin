@@ -138,11 +138,14 @@ type Ctx = {
 const FilterContext = createContext<Ctx | null>(null);
 
 // storageKey = แยกต่อหน้าได้ (ส่งมาจาก AppShell เป็น bpms_filters:<pathname>) → แต่ละหน้ากรองอิสระกัน
-export function FilterProvider({ children, storageKey = STORAGE_KEY }: { children: ReactNode; storageKey?: string }) {
+// จำค่า = false → ไม่อ่าน/ไม่เขียน sessionStorage: เปิดหน้า/รีโหลด/เปลี่ยนหน้ากลับมา = ค่าเริ่มต้นเสมอ (1 ปี · ทุกดีลเลอร์)
+//   หน้า /hq ทุกหน้า (บอสตัดสิน 23 พ.ย. 69 ข้อ 12: ตัวกรอง HQ แยกต่อหน้าเหมือนเดิม แต่สม่ำเสมอ — เดิมภาพรวมยอดขายจำช่วงวันที่แต่ไม่จำดีลเลอร์)
+export function FilterProvider({ children, storageKey = STORAGE_KEY, จำค่า = true }: { children: ReactNode; storageKey?: string; จำค่า?: boolean }) {
   const [state, setState] = useState<FilterState>(DEFAULTS);
 
-  // คงค่า filter ของ "หน้านี้" ไว้ระหว่าง navigate / refresh (คีย์แยกต่อหน้า)
+  // คงค่า filter ของ "หน้านี้" ไว้ระหว่าง navigate / refresh (คีย์แยกต่อหน้า) — เฉพาะเมื่อจำค่า
   useEffect(() => {
+    if (!จำค่า) { try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ } return; }   // ล้างค่าที่จำไว้จากรุ่นก่อน
     try {
       const raw = sessionStorage.getItem(storageKey);
       if (raw) {
@@ -153,10 +156,11 @@ export function FilterProvider({ children, storageKey = STORAGE_KEY }: { childre
         setState(s => ({ ...s, ...saved }));
       }
     } catch { /* ignore */ }
-  }, [storageKey]);
+  }, [storageKey, จำค่า]);
   useEffect(() => {
+    if (!จำค่า) return;
     try { sessionStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* ignore */ }
-  }, [state, storageKey]);
+  }, [state, storageKey, จำค่า]);
 
   const timeRange = useMemo(
     () => buildTimeRange(state.preset, state.customStart, state.customEnd),
