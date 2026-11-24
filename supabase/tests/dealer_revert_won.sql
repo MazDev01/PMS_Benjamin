@@ -139,7 +139,8 @@ begin
   perform flowtest.must_fail($q$select quotation_revert_won('CNX', 'ZZR-OLD-WON', 'ซ้ำ')$q$, 'not_won', 'ย้อนใบที่ไม่ได้ won อยู่ไม่ได้');
   perform flowtest.as_root();
   perform flowtest.ok((select status from quotations where id = 'ZZR-OLD-WON') = 'lost'
-                  and (select lost_reason from quotations where id = 'ZZR-OLD-WON') = 'ข้อมูลเก่าผิด', 'ดีลเลอร์ย้อนใบเก่า: won → ไม่สำเร็จ (พร้อมเหตุผล)');
+                  and (select lost_reason from quotations where id = 'ZZR-OLD-WON') = 'other:ข้อมูลเก่าผิด',   -- ใบ 0301: เหตุผลที่ย้อน (ข้อความเอง) = other:ข้อความ
+                  'ดีลเลอร์ย้อนใบเก่า: won → ไม่สำเร็จ (พร้อมเหตุผล)');
 
   -- ══ ย้ายข้อมูลดีลเลอร์: ลูกค้าที่มีใบ won ย้ายได้ (ย้าย ไม่ใช่ลบ/ย้อน) ══
   insert into dealers (code, name, province, region, status) values ('ZZM1', 'ZZ ย้ายต้นทาง', 'ระยอง', 'ตะวันออก', 'active'), ('ZZM2', 'ZZ ย้ายปลายทาง', 'ระยอง', 'ตะวันออก', 'active');
