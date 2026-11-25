@@ -36,12 +36,10 @@ describe("รวมค่าตั้งหาดีลเลอร์", () => {
   it("ตัวเลขใบเสนอ: เพี้ยน/ติดลบ/เกินช่วง = ว่าง ไม่ใช่ 0", () => {
     const s = รวมค่าตั้งหาดีลเลอร์({ proposal: {
       validityDays: 400, terms: "  ข้อหนึ่ง  ",
-      packages: { standard: { amount: "150,000", contractMonths: 12, annualTarget: -1 }, exclusive: { amount: "abc", contractMonths: 121 } },
     } });
+    // proposal.packages (แพ็กเกจ) เอาออกทั้งฟีเจอร์แล้ว (30 ต.ค. 69) — ข้อตรวจแพ็กเกจลบ 25 พ.ย. 69
     expect(s.proposal.validityDays).toBeNull();
     expect(s.proposal.terms).toBe("ข้อหนึ่ง");
-    expect(s.proposal.packages.standard).toEqual({ amount: 150000, contractMonths: 12, annualTarget: null, targetsByRegion: {} });
-    expect(s.proposal.packages.exclusive).toEqual({ amount: null, contractMonths: null, annualTarget: null, targetsByRegion: {} });
     expect(รวมค่าตั้งหาดีลเลอร์({ proposal: { validityDays: 30 } }).proposal.validityDays).toBe(30);
     expect(รวมค่าตั้งหาดีลเลอร์({ proposal: { validityDays: 0 } }).proposal.validityDays).toBeNull();
   });

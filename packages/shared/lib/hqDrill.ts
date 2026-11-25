@@ -21,13 +21,7 @@ export function จัดรูปเจาะลึก(d: unknown): ข้อ�
   };
 }
 
-/** ช่วงย้อนหลัง n เดือนถึงวันนี้ (เดือนนี้นับเป็นเดือนที่ n) — ปุ่มช่วงเดือนของกราฟรายเดือน 3/6/9 เดือน/1 ปี (บอสสั่ง 11 พ.ย. 69)
- *  วันนี้ = "YYYY-MM-DD" · ผล start = วันที่ 1 ของเดือนแรก */
-export function ช่วงย้อนหลังเดือน(n: number, วันนี้: string): { start: string; end: string } {
-  const [y, m] = วันนี้.slice(0, 10).split("-").map(Number);
-  const d = new Date(y, m - 1 - (n - 1), 1);
-  return { start: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`, end: วันนี้.slice(0, 10) };
-}
+// ช่วงย้อนหลังเดือน() (ปุ่ม 3/6/9 เดือน/1 ปี) ลบแล้ว 25 พ.ย. 69 — ไม่มีคนเรียก
 
 /** ผลรวมคีย์หนึ่งของชุดแถว */
 export const รวมคีย์ = (rows: { ค่า: Record<string, number> }[], k: string) => rows.reduce((a, r) => a + (r.ค่า[k] ?? 0), 0);

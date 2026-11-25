@@ -38,19 +38,12 @@ describe("กติกาหลัก: HQ ทุกบทบาท 'แก้ง
   }
 });
 
-describe("สิทธิ์ข้อมูลกลาง (can_write_master) = เฉพาะ SUPER_ADMIN / HQ_MANAGEMENT", () => {
-  it("SUPER_ADMIN + HQ_MANAGEMENT แก้ค่าตั้งเครือ/จัดการดีลเลอร์ได้", () => {
-    for (const role of ["SUPER_ADMIN", "HQ_MANAGEMENT"] as UserRole[]) {
-      expect(hasPermission(role, "settings:edit")).toBe(true);
-      expect(hasPermission(role, "dealers:manage")).toBe(true);
-      expect(hasPermission(role, "hq:all_data")).toBe(true);
-    }
-  });
-  it("HQ_STAFF ดูได้แต่แก้ข้อมูลกลางไม่ได้", () => {
-    expect(hasPermission("HQ_STAFF", "reports:view")).toBe(true);
-    expect(hasPermission("HQ_STAFF", "settings:edit")).toBe(false);
-    expect(hasPermission("HQ_STAFF", "dealers:manage")).toBe(false);
-    expect(hasPermission("HQ_STAFF", "hq:all_data")).toBe(false);
+// HQ บทบาทเดียว (ใบ 0282): HQ_MANAGEMENT / HQ_STAFF ตั้งให้ผู้ใช้ไม่ได้แล้ว — ข้อตรวจ 2 บทบาทนี้ลบ 25 พ.ย. 69
+describe("สิทธิ์ข้อมูลกลาง (can_write_master) = สำนักงานใหญ่ (SUPER_ADMIN)", () => {
+  it("SUPER_ADMIN แก้ค่าตั้งเครือ/จัดการดีลเลอร์ได้", () => {
+    expect(hasPermission("SUPER_ADMIN", "settings:edit")).toBe(true);
+    expect(hasPermission("SUPER_ADMIN", "dealers:manage")).toBe(true);
+    expect(hasPermission("SUPER_ADMIN", "hq:all_data")).toBe(true);
   });
   it("ดีลเลอร์จัดการดีลเลอร์/ข้อมูลกลางไม่ได้", () => {
     expect(hasPermission("DEALER_ADMIN", "dealers:manage")).toBe(false);

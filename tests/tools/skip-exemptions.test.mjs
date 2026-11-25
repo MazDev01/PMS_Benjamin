@@ -21,7 +21,7 @@ const รายงาน = (ข้อ) => {
 const ตรวจ = (f, env = {}) => { const r = spawnSync(process.execPath, ["scripts/check-e2e-ran.mjs", f], { encoding: "utf8", env: { ...process.env, ...env } }); return { ผ่าน: r.status === 0, ข้อความ: (r.stdout ?? "") + (r.stderr ?? "") }; };
 try {
   const จริง = JSON.parse(readFileSync("scripts/skip-exemptions.json", "utf8")).ยกเว้น;
-  ผล(Array.isArray(จริง) && จริง.length === 24, "รายชื่อยกเว้นที่บอสอนุมัติ = 24 ข้อ (สคริปต์ถ่ายรูป zz-shots)", JSON.stringify(จริง?.length));
+  ผล(Array.isArray(จริง) && จริง.length === 23, "รายชื่อยกเว้นที่บอสอนุมัติ = 23 ข้อ (สคริปต์ถ่ายรูป zz-shots · ลดจาก 24 — zz-shots-material-templates ไม่มีไฟล์แล้ว · บอสสั่งตรง 25 พ.ย. 69 \"อันไหนของโปรเจคนี้ไม่ใช้แล้วลบได้เลย\")", JSON.stringify(จริง?.length));
   ผล(จริง.every(e => e.ไฟล์ && e.ชื่อ && e.เหตุผล === "สคริปต์ถ่ายรูป ไม่ใช่ข้อทดสอบ" && e.อนุมัติ && !/[*?]/.test(e.ไฟล์ + e.ชื่อ)),
     "ทุกรายการมีไฟล์ + ชื่อข้อตรงตัว + เหตุผล + ผู้อนุมัติ · ไม่มีตัวแทนคำ (* ?)");
   const ตัวอย่าง = จริง[0];

@@ -7,12 +7,8 @@
 // กติกา: กราฟที่มีปุ่มนี้ "ไม่ผูกกับตัวกรองช่วงเวลาบนแถบบน" — เป็นกราฟแนวโน้ม ต้องเห็นย้อนหลังเสมอ
 // (เดิมเขียนช่วงที่ครอบไว้ใต้หัวข้อด้วย monthRangeSubtitle() — 12 พ.ย. 69 บอสสั่งเอาข้อความใต้ชื่อกราฟออก ใช้ หัวกราฟรายเดือน แทน) ไม่งั้นคนอ่านไม่รู้ว่ากำลังดูช่วงไหน
 import type { CSSProperties, ReactNode } from "react";
-import { NAVY } from "@pms/shared/lib/theme";
-import { THAI_MONTHS, MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange } from "@pms/shared/lib/monthRange";   // ค่าคงที่/ตัวคำนวณล้วน (ข้อทดสอบหน่วย)
-export { MONTH_RANGES, MONTH_RANGE_DEFAULT, ชื่อช่วงเดือน, ป้ายเดือนปี, type MonthRange };
-
-const BORDER = "#E5E7EB";
-const SUB = "#6B7280";
+import { THAI_MONTHS, ป้ายเดือนปี } from "@pms/shared/lib/monthRange";   // ค่าคงที่/ตัวคำนวณล้วน (ข้อทดสอบหน่วย)
+export { ป้ายเดือนปี };
 
 /** คีย์ถังรายเดือน "YYYY-MM"
  *  ⚠️ ต้องมี "ปี" เสมอ — ถ้าใช้แต่เลขเดือน ยอด ก.ย. 2568 จะไปทับช่อง ก.ย. 2569 (บั๊กที่เคยเจอมาแล้ว) */
@@ -20,14 +16,6 @@ export const monthKey = (y: number, m: number) => `${y}-${String(m + 1).padStart
 export const monthKeyOf = (d: Date) => monthKey(d.getFullYear(), d.getMonth());
 
 export type MonthBucket = { key: string; label: string; year: number };
-
-/** ถังเดือนย้อนหลัง n เดือน เรียงเก่า→ใหม่ ปิดท้ายด้วยเดือนของ `now` */
-export function lastNMonths(n: number, now: Date): MonthBucket[] {
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1); // ข้ามปีเองเมื่อเลขเดือนติดลบ
-    return { key: monthKey(d.getFullYear(), d.getMonth()), label: THAI_MONTHS[d.getMonth()], year: d.getFullYear() };
-  });
-}
 
 /** ถังเดือนทุกเดือนที่ช่วงเวลาแตะ (เดือนของวันเริ่ม → เดือนของวันจบ) เรียงเก่า→ใหม่
  *  ใช้กับกราฟรายเดือนบนหน้าที่มีตัวเลือกช่วงเวลาด้านบน (บอสสั่ง 13 พ.ย. 69 · ทับ 11 พ.ย. "ทุกกราฟมีปุ่มของตัวเอง")
@@ -40,37 +28,8 @@ export function เดือนตามช่วง(start: Date, end: Date): Mo
   return out;
 }
 
-/** "ม.ค. 2569 – มิ.ย. 2569" — ป้ายแกนบอกแต่ชื่อเดือน ช่วงที่ครอบจึงต้องบอกไว้ใต้หัวข้อ */
-export function monthRangeSubtitle(n: number, now: Date): string {
-  const b = lastNMonths(n, now), f = b[0], l = b[b.length - 1];
-  return `${f.label} ${f.year + 543} – ${l.label} ${l.year + 543}`;
-}
-
-export function MonthRangeToggle({ value, onChange, label }: {
-  value: MonthRange;
-  onChange: (v: MonthRange) => void;
-  /** ใช้เป็น aria-label ของกลุ่มปุ่ม + tooltip — บอกว่าปุ่มชุดนี้คุมกราฟใบไหน */
-  label: string;
-}) {
-  return (
-    <span role="group" aria-label={label} style={{ display: "inline-flex", gap: 4, flexShrink: 0 }}>
-      {MONTH_RANGES.map(n => {
-        const on = n === value;
-        return (
-          <button key={n} type="button" onClick={() => onChange(n)} aria-pressed={on} data-month-range={n} title={`${label} — ย้อนหลัง ${ชื่อช่วงเดือน(n)}`}
-            style={{
-              fontFamily: "inherit", fontSize: "0.68rem", fontWeight: 700, whiteSpace: "nowrap",
-              padding: "5px 9px", borderRadius: 8, cursor: "pointer",
-              border: `1px solid ${on ? NAVY : BORDER}`, background: on ? NAVY : "#fff", color: on ? "#fff" : SUB,
-              transition: "background .15s ease, color .15s ease, border-color .15s ease",
-            }}>
-            {ชื่อช่วงเดือน(n)}
-          </button>
-        );
-      })}
-    </span>
-  );
-}
+// ปุ่ม MonthRangeToggle · lastNMonths · monthRangeSubtitle ลบแล้ว 25 พ.ย. 69 (บอสสั่ง "เคลียไฟขยะ") — ไม่มีกราฟใช้ตั้งแต่ 13 พ.ย. 69
+//   กราฟรายเดือนทุกหน้าแสดงตามตัวเลือกช่วงเวลาด้านบน (เดือนตามช่วง) · ช่อง ปุ่ม ของหัวกราฟคงไว้เผื่อหน้าที่ไม่มีตัวกรองด้านบน
 
 /** หัวกราฟรายเดือน — ตัวกลางเดียวทุกกราฟรายเดือน HQ + ดีลเลอร์ (บอสสั่ง 12 พ.ย. 69)
  *  บรรทัดบน: ชื่อกราฟ (+ ของมุมขวา เช่นลิงก์ "ดูทั้งหมด") · บรรทัดล่าง: ปุ่ม 3/6/9 เดือน/1 ปี ชิดขวา ใต้ชื่อกราฟ
@@ -79,7 +38,7 @@ export function MonthRangeToggle({ value, onChange, label }: {
  *  ข้อทดสอบ: tests/scenario/monthly-chart-ranges.spec.ts (ปุ่มอยู่ใต้ชื่อ ชิดขวา · ไม่มีข้อความกำกับ) */
 export function หัวกราฟรายเดือน({ ชื่อ, ปุ่ม, ขวา, className = "card-header", สไตล์ชื่อ, style }: {
   ชื่อ: ReactNode;
-  /** <MonthRangeToggle … /> ของกราฟนี้ — เฉพาะหน้าที่ไม่มีตัวเลือกช่วงเวลาด้านบน */
+  /** ปุ่มของกราฟนี้ (ถ้ามี) — เฉพาะหน้าที่ไม่มีตัวเลือกช่วงเวลาด้านบน */
   ปุ่ม?: ReactNode;
   /** ของมุมขวาบรรทัดชื่อ (ถ้ามี) */
   ขวา?: ReactNode;

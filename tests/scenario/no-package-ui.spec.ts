@@ -9,7 +9,7 @@ import type { DealerPackageProposal, HQCompany } from "../../packages/shared/lib
 
 // ── เอาระบบแพ็กเกจออกทั้งหมด (บอสสั่ง 30 ต.ค. 69 · รอบ 1 · ใบ 0267) — กันกลับมา ─────────────────────────────────────
 //   หน้า HQ และดีลเลอร์ไม่มีคำว่า แพ็กเกจ / Standard / Premium / Exclusive (รวมหน้าพิมพ์ใบค่าแฟรนไชส์)
-//   ออกใบค่าแฟรนไชส์ได้โดยไม่เลือกแพ็กเกจ: hq-proposals · hq-prospects · hq-recruit-settings · franchise-recruit-flow · supabase/tests/package_optional.sql
+//   ออกใบค่าแฟรนไชส์ได้โดยไม่เลือกแพ็กเกจ: hq-proposals · hq-prospects · hq-recruit-settings · franchise-recruit-flow (supabase/tests/package_optional.sql ไม่มีแล้ว)
 //   ตกบนโค้ดก่อนรอบนี้: /hq/dealers มีคอลัมน์แพ็กเกจ · /hq/proposals มีตัวกรอง "ทุกแพ็กเกจ" · หน้าพิมพ์มี "แพ็กเกจที่เสนอ"
 test.skip(() => skipReason() !== "", skipReason() || "พร้อมรัน");
 test.setTimeout(120_000);

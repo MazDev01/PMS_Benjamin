@@ -24,7 +24,6 @@
     "audit:storage": "node scripts/storage-audit.mjs",
     "audit:admin": "node scripts/admin-audit.mjs",
     "seed:volume": "node scripts/seed-volume.mjs",
-    "audit:perf": "node scripts/perf-audit.mjs && node scripts/perf-ui2.mjs",
     "typecheck:tests": "tsc -p tests/tsconfig.json --noEmit",
     "preflight": "node scripts/preflight.mjs",
     "load-test": "node scripts/load-test.mjs",

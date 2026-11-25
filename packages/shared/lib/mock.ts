@@ -1000,17 +1000,7 @@ export type QuoteLineItem = {
 // at = เวลาไทยแบบ "2026-08-19T14:05:00" (ฐานข้อมูลแปลงมาให้แล้ว) · by = รหัสผู้ใช้ที่แก้
 export type PriceChange = { at: string; from: number; to: number; by?: string; note?: string };
 
-// ส่วนต่างของการต่อรองทั้งใบ: ยอดตั้งต้น → ยอดปัจจุบัน · ลดไปเท่าไร กี่เปอร์เซ็นต์ กี่รอบ
-// ไม่มีประวัติ = ยังไม่เคยต่อรอง → คืน null (หน้าจอขึ้น "—" ไม่ใช่ 0%)
-export function negotiationSummary(q: Pick<QuotationMock, "priceHistory" | "totalValue">):
-  { first: number; last: number; diff: number; pct: number; rounds: number } | null {
-  const h = q.priceHistory ?? [];
-  if (!h.length) return null;
-  const first = h[0].from;
-  const last = h[h.length - 1].to;
-  const diff = last - first;
-  return { first, last, diff, pct: first > 0 ? (diff / first) * 100 : 0, rounds: h.length };
-}
+// negotiationSummary() (สรุปการต่อรองทั้งใบ) ลบแล้ว 25 พ.ย. 69 — ไม่มีหน้าจอเรียก (ส่วนลดเอาออกทั้งฟีเจอร์ 15 ก.ค. 69)
 
 export type QuotationMock = {
   id: string; customer: string; project: string;
