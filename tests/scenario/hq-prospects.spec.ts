@@ -50,30 +50,10 @@ async function cleanupProspects() {
   if (error) console.warn("[hq-prospects] ล้างข้อมูลทดสอบไม่สำเร็จ", error.message);
 }
 
-// ข้อ "ตั้งเป็นดีลเลอร์ใหม่" = ข้อทดสอบตามข้อตัดสินของบอส 15 ต.ค. 69 (เป้าในใบค่าแฟรนไชส์ชนะ · ใบ 0206):
-//   แพ็กเกจ standard ตั้งเป้า 3,000,000 · ใบระบุ 12,000,000 → ตั้งเป็นดีลเลอร์ → เป้าสาขาต้องเป็น 12,000,000
-//   (ก่อน 0206 ตัวดัก 0178/0179 ทับเป็น 3,000,000 — รอบปิดด่าน 3 ตกด้วยค่านี้จริง)
-//   ไฟล์นี้อยู่โปรเจกต์ hq-settings (workers: 1) — แก้ค่ากลางชุดนี้ได้โดยไม่ชนไฟล์อื่น · คืนค่าเดิมหลังจบ
-let ค่าตั้งเดิม: unknown = undefined;
-async function ตั้งเป้าแพ็กเกจ3ล้าน() {
-  if (!ADMIN_SERVICE_ROLE_KEY) return;
-  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const เดิม = ((await admin.from("hq_recruit_settings").select("config").eq("id", 1).maybeSingle()).data as { config: Record<string, unknown> } | null)?.config;
-  if (!เดิม) return;   // ไม่ใช่การข้าม: ตัวเตรียมค่าตั้ง — ไม่มีค่าเดิมให้จำ
-  ค่าตั้งเดิม = เดิม;
-  const proposal = (เดิม.proposal && typeof เดิม.proposal === "object" ? เดิม.proposal : {}) as Record<string, unknown>;
-  const { error } = await admin.from("hq_recruit_settings").update({ config: { ...เดิม, proposal: { ...proposal, packages: {
-    standard: { annualTarget: 3_000_000, targetsByRegion: {} }, exclusive: { annualTarget: null, targetsByRegion: {} } } } } }).eq("id", 1);
-  if (error) throw new Error(`ตั้งเป้าแพ็กเกจไม่สำเร็จ: ${error.message}`);
-}
-async function คืนค่าตั้งเดิม() {
-  if (!ADMIN_SERVICE_ROLE_KEY || ค่าตั้งเดิม === undefined) return;
-  const admin = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  await admin.from("hq_recruit_settings").update({ config: ค่าตั้งเดิม }).eq("id", 1);
-}
+// ข้อ "ตั้งเป็นดีลเลอร์ใหม่" = เป้าในใบค่าแฟรนไชส์ชนะ (บอสตัดสิน 15 ต.ค. 69 · ใบ 0206)
+//   ตัวช่วยตั้งเป้าแพ็กเกจ 3,000,000 ชั่วคราว (ตั้งเป้าแพ็กเกจ3ล้าน · คืนค่าตั้งเดิม) ลบแล้ว 25 พ.ย. 69 — แพ็กเกจเอาออกทั้งฟีเจอร์ (30 ต.ค. 69)
 
 test.beforeAll(async () => {
-  await ตั้งเป้าแพ็กเกจ3ล้าน();
   await cleanupProspects();
   await purgeNoAccountDealer();
   await purgeDealer(NEW_CODE);
@@ -84,7 +64,6 @@ test.afterAll(async () => {
   await purgeNoAccountDealer();
   await purgeDealer(NEW_CODE);
   await purgeDealer(DUP_CODE);
-  await คืนค่าตั้งเดิม();
 });
 
 test("[security] ดีลเลอร์มองไม่เห็น และเขียนลูกค้าเป้าหมายของสำนักงานใหญ่ไม่ได้", async () => {
@@ -281,7 +260,7 @@ test("[H5] [func·hq] ตั้งเป็นดีลเลอร์ใหม�
   //   อ่านด้วยสิทธิ์ระบบ — ตาราง dealers ถอนสิทธิ์อ่านคอลัมน์เป้าจากผู้ใช้ทั่วไปแล้ว
   const svc = createClient(ADMIN_SUPABASE_URL, ADMIN_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { data: สาขา } = await svc.from("dealers").select("revenue_target").eq("code", NEW_CODE).single();
-  expect(Number((สาขา as { revenue_target: number } | null)?.revenue_target), "เป้าของสาขาต้องมาจากใบ (12,000,000) ไม่ใช่เป้าแพ็กเกจ (3,000,000)").toBe(12_000_000);
+  expect(Number((สาขา as { revenue_target: number } | null)?.revenue_target), "เป้าของสาขาต้องมาจากใบ (12,000,000)").toBe(12_000_000);
   await waitRow(sb, "dealer_package_proposals", { prospect_id: id, status: "accepted" });
   const { data: พื้นที่ } = await svc.from("dealer_territories").select("province").eq("dealer_code", NEW_CODE).order("province");
   expect((พื้นที่ ?? []).map(p => p.province), "จังหวัดที่เลือกต้องเป็นพื้นที่ของสาขาใหม่ 1 จังหวัดพอดี (ระยองที่ RYG ดูแลอยู่)").toEqual(["ระยอง"]);

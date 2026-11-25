@@ -1,10 +1,8 @@
 // ── รายการวัสดุ (บอสสั่ง 26 ต.ค. 69 · ใบ 0244) — วัสดุ/ส่วนประกอบ + ราคาต่อหน่วย (ราคาส่งดีลเลอร์ ก่อน VAT) ─────────────
 //
-// HQ ตั้งในหน้าตั้งค่า › รายการวัสดุ · ดีลเลอร์เลือกตอนขอราคา (D3) ได้ "ราคาประเมินเบื้องต้น" — ไม่ใช่ใบเสนอราคา
+// ⚠️ หน้าจอเอาออกทั้งระบบแล้ว (บอสสั่ง 20 พ.ย. 69 · ซ่อนหน้าจอ ห้าม drop) — ไฟล์นี้เหลือแค่ชนิดข้อมูลที่ตัวต่อข้อมูลยังใช้
 //   ราคาประเมินคิดที่ฐานตอนส่งคำขอ (_estimate_snapshot) — หน้าเว็บคิดให้ดูก่อนส่งด้วยสูตรเดียวกัน (ประเมินรวม)
 //   ไม่ใช่แม่แบบอาคารแบบเดิม (เอาออก 16 ต.ค. 69) — ตารางแม่แบบเดิมคงไว้ในฐาน ไม่ถูกอ่าน
-import type { HqQuoteLine } from "./quoteRequests";
-
 export type MaterialTemplate = {
   id: number;
   category: string;
@@ -32,39 +30,5 @@ export type EstimateItem = { templateId?: number; category?: string; name: strin
 /** byTemplate = % คลาดเฉลี่ยรายวัสดุ (ใบ 0268): ค่าเฉลี่ย % ราคาประเมินคลาดจากใบ HQ ของคำขอที่เลือกวัสดุนั้น · ไม่มี = ฐานยังไม่ถึงใบนั้น */
 export type EstimateAccuracy = { n: number; avgAbsPct: number | null; avgPct: number | null; byTemplate?: { id: number; n: number; avgPct: number | null }[] };
 
-export const ป้ายราคาประเมิน = "ราคาประเมินเบื้องต้น ไม่ใช่ใบเสนอราคา";
-
-/** ยอดประเมิน — ปัดรายบรรทัด 2 ตำแหน่งแบบเดียวกับฐาน · ไม่มีรายการ = null */
-export function ยอดประเมิน(items: { qty: number; unitPrice: number }[]): number | null {
-  if (!items.length) return null;
-  return items.reduce((s, i) => s + Math.round(Number(i.qty) * Number(i.unitPrice) * 100) / 100, 0);
-}
-
-/** รายการประเมินของคำขอ → แถวในใบ HQ (H8 เปิดมามีรายการจากคำขอ) · ราคาต่อหน่วยตั้งต้น = ราคาแม่แบบ ณ ตอนส่ง HQ แก้ได้ */
-export function รายการประเมินเป็นแถวHQ(items: EstimateItem[] | null | undefined): HqQuoteLine[] {
-  return (items ?? []).map(i => ({ name: i.name, qty: Number(i.qty), unit: i.unit, unitCost: Number(i.unitPrice) }));
-}
-
-/** แม่แบบ → แถวในใบ HQ (ปุ่ม "เลือกจากรายการวัสดุ") · จำนวนตั้งต้น 1 */
-export function แม่แบบเป็นแถวHQ(t: MaterialTemplate, qty = 1): HqQuoteLine {
-  return { name: t.name, qty, unit: t.unit, unitCost: Number(t.unitPrice) };
-}
-
-/** หมวดที่มีอยู่ (ไม่ซ้ำ เรียงตามตัวอักษร) — ช่องหมวดพิมพ์เองได้ มีหมวดเดิมขึ้นให้เลือก (บอสตัดสิน 26 ต.ค. 69) */
-export function หมวดที่มี(rows: { category: string }[]): string[] {
-  return [...new Set(rows.map(r => r.category.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "th"));
-}
-
-/** ค้นแม่แบบ (ชื่อ/หมวด/หน่วย) */
-export function ค้นแม่แบบ<T extends { name: string; category: string; unit: string }>(rows: T[], q: string): T[] {
-  const k = q.trim().toLowerCase();
-  if (!k) return rows;
-  return rows.filter(r => `${r.category} ${r.name} ${r.unit}`.toLowerCase().includes(k));
-}
-
-/** "+10.0%" / "−3.5%" / "—" */
-export function ป้ายเปอร์เซ็นต์คลาด(p: number | null | undefined): string {
-  if (p == null || !Number.isFinite(Number(p))) return "—";
-  const n = Number(p);
-  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(1)}%`;
-}
+// ฟังก์ชันของหน้าจอรายการวัสดุ (ยอดประเมิน · แม่แบบ→แถว HQ · ค้น/หมวด/% คลาด) ลบแล้ว 25 พ.ย. 69 — หน้าจอเอาออกตั้งแต่ 20 พ.ย. 69
+//   (บอสสั่ง "เคลียไฟขยะและทดสอบที่ไม่ใช่แล้ว") · คงชนิดข้อมูลไว้ — ตัวต่อข้อมูล/เส้นทาง material-templates ยังใช้ (ตารางคงไว้ ห้าม drop)

@@ -426,7 +426,7 @@ test("ทดลอง · จอกว้าง · D1–D9 · H1–H12", async ({
     await แผงผู้สนใจ.getByRole("button", { name: "ออกใบค่าแฟรนไชส์" }).click();
     const ฟอร์ม = แผงผู้สนใจ.getByRole("region", { name: "ใบค่าแฟรนไชส์" });
     await ฟอร์ม.locator("#pp-amount").fill("abc").catch(() => {});
-    await ฟอร์ม.locator("#pp-package").selectOption({ index: 1 });
+    // ช่องเลือกแพ็กเกจ (#pp-package) ไม่มีแล้ว (แพ็กเกจเอาออก 30 ต.ค. 69) — ขั้นนี้เคยค้างจนหมดเวลา · ลบ 25 พ.ย. 69
     await ฟอร์ม.locator("#pp-amount").fill("100000");
     await ฟอร์ม.locator("#pp-months").fill("12");
     await ฟอร์ม.locator("#pp-target").fill("5000000");

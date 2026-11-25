@@ -19,7 +19,6 @@
     "packages/shared/lib/cookieAuth.ts",
     "packages/shared/lib/supabaseAuth.ts",
     "packages/shared/lib/permissions.ts",
-    "packages/shared/lib/hqPermissionMatrix.ts",
     "packages/shared/lib/passwordRule.ts",
     "packages/shared/lib/dealerSecret.ts",
     "packages/shared/lib/useImpersonating.ts",

@@ -8,7 +8,7 @@ import { เตรียมใบHQ, ทำใบลูกค้าจากใ�
 
 // ── รอบ 2 ช่วง ง: ที่เหลือในตารางเทียบรอบ 1 (19 ต.ค. 69) + ข้อตัดสินของบอส 20 ต.ค. 69 ──────────────────────────────
 //   ข้อที่ตรวจตรงตัวได้ดีกว่า (ชื่อกิจกรรมใบร่าง · วันที่สร้าง ISO · งานส่งแม่แบบในลีดที่ปิด · มูลค่าใบร่าง) อยู่ที่ tests/unit/roundTwoD.test.ts
-//   ตารางสิทธิ์ผู้ใช้ HQ ครบเมนู: tests/unit/permissionMatrix.test.ts · ข้อความลีดนอกพื้นที่: supabase/tests/territory_message.sql
+//   ข้อความลีดนอกพื้นที่: supabase/tests/territory_message.sql
 //   ปุ่มดูรหัสผ่านทางอีเมลเอาออก: dealer-account-page.spec.ts · hq-own-password.spec.ts · เลขลำดับถัดไปเอาออก: ux.spec.ts
 //   ตารางรีเฟรชเองหลัง HQ ย้อนการตอบรับ: customer-quote-flow.spec.ts
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");

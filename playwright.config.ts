@@ -126,7 +126,7 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: [/(multi-dealer-stress|setup-ready|dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency|quote-requests-status-select)\.spec\.ts/, /-tool\.spec\.ts$/],
+      testIgnore: [/(multi-dealer-stress|setup-ready|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency)\.spec\.ts/, /-tool\.spec\.ts$/],
       dependencies: ["setup"],
     },
     {
@@ -140,9 +140,8 @@ export default defineConfig({
     },
     {
       // ── ไฟล์ที่แก้ค่าตั้งค่ากลางของ HQ ชุดเดียวกัน — รันทีละไฟล์ ─────────────────────────────────
-      // dealer-package-target ตั้งเป้าของแพ็กเกจ standard ชั่วคราว (ค่ากลางทั้งระบบ · ตัวดัก 0178 เขียนทับเป้าสาขาในแพ็กเกจ)
-      //   รันพร้อม hq-prospects ซึ่งสร้างสาขาแพ็กเกจ standard → เป้าสาขาได้ 3,000,000 แทน 12,000,000 ตามใบ (รอบปิดด่าน 3 จับได้)
-      //   hq-recruit-settings ก็แก้ค่าตั้งต้นใบเสนอแพ็กเกจชุดเดียวกัน · แยกโปรเจกต์ workers: 1 = ไม่มีวันคาบเกี่ยวกัน
+      // hq-recruit-settings / hq-prospects แก้ค่าตั้งหาดีลเลอร์ (hq_recruit_settings) แถวเดียวกัน · แยกโปรเจกต์ workers: 1 = ไม่มีวันคาบเกี่ยวกัน
+      //   (dealer-package-target ลบแล้ว 25 พ.ย. 69 — แพ็กเกจเอาออกทั้งฟีเจอร์ · quote-requests-status-select ไม่มีไฟล์แล้ว)
       name: "hq-settings",
       use: { ...devices["Desktop Chrome"] },
       // no-template · func-dealer-settings แก้แถวตั้งค่าของ RYG (dealer_settings) แถวเดียวกัน — supabase-rls (ช่วง chromium) ลบแถวนั้นทิ้ง
@@ -155,7 +154,7 @@ export default defineConfig({
       // quote-requests-status-select วัดความเร็วเปิดหน้า (เกณฑ์ 1 วิ) — ต้องรันตอนไม่มีข้ออื่นแย่งเครื่อง (รันเดี่ยว 0.2–0.3 วิ · รันพร้อม 3 worker ~2 วิ) ไม่เพิ่มเกณฑ์ (29 ต.ค. 69)
       // hq-settings-backup-excel นำไฟล์สำรองกลับ = เขียนทับค่าตั้งเครือทั้งชุด (ผู้รับอีเมล · เหตุผลไม่สำเร็จ · ข้อมูลบริษัท · เป้า)
       //   + บันทึกทะเบียนดีลเลอร์ตามไฟล์ (เป้าทุกสาขากลับเป็นค่าตอนส่งออก) — รันพร้อมชุดอื่นไม่ได้ (29 ต.ค. 69 · คิวข้อ 3)
-      testMatch: /(dealer-package-target|hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency|quote-requests-status-select)\.spec\.ts/,
+      testMatch: /(hq-recruit-settings|hq-prospects|franchise-recruit-flow|hq-overview|hq-dashboard|no-template|func-dealer-settings|hq-settings-backup-excel|hq-vat-not-override|goal-vs-allocated|hq-customer-total-one-rule|kpi-cards|hq-quote-requests-ux|numbers-consistency)\.spec\.ts/,
       workers: 1,
       dependencies: ["setup"],
     },

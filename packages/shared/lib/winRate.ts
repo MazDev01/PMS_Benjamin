@@ -11,9 +11,4 @@ export function อัตราปิดการขาย(ปิดสำเร
   return ปิดแล้ว > 0 ? Math.round((ปิดสำเร็จ / ปิดแล้ว) * 100) : null;
 }
 
-/** นับจากรายการลีด (สถานะ PAID / CANCELLED) — ใช้ฝั่งที่มีรายการลีดในมือ */
-export function อัตราปิดการขายจากลีด(leads: { status: string }[]): number | null {
-  let ได้ = 0, เสีย = 0;
-  for (const l of leads) { if (l.status === "PAID") ได้++; else if (l.status === "CANCELLED") เสีย++; }
-  return อัตราปิดการขาย(ได้, เสีย);
-}
+// อัตราปิดการขายจากลีด() ลบแล้ว 25 พ.ย. 69 — ไม่มีคนเรียก (บอสสั่ง "เคลียไฟขยะและทดสอบที่ไม่ใช่แล้ว")
