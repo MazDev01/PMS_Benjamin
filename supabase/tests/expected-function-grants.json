@@ -30,6 +30,13 @@
    "definer": false
   },
   {
+   "f": "_brand_logo_mime(b bytea)",
+   "anon": false,
+   "authenticated": false,
+   "service_role": false,
+   "definer": false
+  },
+  {
    "f": "_cron_prospect_sheet()",
    "anon": false,
    "authenticated": false,
@@ -644,6 +651,34 @@
    "authenticated": true,
    "service_role": true,
    "definer": false
+  },
+  {
+   "f": "brand_logo_bytes()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "brand_logo_clear()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "brand_logo_meta()",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
+  },
+  {
+   "f": "brand_logo_set(p_base64 text)",
+   "anon": false,
+   "authenticated": true,
+   "service_role": false,
+   "definer": true
   },
   {
    "f": "can_price_quotes()",

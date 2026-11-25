@@ -34,6 +34,14 @@
    "service_role": "SELECT,UPDATE,USAGE"
   },
   {
+   "r": "brand_logo",
+   "kind": "r",
+   "rls": true,
+   "anon": "",
+   "authenticated": "",
+   "service_role": "DELETE,INSERT,REFERENCES,SELECT,TRIGGER,TRUNCATE,UPDATE"
+  },
+  {
    "r": "contact_email_codes",
    "kind": "r",
    "rls": true,

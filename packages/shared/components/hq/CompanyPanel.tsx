@@ -5,13 +5,18 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { logRepoRead } from "@pms/shared/lib/repoLog";
 import { friendlyError } from "@pms/shared/lib/friendlyError";
 import { hqCompany as hqCompanyRepo } from "@pms/shared/lib/data";
-import { Building2, Check, Save, Image as ImageIcon } from "lucide-react";
+import { Building2, Check, Save, Image as ImageIcon, Upload, RotateCcw } from "lucide-react";
 import { useReportSection } from "@pms/shared/lib/settingsBus";
 import { แจ้งพลาด } from "@pms/shared/components/ui/ConfirmToast";
 import { FieldLabel, FieldError, useRequiredFields, กรอบผิด } from "@pms/shared/components/ui/FieldLabel";
 import { ข้อความช่องขีด, type ช่องบังคับ } from "@pms/shared/lib/requiredFields";
+import { ยืนยัน, แจ้งสำเร็จ } from "@pms/shared/components/ui/ConfirmToast";
+import { useBrandLogo } from "@pms/shared/lib/useBrandLogo";
+import { ตรวจไฟล์โลโก้, ป้ายชนิดโลโก้, เหตุการณ์โลโก้เปลี่ยน } from "@pms/shared/lib/brandLogo";
+import { apiFetch } from "@pms/shared/lib/data/http/HttpAdapter";
+import { DATA_SOURCE } from "@pms/shared/lib/data/config";
 
-// โลโก้ Benjamin เป็นแบรนด์มาตรฐานเดียว (ไฟล์ static) — ไม่มีคีย์เก็บโลโก้ที่อัปโหลดอีกแล้ว
+// โลโก้ของระบบ: HQ เปลี่ยนได้ (บอสสั่ง 24 พ.ย. 69 · ใบ 0304) — กล่อง BrandLogoBox ท้ายไฟล์ · เปลี่ยนทันทีที่อัป (ไม่ผ่านปุ่มบันทึกกลาง)
 // ตัดทิ้งตามสเปก Enterprise: การ์ด "สินทรัพย์แบรนด์" (โลโก้ดาวน์โหลด / สี CI / ฟอนต์)
 //   — เป็นการตั้งค่าธีม/สี/ฟอนต์ ซึ่งสเปกสั่งเอาออกทั้งหมด
 // (PROFILE_KEY ถูกลบ — ข้อมูลบริษัทย้ายไปตาราง hq_company แล้ว อ่าน/เขียนผ่าน repo)
@@ -120,26 +125,9 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
         </div>
         <div className="card-body">
 
-          {/* โลโก้ Benjamin — มาตรฐานเดียว ดูอย่างเดียว
-              ห้ามอัปโหลด / ห้ามหลายรูปแบบ (vertical/icon/landscape) / ห้ามเปลี่ยนแบรนด์
-              หมายเหตุ: ปุ่มอัปโหลดเดิมไม่มีผลอยู่แล้ว — แถบเมนูใช้ /benjamin-logo-white.png ตายตัวเสมอ */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="form-label">โลโก้ Benjamin</label>
-            <div style={{ fontSize: "0.65rem", color: "var(--muted-foreground)", marginBottom: 8 }}>แบรนด์มาตรฐานเดียวของทั้งระบบ</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: 12, flexShrink: 0, background: "#003366",
-                border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                { }
-                <img src="/benjamin-logo-white.png" alt="Benjamin" style={{ width: 44, height: 44, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f5f7fa", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", fontSize: "0.76rem", color: "#6b7280" }}>
-                <ImageIcon size={14} color="#003366" style={{ flexShrink: 0 }} />
-                ใช้โลโก้ Benjamin มาตรฐานเดียวทั้งระบบ — เปลี่ยน/แนบโลโก้อื่นไม่ได้
-              </div>
-            </div>
-          </div>
+          {/* โลโก้ของระบบ — HQ เปลี่ยนได้ (บอสสั่ง 24 พ.ย. 69 · ใบ 0304 · ทับคำตัดสินเดิม "มาตรฐานเดียว เปลี่ยนไม่ได้") */}
+          <BrandLogoBox />
+
 
           {/* Fields */}
           <div className="form-grid" style={{ marginBottom: 28 }}>
@@ -200,6 +188,79 @@ export function CompanyPanel({ embedded }: { embedded?: boolean } = {}) {
              ดีลเลอร์คือคู่ค้า ไม่ใช่สาขาของบริษัท การเอามาสวมรอยกันคือการกุข้อมูลอีกแบบ
 
           ถ้าวันหลังต้องมีทะเบียนสาขาจริง ต้องมีตารางของมันเองในฐานข้อมูลก่อน */}
+    </div>
+  );
+}
+
+// ── โลโก้ของระบบ (บอสสั่ง 24 พ.ย. 69 · ใบ 0304) ─────────────────────────────────────
+//   อัปแล้วเปลี่ยนทันที (เมนูมุมซ้ายบนทั้ง HQ และดีลเลอร์) · PNG / JPG / WebP ≤ 1 MB — ตรวจไบต์จริงที่หน้าเว็บ เส้นทาง และฐาน
+//   ไม่เก็บ/ไม่แสดงชื่อไฟล์ที่อัป · ปุ่ม "กลับไปใช้โลโก้ Benjamin เดิม" · หน้าเข้าระบบใช้โลโก้เดิมเสมอ
+function BrandLogoBox() {
+  const โลโก้ = useBrandLogo(true);
+  const [busy, setBusy] = useState(false);
+  const [ผิด, setผิด] = useState("");
+  const ใช้ได้ = DATA_SOURCE === "api";
+
+  const อัป = async (file: File | undefined) => {
+    if (!file || busy) return;
+    setผิด("");
+    const ไบต์ = new Uint8Array(await file.arrayBuffer());
+    const เตือน = ตรวจไฟล์โลโก้(ไบต์);
+    if (เตือน) { setผิด(เตือน); return; }
+    setBusy(true);
+    try {
+      let s = ""; for (let i = 0; i < ไบต์.length; i += 0x8000) s += String.fromCharCode(...ไบต์.subarray(i, i + 0x8000));
+      await apiFetch<string>("/brand-logo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ base64: btoa(s) }) });
+      window.dispatchEvent(new Event(เหตุการณ์โลโก้เปลี่ยน));
+      แจ้งสำเร็จ("เปลี่ยนโลโก้แล้ว — เมนูของ HQ และดีลเลอร์ใช้โลโก้นี้");
+    } catch (e) { setผิด(friendlyError(e)); }
+    finally { setBusy(false); }
+  };
+  const กลับโลโก้เดิม = () => ยืนยัน({
+    หัวข้อ: "กลับไปใช้โลโก้ Benjamin เดิม?",
+    รายละเอียด: "เมนูของ HQ และดีลเลอร์ทุกรายกลับเป็นโลโก้ Benjamin เดิม · อัปโลโก้ใหม่ได้อีกภายหลัง",
+    ปุ่มตกลง: "กลับไปใช้โลโก้เดิม", ปุ่มกำลังทำ: "กำลังเปลี่ยน…",
+    ทำ: async () => {
+      await apiFetch<null>("/brand-logo", { method: "DELETE" });
+      window.dispatchEvent(new Event(เหตุการณ์โลโก้เปลี่ยน));
+      แจ้งสำเร็จ("กลับไปใช้โลโก้ Benjamin เดิมแล้ว");
+    },
+  });
+
+  return (
+    <div style={{ marginBottom: 24 }} data-panel="brand-logo">
+      <label className="form-label">โลโก้ของระบบ</label>
+      <div style={{ fontSize: "0.65rem", color: "var(--muted-foreground)", marginBottom: 8 }}>แสดงที่มุมซ้ายบนของเมนู ทั้ง HQ และดีลเลอร์ · ดีลเลอร์เปลี่ยนเองไม่ได้</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div data-brand-logo-preview={โลโก้.sha ? "custom" : "default"} style={{
+          width: 80, height: 80, borderRadius: 12, flexShrink: 0, background: โลโก้.sha ? "#fff" : "#003366",
+          border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          { }
+          <img src={โลโก้.src} alt={โลโก้.sha ? "โลโก้ที่ตั้งไว้" : "โลโก้ Benjamin เดิม"} style={{ width: 56, height: 56, objectFit: "contain", ...(โลโก้.sha ? {} : { filter: "brightness(0) invert(1)" }) }} />
+        </div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {ใช้ได้ ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <label className="btn btn-secondary btn-sm" style={{ cursor: busy ? "wait" : "pointer" }} aria-disabled={busy}>
+                <Upload size={13} /> {busy ? "กำลังแนบไฟล์…" : "แนบไฟล์โลโก้"}
+                <input type="file" aria-label="เลือกไฟล์โลโก้" accept="image/png,image/jpeg,image/webp" disabled={busy} style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; void อัป(f); }} />
+              </label>
+              {โลโก้.sha && (
+                <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void กลับโลโก้เดิม()}>
+                  <RotateCcw size={13} /> กลับไปใช้โลโก้ Benjamin เดิม
+                </button>
+              )}
+            </div>
+          ) : null}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "#6b7280" }}>
+            <ImageIcon size={13} color="#003366" style={{ flexShrink: 0 }} />
+            {ใช้ได้ ? `รับเฉพาะ ${ป้ายชนิดโลโก้} · ไม่เกิน 1 MB` : "เปลี่ยนโลโก้ได้เมื่อเชื่อมระบบจริง — ตอนนี้ใช้โลโก้ Benjamin เดิม"}
+          </div>
+          {ผิด && <div role="alert" data-brand-logo-error style={{ fontSize: "0.74rem", fontWeight: 600, color: "#b91c1c" }}>{ผิด}</div>}
+        </div>
+      </div>
     </div>
   );
 }
