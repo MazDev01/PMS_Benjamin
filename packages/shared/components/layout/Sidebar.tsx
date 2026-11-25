@@ -5,7 +5,9 @@
 //   ⛔ ห้ามทำหัวกลุ่มเป็นปุ่มพับ/กาง — เคยทำแล้ว บอสสั่งเอาออก ("ไม่เอาดรอปดาวน์แบบนี้ กลับไปเป็นแบบเดิม" 14 ก.ย. 69)
 //   ท้ายแถบเป็นการ์ดผู้ใช้ + ปุ่มออกจากระบบ (หรือ "กลับสู่ HQ" ตอนสวมสิทธิ์)
 //   รายการเมนู/ลำดับอยู่ที่ navConfig.tsx ที่เดียว
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useBrandLogo } from "@pms/shared/lib/useBrandLogo";
+import { โลโก้เดิม } from "@pms/shared/lib/brandLogo";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, ArrowLeft } from "lucide-react";
@@ -33,6 +35,10 @@ export function Sidebar({ mobileOpen = false, onNavigate, onSamePage }: { mobile
   //    จะเรนเดอร์เมนูของ *ดีลเลอร์* ชั่วขณะ แล้ว Next.js ไปดึงหน้าเหล่านั้นล่วงหน้า → 404 เจ็ดครั้งทุกครั้งที่เปิดหน้า
   // ⚠️ เดาจาก URL แทนไม่ได้ — แอปสำนักงานใหญ่มี /dashboard และ /profile ของตัวเองที่ไม่ได้ขึ้นต้นด้วย /hq
   const ready = useAuthReady();
+  // โลโก้ที่ HQ ตั้ง (ใบ 0304 · บอสสั่ง 24 พ.ย. 69) — ถามหลังรู้ตัวตนเท่านั้น · ไม่ตั้ง/โหลดไม่ขึ้น = โลโก้ Benjamin เดิม
+  const โลโก้จริง = useBrandLogo(ready);
+  const [โลโก้เสีย, setโลโก้เสีย] = useState<string | null>(null);   // sha ที่รูปโหลดไม่ขึ้น
+  const โลโก้ = โลโก้จริง.sha && โลโก้เสีย !== โลโก้จริง.sha ? โลโก้จริง : { sha: null, src: โลโก้เดิม };
 
   // prefetch เฉพาะเส้นทางของแอปนี้ — เส้นทางของอีกแอปไม่มีจริง ยิง 404 ซ้ำ ๆ
   useEffect(() => {
@@ -46,7 +52,7 @@ export function Sidebar({ mobileOpen = false, onNavigate, onSamePage }: { mobile
 
   return (
     <aside className={`erp-sidebar${mobileOpen ? " open" : ""}`}>
-      {/* Brand — แบรนด์ Benjamin เท่านั้นทุกบทบาท (ดีลเลอร์เปลี่ยนโลโก้/แบรนด์เองไม่ได้)
+      {/* Brand — โลโก้เดียวทั้งเครือ: HQ เปลี่ยนได้ที่ ตั้งค่า › บริษัท (ใบ 0304) · ดีลเลอร์เปลี่ยนเองไม่ได้
           ไม่มีคำบรรยายใต้ชื่อแบรนด์ (บอสสั่ง 1 ก.ย. 69) · ชื่อหน้าจริง (h1) อยู่ที่หัวหน้าเพจ */}
       {/* กดโลโก้ = กลับหน้าหลัก (บอสสั่ง 24 พ.ย. 69) — HQ → /hq/dashboard · ดีลเลอร์ → /dashboard · ลิงก์จริงชื่อ "ไปหน้าหลัก"
           เมนูมือถือ: กดแล้วปิดเมนู (onNavigate) · อยู่หน้าหลักอยู่แล้ว = รีเซ็ตหน้า (onSamePage) แบบเดียวกับกดเมนูของหน้าที่อยู่
@@ -54,9 +60,11 @@ export function Sidebar({ mobileOpen = false, onNavigate, onSamePage }: { mobile
       {(() => {
         const หน้าหลัก = isHQ ? "/hq/dashboard" : "/dashboard";
         const เนื้อ = (<>
-          <div className="brand-mark">
+          {/* โลโก้ที่ HQ อัปเอง (ใบ 0304) แสดงสีจริงบนพื้นขาว · โลโก้เดิมคงฟิลเตอร์ขาวบนพื้นแบรนด์ · รูปโหลดไม่ขึ้น = กลับโลโก้เดิม */}
+          <div className="brand-mark" data-brand-logo={โลโก้.sha ? "custom" : "default"} style={โลโก้.sha ? { background: "#fff" } : undefined}>
             { }
-            <img src="/benjamin-logo-white.png" alt="" style={{ width: 26, height: 26, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
+            <img src={โลโก้.src} alt="" style={{ width: 26, height: 26, objectFit: "contain", ...(โลโก้.sha ? {} : { filter: "brightness(0) invert(1)" }) }}
+              onError={โลโก้.sha ? () => { setโลโก้เสีย(โลโก้.sha); } : undefined} />
           </div>
           <div className="brand-text">
             <div className="brand-name">BENJAMIN</div>

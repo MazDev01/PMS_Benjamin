@@ -19,7 +19,7 @@ import { useNotifications } from "@pms/shared/lib/useNotifications";
 import { useReadNotifications } from "@pms/shared/lib/useReadNotifications";
 import { confirmDiscard } from "@pms/shared/lib/useUnsavedGuard";
 import { APP_NOW } from "@pms/shared/context/FilterContext";
-import { PRIMARY, STEEL } from "@pms/shared/lib/theme";
+import { STEEL } from "@pms/shared/lib/theme";
 import type { AppNotification } from "@pms/shared/lib/data/types";
 
 const BORDER = "#e5e7eb";
@@ -120,7 +120,11 @@ export function NotificationBell({ scope, open, onOpenChange }: {
         <div style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, width: 380, maxWidth: "calc(100vw - 24px)", background: "#fff", borderRadius: 14, border: `1px solid ${BORDER}`, boxShadow: "0 16px 48px rgba(0,0,0,.16)", zIndex: 300, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: "0.86rem", fontWeight: 800, color: STEEL }}>การแจ้งเตือน</span>
-            <button onClick={() => markRead(items.map(กุญแจ))} style={{ fontSize: "0.72rem", color: PRIMARY, background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>อ่านทั้งหมด</button>
+            {/* "อ่านทั้งหมด" เป็นปุ่ม (บอสสั่ง 24 พ.ย. 69 · เดิมเป็นข้อความลิงก์สีน้ำเงิน) — ขอบ/พื้นแบบปุ่ม "ดูทั้งหมด" ท้ายกล่อง
+                ไม่มีรายการยังไม่อ่าน = ปิดกดไม่ได้ */}
+            <button type="button" data-notif-read-all disabled={unread === 0} onClick={() => markRead(items.map(กุญแจ))}
+              style={{ padding: "5px 12px", border: `1px solid ${BORDER}`, borderRadius: 9, background: "#fff", color: STEEL, fontSize: "0.72rem", fontWeight: 600,
+                cursor: unread === 0 ? "not-allowed" : "pointer", opacity: unread === 0 ? 0.5 : 1 }}>อ่านทั้งหมด</button>
           </div>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {rows.length === 0 && (
