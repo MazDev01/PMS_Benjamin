@@ -202,7 +202,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       setภาพที่บันทึก(ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note));
       แจ้งสำเร็จ(`เริ่มฉบับใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
       onChanged();
-    } catch (e) { แจ้งพลาด(friendlyError(e)); }
+    } catch (e) { if (เป็นใบถูกแก้ก่อน(e)) setถูกแก้ก่อน(true); แจ้งพลาด(friendlyError(e)); }   // มีคนทำร่างไว้แล้ว (ใบ 0305) = เตือน + โหลดใบล่าสุด
     finally { setBusy(false); }
   };
 

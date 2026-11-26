@@ -3,6 +3,7 @@
 --   1) ยังไม่มีใบ: ฉบับว่าง = สร้างได้ · ส่งฉบับมาทั้งที่ยังไม่มีใบ = ปฏิเสธ (คำขอยังเป็นคำขอใหม่ ไม่ถูกรับเรื่องให้)
 --   2) มีใบแล้ว: ฉบับตรง = บันทึกได้ · ฉบับเก่า / ฉบับว่าง (เปิดตอนยังไม่มีใบ แต่มีคนสร้างก่อน) = ปฏิเสธ · รายการในฐานไม่เปลี่ยน
 --   3) ผู้เรียกเดิมที่ไม่ส่งฉบับ (สคริปต์ข้อมูลตัวอย่าง) = ทำงานแบบเดิม
+--   4) เริ่มจากใบฉบับก่อน (hq_quote_copy_from): คำขอยังไม่มีร่าง = คัดลอกได้ · มีร่างแล้ว = ปฏิเสธ ไม่ทับร่าง
 --   ทุกการบันทึกในไฟล์นี้อยู่ในทรานแซกชันเดียว (now() ไม่ขยับ) — "ฉบับเก่า" จึงจำลองด้วยเวลาก่อนเวลาในฐาน 1 วินาที
 --   การชนกันจริงสองการเชื่อมต่อ = tests/scenario/hq-quote-save-stale.spec.ts
 -- รัน: docker exec -i supabase_db_pms-dbcheck psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 < supabase/tests/hq_quote_save_stale.sql
@@ -120,6 +121,34 @@ begin
   perform sttest.as_dealer('CNX');
   perform sttest.must_fail(format('select public.hq_quote_save(%s, %L::jsonb, null, %L, true, null)', rid, '[{"name":"x","qty":1,"unit":"ชุด","unitCost":1}]', ''),
     'forbidden', '3ข) ดีลเลอร์บันทึกใบ HQ ไม่ได้ (ตรวจสิทธิ์ก่อนตรวจฉบับ)');
+end $$;
+
+-- ═══ 4. เริ่มจากใบฉบับก่อน ═══
+do $$
+declare rid bigint := (select v::bigint from sttest.r where k = 'rid'); n int; r2 bigint; r3 bigint; src hq_quotes; h hq_quotes; ก่อน hq_quotes;
+  วัน date := (now() at time zone 'Asia/Bangkok')::date + 30;
+begin
+  perform sttest.as_db();
+  n := (select coalesce(max(num_id), 0) from public.leads where dealer_code = 'CNX') + 1;
+  insert into public.leads (id, num_id, dealer_code, company, name, contact, phone, province, status, project, area, note)
+  values ('#L-' || n, n, 'CNX', 'ZZTEST-ใบทับ0305-ต้นทาง', 'ZZTEST-ใบทับ0305-ต้นทาง', 'ผู้ทดสอบ', '000-000-' || lpad(((n + 1) % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ'),
+         ('#L-' || (n + 1), n + 1, 'CNX', 'ZZTEST-ใบทับ0305-ปลายทาง', 'ZZTEST-ใบทับ0305-ปลายทาง', 'ผู้ทดสอบ', '000-000-' || lpad(((n + 2) % 10000)::text, 4, '0'), 'เชียงใหม่', 'BULLET', 'ZZ งานทดสอบ', '100', 'ZZ สเปกทดสอบ');
+  perform sttest.as_dealer('CNX');
+  r2 := (public.quote_request_submit(n, 'โกดังสำเร็จรูป')).id;
+  r3 := (public.quote_request_submit(n + 1, 'โกดังสำเร็จรูป')).id;
+  perform sttest.as_hq();
+  perform public.hq_quote_save(r2, '[{"name":"ต้นทาง","qty":1,"unit":"ชุด","unitCost":7000}]'::jsonb, วัน, 'ต้นทาง');
+  src := public.hq_quote_send(r2);
+  perform sttest.as_db();
+  ก่อน := (select q from public.hq_quotes q where request_id = rid);
+  perform sttest.as_hq();
+  perform sttest.must_fail(format('select public.hq_quote_copy_from(%s, %s)', rid, src.id), 'quote_stale',
+    '4ก) คำขอที่มีร่างอยู่แล้ว กดเริ่มจากใบฉบับก่อน → ปฏิเสธ (ไม่ทับร่าง)');
+  perform sttest.as_db();
+  perform sttest.ok((select q.line_items = ก่อน.line_items and q.updated_at = ก่อน.updated_at from public.hq_quotes q where request_id = rid), '4ข) ร่างเดิมไม่ถูกแตะ');
+  perform sttest.as_hq();
+  h := public.hq_quote_copy_from(r3, src.id);
+  perform sttest.ok(h.status = 'draft' and h.request_id = r3 and h.total_cost = 7000, '4ค) คำขอที่ยังไม่มีร่าง → คัดลอกจากใบฉบับก่อนได้');
 end $$;
 
 do $$ begin raise notice 'ALL PASS'; end $$;

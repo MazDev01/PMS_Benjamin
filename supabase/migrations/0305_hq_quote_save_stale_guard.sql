@@ -9,6 +9,8 @@
 -- รูปคำสั่งเปลี่ยน (เพิ่ม 2 ช่อง) จึงต้องลบตัวเดิมก่อน — มีสองรูปพร้อมกัน = เรียกด้วยชื่อช่องเดิมแล้วฐานเลือกไม่ได้
 --   ลบแล้วสร้างใหม่ = สิทธิ์เรียกเดิมหาย → ถอนสิทธิ์ตั้งต้นแล้วให้ authenticated ตามเดิม (ใบ 0190)
 -- เงื่อนไขใน IF ไม่ใช้ CASE (ใบ 0292 เคยพัง) · เนื้อคำสั่งส่วนอื่นเหมือนใบ 0285
+-- hq_quote_copy_from ("เริ่มจากใบฉบับก่อน") เดิมเรียก hq_quote_save ไม่ตรวจฉบับ → ทับร่างที่คนอื่นทำไว้แล้วเงียบได้
+--   ใหม่: คัดลอกได้เฉพาะเมื่อคำขอยังไม่มีร่าง (ปุ่มขึ้นเฉพาะตอนยังไม่มีใบ) · มีร่างแล้ว = quote_stale เหมือนกัน · รูปคำสั่งเดิม สิทธิ์เดิมคงอยู่
 -- ข้อทดสอบ: supabase/tests/hq_quote_save_stale.sql · tests/scenario/hq-quote-save-stale.spec.ts
 
 drop function if exists public.hq_quote_save(bigint, jsonb, date, text);
@@ -77,3 +79,16 @@ end $function$;
 revoke all on function public.hq_quote_save(bigint, jsonb, date, text, boolean, timestamptz) from public, anon, authenticated, service_role;
 -- หน้าเว็บเรียก (ใบ HQ · HqQuoteEditor) · ใบเดิมให้สิทธิ์ผู้ใช้ไว้ชัด (ใบ 0190)
 grant execute on function public.hq_quote_save(bigint, jsonb, date, text, boolean, timestamptz) to authenticated;
+
+-- ── เริ่มจากใบฉบับก่อน: ห้ามทับร่างที่มีอยู่ (เนื้อเดิมจากใบ 0186 · เพิ่มเฉพาะฉบับว่างตอนเรียก hq_quote_save) ──
+create or replace function public.hq_quote_copy_from(p_request_id bigint, p_source_hq_quote_id bigint)
+returns public.hq_quotes language plpgsql security definer set search_path to 'public' as $$
+declare src hq_quotes;
+begin
+  if not can_price_quotes() then raise exception 'forbidden: บทบาทนี้ทำใบ HQ ไม่ได้'; end if;
+  select * into src from hq_quotes where id = p_source_hq_quote_id and status <> 'draft';
+  if not found then raise exception 'source_missing: ไม่พบใบ HQ ต้นทางที่ส่งแล้ว'; end if;
+  -- ฉบับว่าง = คาดว่าคำขอนี้ยังไม่มีร่าง · มีคนทำร่างไว้แล้ว = quote_stale (ไม่ทับ)
+  return hq_quote_save(p_request_id, src.line_items,
+                       greatest(src.valid_until, (now() at time zone 'Asia/Bangkok')::date), src.note, true, null);
+end $$;
