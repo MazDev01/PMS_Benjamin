@@ -71,7 +71,8 @@ try {
   }
 
   // ── 2) โค้ดไม่เขียนที่อยู่เดิมตรง ๆ ──
-  const ยกเว้นไฟล์ = new Set(["tests/unit/guardCli.test.ts", "tests/unit/guardCliNext.test.ts", "tests/tools/proof-folder.test.mjs", "tests/tools/local-folder.test.mjs"]);
+  // private-outside-repo.test.mjs: ตรวจว่าค่าตั้งต้นรากส่วนตัว = C:/.claude/pms-private (ต้องเขียนค่าที่คาดตรง ๆ · 26 พ.ย. 69)
+const ยกเว้นไฟล์ = new Set(["tests/unit/guardCli.test.ts", "tests/unit/guardCliNext.test.ts", "tests/tools/proof-folder.test.mjs", "tests/tools/local-folder.test.mjs", "tests/tools/private-outside-repo.test.mjs"]);
   const โค้ด = git(ราก, "ls-files", "--", "scripts", "tests", "apps", "packages").split(/\r?\n/).filter(f => /\.(mjs|cjs|js|ts|tsx)$/.test(f) && !ยกเว้นไฟล์.has(f) && existsSync(path.join(ราก, f)));
   const เจอ = [];
   for (const f of โค้ด) {
