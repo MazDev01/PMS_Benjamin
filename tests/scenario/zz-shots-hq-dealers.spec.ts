@@ -1,4 +1,4 @@
-import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
+import { ที่ใน } from "./localPaths";
 import { test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";

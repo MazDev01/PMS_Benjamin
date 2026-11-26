@@ -78,6 +78,11 @@ try {
     });
   }
   ผล(เจอ.length === 0, `โค้ดไม่เขียนที่อยู่ C:/.claude/pms-* ตรง ๆ (ตรวจ ${โค้ด.length} ไฟล์ · ใช้ scripts/lib/localPaths.mjs)`, เจอ.slice(0, 15).join("\n   "));
+  // spec ของ Playwright ห้ามดึง localPaths.mjs ตรง ๆ — รอบตรวจเต็ม deploy36 (26 พ.ย. 69) โหลดไม่ได้ทั้งไฟล์ · ใช้ tests/scenario/localPaths.ts
+  //   (ฉบับเดียวกัน · tests/unit/localPathsSpec.test.ts เทียบผลสองฉบับ)
+  const specดึงmjs = โค้ด.filter(f => /^tests\/(scenario|prod-live)\/.*\.ts$/.test(f) && /from\s+["'][^"']*scripts\/lib\/localPaths\.mjs["']/.test(readFileSync(path.join(ราก, f), "utf8")));
+  ผล(specดึงmjs.length === 0, "spec ของ Playwright ไม่ดึง scripts/lib/localPaths.mjs (ใช้ tests/scenario/localPaths.ts)", specดึงmjs.join("\n   "));
+  ผล(existsSync(path.join(ราก, "tests/scenario/localPaths.ts")), "มีตัวกลางที่อยู่ฉบับ spec tests/scenario/localPaths.ts");
 
   // ── 3) git/Vercel/next ไม่เก็บ .local ──
   const ig = spawnSync("git", ["check-ignore", "-q", ".local/zz-ตรวจ/ไฟล์.txt"], { cwd: ราก });

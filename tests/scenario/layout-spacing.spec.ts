@@ -1,4 +1,4 @@
-import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
+import { ที่ใน } from "./localPaths";
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason, type Account } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
