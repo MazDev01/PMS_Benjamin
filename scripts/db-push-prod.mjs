@@ -35,6 +35,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { ที่ใน } from "./lib/localPaths.mjs";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { ตรวจใบก่อนลง, ข้อความไม่ผ่าน, โฟลเดอร์ใบ } from "./lib/migrationGate.mjs";
 import { จดใบบนฐาน, ตรวจใบก่อนลงฐาน, ใบในโฟลเดอร์, รอบผ่านล่าสุด } from "./lib/migrationOrder.mjs";
@@ -45,7 +46,7 @@ const dry = args.includes("--dry-run");
 
 // ── บันทึกการรัน: เขียนตอนโปรเซสจบเสมอ (process.exit จากตัวช่วยใด ๆ ก็ผ่าน "exit") ──
 const ไฟล์บันทึก = process.env.PMS_PUSH_LOG
-  || path.join(process.env.PMS_BACKUP_ROOT || "C:/.claude/pms-prod-backups", "db-push-log.jsonl");
+  || path.join(process.env.PMS_BACKUP_ROOT || ที่ใน("prod-backups"), "db-push-log.jsonl");
 const บันทึก = {
   เริ่ม: new Date().toISOString(), จบ: null, ผล: "ตก", เหตุ: "จบก่อนถึงขั้นลงใบ", ใบ: [], ชุดสำรอง: null,
   ผู้ใช้: (() => { try { return os.userInfo().username; } catch { return process.env.USERNAME ?? null; } })(),

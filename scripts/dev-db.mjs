@@ -14,10 +14,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { รากโฟลเดอร์ } from "./lib/session.mjs";
+import { ที่ใน } from "./lib/localPaths.mjs";
 
 const ports = JSON.parse(readFileSync(path.join(รากโฟลเดอร์, "scripts/lib/ports.json"), "utf8")).ฐาน;
-const ที่ฐานdev = process.env.PMS_DEV_DB_DIR || "C:/.claude/pms-dev";
-const ที่ฐานทดสอบ = process.env.PMS_TEST_DB_DIR || "C:/.claude/pms-dbcheck";
+const ที่ฐานdev = process.env.PMS_DEV_DB_DIR || ที่ใน("dev");
+const ที่ฐานทดสอบ = process.env.PMS_TEST_DB_DIR || ที่ใน("dbcheck");
 const โปรเจกต์ = process.env.PMS_DEV_PROJECT || "pms-dev";
 const คอนเทนเนอร์ = `supabase_db_${โปรเจกต์}`;
 const พอร์ตAPI = Number(process.env.PMS_DEV_API_PORT) || ports.dev.api;

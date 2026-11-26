@@ -1,3 +1,4 @@
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -10,13 +11,13 @@ import { ล้างใบHQทดสอบ, เลขลูกค้าเป�
 
 // ── ถ่ายรูปก่อน/หลัง กล่องเหตุผล + ปุ่มรอฐาน (บอสสั่ง 28 ต.ค. 69 · กด "ยกเลิกคำขอ" แล้วดูเหมือนไม่เกิดอะไร) — ไม่ใช่ข้อทดสอบ ─────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง npm run test:prodbuild -- tests/scenario/zz-shots-reason-buttons.spec.ts
-//   รูปลง C:/.claude/pms-shots/reason-buttons/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
+//   รูปลง .local/shots/reason-buttons/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
 //   ฉาก "รอฐาน" = คำสั่งเขียนค้างไว้ไม่ตอบ (ไม่ถึงฐานจริง) แล้วถ่ายจังหวะที่ผู้ใช้กดยืนยันไปแล้ว
 test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังกล่องเหตุผล — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(600_000);
 
-const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-shots/reason-buttons";
+const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? `${ที่ใน("shots")}/reason-buttons`;
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }];
 const เลข = เลขลูกค้าเป้าหมายทดสอบ();
 const บริษัท = `ZZTEST-ถ่ายรูปกล่องเหตุผล-${Date.now() % 100_000}`;

@@ -16,6 +16,7 @@ const ชุด: [string, string][] = [
   ["tests/tools/lint-gate.test.mjs", "ตัวตรวจ lint: ข้อผิดพลาด 1 ข้อ = ตก · คำเตือนเกินเพดาน = ตก · ไม่มีการปิดกฎ rules-of-hooks (บอสสั่ง 12 พ.ย. 69)"],
   ["tests/tools/test-self-skip.test.mjs", "ตัวตรวจข้อทดสอบข้ามตัวเองเมื่อไม่มีข้อมูล + รายงานข้อที่ข้ามแยกตามเหตุผล"],
   ["tests/tools/thai-guard.test.mjs", "ตัวกันภาษาไทย (Stop hook ร่าง · บอสวางใน settings เอง): ประโยคอังกฤษตีกลับ · ไทย+ชื่อไฟล์/โค้ดผ่าน · ไม่ตีซ้ำ"],
+  ["tests/tools/local-folder.test.mjs", "โฟลเดอร์ในเครื่องรวมที่ .local: ตัวกลางที่อยู่ · git/Vercel ไม่เก็บ · commit/push ไฟล์ .local ถูกปฏิเสธ · ตัวตรวจกุญแจไม่เปิด prod-secrets · เครื่องมือไม่กวาด · ตัวย้าย (26 พ.ย. 69)"],
   ["tests/tools/proof-folder.test.mjs", "โฟลเดอร์พิสูจน์บนโค้ดเดิม: ชื่อมี $ { } = หยุด · ห้ามอยู่ในโฟลเดอร์ทำงาน/หลัก · ลบถอดลิงก์ก่อน (11 พ.ย. 69)"],
   ["tests/tools/nested-playwright-isolation.test.mjs", "ข้อทดสอบเครื่องมือที่รัน playwright ซ้อนไม่แตะของรอบ: ไฟล์บันทึก · ล็อก · โฟลเดอร์ผล · รายงาน JSON (รอบ deploy22 ครั้งที่ 4 ล้ม 16 พ.ย. 69)"],
   ["tests/tools/flaky-ack.test.mjs", "ชื่อข้อไม่นิ่งท้ายผล + รอบมีข้อไม่นิ่งรอบอสรับทราบ (round:ack กัน AI)"],

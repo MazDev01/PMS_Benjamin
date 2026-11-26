@@ -13,10 +13,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { โฟลเดอร์หลัก as หาโฟลเดอร์หลัก } from "./lib/localPaths.mjs";
 
 export const ต้นทางเริ่มต้น = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const ที่เก็บเริ่มต้น = path.dirname(ต้นทางเริ่มต้น);   // C:/.claude/pms-wt
-export const โฟลเดอร์หลัก = "C:/.claude/Benjamin-HQ-main";
+export const ที่เก็บเริ่มต้น = path.dirname(ต้นทางเริ่มต้น);   // ที่เก็บโฟลเดอร์เซสชัน (.local/wt · ก่อนย้าย C:/.claude/pms-wt)
+export const โฟลเดอร์หลัก = หาโฟลเดอร์หลัก(ต้นทางเริ่มต้น);     // ที่ .git จริงอยู่ (scripts/lib/localPaths.mjs)
 export const ลิงก์ที่ใช้ = ["node_modules", "apps/dealer/node_modules", "apps/hq/node_modules", "packages/shared/node_modules"];
 export const ไฟล์ตั้งค่า = ["apps/dealer/.env.local", "apps/hq/.env.local", "tests/.env.test", ".pms-session.json"];
 
@@ -33,10 +34,15 @@ export function ตรวจชื่อโฟลเดอร์(ชื่อ) {
 const ปกติ = (p) => path.resolve(p).replace(/\\/g, "/").toLowerCase().replace(/\/+$/, "");
 const อยู่ใน = (ลูก, แม่) => { const a = ปกติ(ลูก), b = ปกติ(แม่); return a === b || a.startsWith(b + "/"); };
 
-/** ปลายทางห้ามเป็น/อยู่ใน โฟลเดอร์ทำงาน (ต้นทาง) หรือโฟลเดอร์หลัก — พิสูจน์ต้องอยู่โฟลเดอร์แยกเสมอ */
+/** ปลายทางห้ามเป็น/อยู่ใน โฟลเดอร์ทำงาน (ต้นทาง) หรือโฟลเดอร์หลัก — พิสูจน์ต้องอยู่โฟลเดอร์แยกเสมอ
+ *  ยกเว้นโฟลเดอร์ลูกของ <หลัก>/.local/wt (ที่เก็บโฟลเดอร์เซสชันหลังย้าย 26 พ.ย. 69 · git ไม่เก็บ · เป็นโฟลเดอร์แยกจริง) */
 export function ตรวจที่ตั้ง(เป้า, ต้นทาง = ต้นทางเริ่มต้น, หลัก = โฟลเดอร์หลัก) {
-  for (const [ชื่อ, ห้าม] of [["โฟลเดอร์ทำงาน", ต้นทาง], ["โฟลเดอร์หลัก", หลัก]])
+  const ที่เซสชัน = `${String(หลัก).replace(/\\/g, "/").replace(/\/+$/, "")}/.local/wt`;
+  const ใต้ที่เซสชัน = อยู่ใน(เป้า, ที่เซสชัน) && ปกติ(เป้า) !== ปกติ(ที่เซสชัน);
+  for (const [ชื่อ, ห้าม] of [["โฟลเดอร์ทำงาน", ต้นทาง], ["โฟลเดอร์หลัก", หลัก]]) {
+    if (ชื่อ === "โฟลเดอร์หลัก" && ใต้ที่เซสชัน) continue;
     if (อยู่ใน(เป้า, ห้าม) || อยู่ใน(ห้าม, เป้า)) throw new Error(`ห้ามพิสูจน์ใน${ชื่อ} (${ห้าม}) — ต้องเป็นโฟลเดอร์แยก`);
+  }
   return เป้า;
 }
 

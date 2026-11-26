@@ -74,7 +74,7 @@ route `/api/admin/dealers` และ `/api/admin/users` (สร้าง/ลบ�
 ฐานทดสอบครบชุด (ลงใบทั้งหมด + ข้อมูลตั้งต้น `tests/fixtures/test-baseline.sql` + บัญชีทดสอบจาก `tests/.env.test`):
 ```bash
 node scripts/reset-test-db.mjs                          # ฐานของโฟลเดอร์นี้ (พอร์ต 54321)
-node scripts/reset-test-db.mjs --workdir ../pms-dbcheck # ฐานในเครื่องตัวอื่น
+node scripts/reset-test-db.mjs --workdir <โฟลเดอร์หลัก>/.local/dbcheck # ฐานในเครื่องตัวอื่น (ก่อนย้าย C:/.claude/pms-dbcheck)
 ```
 สคริปต์เดิม (ต้องใส่ที่อยู่ + กุญแจเองทุกครั้ง ไม่มีค่าตั้งต้น):
 ```bash

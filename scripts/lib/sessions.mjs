@@ -2,15 +2,16 @@
 //
 // ทะเบียน: <git common dir>/pms-sessions.json — ใช้ร่วมทุกโฟลเดอร์ (worktree) ของ repo เดียวกัน · แก้ภายใต้ล็อกเท่านั้น
 //   { "<ชื่อ>": { ช่อง, โฟลเดอร์, branch, สร้างจาก, สร้างเมื่อ } } · ช่อง = เลขช่องพอร์ต (scripts/lib/session.mjs พอร์ตของช่อง)
-// โฟลเดอร์เซสชัน: PMS_WT_ROOT (ข้อทดสอบใช้ที่อื่น) หรือ C:/.claude/pms-wt/<ชื่อ>
+// โฟลเดอร์เซสชัน: PMS_WT_ROOT (ข้อทดสอบใช้ที่อื่น) หรือ .local/wt/<ชื่อ> (scripts/lib/localPaths.mjs · ก่อนย้าย = C:/.claude/pms-wt)
 import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ตัวล็อก } from "./fileLock.mjs";
+import { ที่ใน } from "./localPaths.mjs";
 
 export const gitใน = (cwd) => (...a) => execFileSync("git", a, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-export const รากเซสชัน = () => process.env.PMS_WT_ROOT || "C:/.claude/pms-wt";
+export const รากเซสชัน = () => process.env.PMS_WT_ROOT || ที่ใน("wt");
 export const ชื่อถูกแบบ = (s) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s) && s.length <= 30;
 
 export const ไฟล์ทะเบียน = (cwd) => path.resolve(cwd, gitใน(cwd)("rev-parse", "--git-common-dir"), "pms-sessions.json");

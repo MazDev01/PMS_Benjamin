@@ -1,3 +1,4 @@
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 import { test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -8,12 +9,12 @@ import { settle } from "./helpers";
 
 // ── ถ่ายรูปก่อน/หลัง การ์ด KPI 4 ใบทุกหน้า (บอสสั่ง 22 ต.ค. 69 · ใบ 0246) — ไม่ใช่ข้อทดสอบ ──────────────────────────────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง npm run test:prodbuild -- tests/scenario/zz-shots-kpi.spec.ts
-//   รูปลง C:/.claude/pms-shots/kpi-cards/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ · ส่วนบนของหน้า (แถวการ์ด)
+//   รูปลง .local/shots/kpi-cards/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ · ส่วนบนของหน้า (แถวการ์ด)
 test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังการ์ด KPI — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(900_000);
 
-const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-shots/kpi-cards";
+const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? `${ที่ใน("shots")}/kpi-cards`;
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 1400 }];
 const หน้าดีลเลอร์ = [["แดชบอร์ด", "/dashboard"], ["ลูกค้าเป้าหมาย", "/leads"], ["ใบเสนอราคา", "/quotations"], ["ลูกค้า", "/customers"], ["ปฏิทิน", "/calendar"]] as const;
 const หน้าHQ = [

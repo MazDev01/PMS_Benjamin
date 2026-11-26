@@ -1,3 +1,4 @@
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 import { test, expect, type Page } from "@playwright/test";
 import { ADMIN, RYG, skipReason, type Account } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
@@ -139,7 +140,7 @@ async function ตรวจทุกหน้า(page: Page, origin: string, ล
     await เปิดแล้วรอ(page, `${origin}${p}`);
     // รูปก่อน/หลัง (บอสสั่ง) — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง
     if (process.env.PMS_SHOTS) await page.screenshot({ fullPage: true,
-      path: `C:/.claude/pms-shots/layout-spacing/${process.env.PMS_SHOTS}/${origin === HQ_ORIGIN ? "hq" : "dealer"}${p.replace(/^\/hq/, "").replace(/\//g, "-")}-${ชนิดจอ}.png` });
+      path: `${ที่ใน("shots")}/layout-spacing/${process.env.PMS_SHOTS}/${origin === HQ_ORIGIN ? "hq" : "dealer"}${p.replace(/^\/hq/, "").replace(/\//g, "-")}-${ชนิดจอ}.png` });
     const { ปัญหา } = await วัดหน้า(page, ชนิดจอ === "กว้าง");
     for (const x of ปัญหา) ตก.push(`${p} [จอ${ชนิดจอ}] ${x}`);
   }

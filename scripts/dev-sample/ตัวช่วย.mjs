@@ -5,11 +5,12 @@
 //     ยกเว้นสิ่งที่ผู้ใช้ทำไม่ได้: ย้อน "เวลา" (ข้อมูลย้อนหลัง) · ของที่มาจากหลังบ้าน (ลีดของ HQ · บัญชีผู้ใช้) → กุญแจฝั่งเซิร์ฟเวอร์ (ctx.svc)
 //   · ข้อมูลสมมติล้วน: ชื่อตามสูตร · อีเมล @example.test · เบอร์ 000-000-xxxx · ห้ามชื่อ/เบอร์/อีเมลคนจริง
 //   · ฐาน dev เท่านั้น — ตรวจพอร์ตก่อนทุกครั้ง (ฐานทดสอบ/ฐานจริงห้ามรัน)
-//   · รหัสผ่านบัญชีที่สร้างใหม่เก็บนอก repo: ctx.ไฟล์บัญชี (C:/.claude/pms-dev/บัญชีตัวอย่าง.json)
+//   · รหัสผ่านบัญชีที่สร้างใหม่เก็บใน .local ที่ git ไม่เก็บ: ctx.ไฟล์บัญชี (<ฐาน dev>/บัญชีตัวอย่าง.json · scripts/lib/localPaths.mjs)
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import { ที่ใน } from "../lib/localPaths.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { รากโฟลเดอร์ } from "../lib/session.mjs";
 
@@ -44,7 +45,7 @@ export const พอร์ตฐานdev = () => JSON.parse(readFileSync(path.jo
 
 export async function เตรียม() {
   const ports = JSON.parse(readFileSync(path.join(รากโฟลเดอร์, "scripts/lib/ports.json"), "utf8")).ฐาน;
-  const ที่ฐานdev = process.env.PMS_DEV_DB_DIR || "C:/.claude/pms-dev";
+  const ที่ฐานdev = process.env.PMS_DEV_DB_DIR || ที่ใน("dev");
   const st = spawnSync("npx", ["supabase", "status", "-o", "env", "--workdir", ที่ฐานdev], { encoding: "utf8", shell: process.platform === "win32" });
   const ค่า = Object.fromEntries((st.stdout ?? "").split(/\r?\n/).map(l => l.match(/^([A-Z_]+)="?(.*?)"?$/)).filter(Boolean).map(m => [m[1], m[2]]));
   const API = ค่า.API_URL;

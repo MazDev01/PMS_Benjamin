@@ -1,3 +1,4 @@
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -21,7 +22,7 @@ import { สร้างสาขาของข้อ, type สาขาขอ�
 //     4) ส่วนสรุป BOQ: "ราคาส่งดีลเลอร์ (ก่อน VAT)" ตัวหนา · ยอดชิดขวาใต้คอลัมน์ยอด
 //     5) มือถือ: หน้าไม่ล้นจอ ตารางเลื่อนในกล่องตัวเอง
 //   ข้อมูลของข้อ: สาขาของข้อ + ใบ HQ (เหล็ก 38 ตัน · หลังคา 2,240 ตร.ม.) + ใบลูกค้า
-//   PMS_SHOTS=ก่อน|หลัง → ถ่ายรูปทุกตารางที่ตรวจไว้ที่ C:\.claude\pms-shots\qty-unit\<ก่อน|หลัง>\ (ถ่ายก่อนตรวจ — โค้ดเดิมตกก็ยังได้รูป)
+//   PMS_SHOTS=ก่อน|หลัง → ถ่ายรูปทุกตารางที่ตรวจไว้ที่ .local\shots\qty-unit\<ก่อน|หลัง>\ (ถ่ายก่อนตรวจ — โค้ดเดิมตกก็ยังได้รูป)
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 // ข้อต่อข้อไม่พึ่งกัน (ข้อมูลของข้อสร้างใน beforeAll) — ไม่ใช้ serial: ข้อหนึ่งตกแล้วข้ออื่นยังได้ตรวจ/ถ่ายรูปครบทุกจุด
 test.setTimeout(240_000);
@@ -146,7 +147,7 @@ async function วัด(page: Page, ชื่อรายการ: string[], �
 let ลำดับรูป = 0;
 async function ถ่าย(page: Page, ชื่อ: string) {
   if (!process.env.PMS_SHOTS) return;
-  const ที่ = path.join("C:/.claude/pms-shots/qty-unit", process.env.PMS_SHOTS);
+  const ที่ = path.join(`${ที่ใน("shots")}/qty-unit`, process.env.PMS_SHOTS);
   mkdirSync(ที่, { recursive: true });
   const ตาราง = page.locator("table").filter({ has: page.locator("thead th", { hasText: /^จำนวน$/ }) });
   const n = await ตาราง.count();

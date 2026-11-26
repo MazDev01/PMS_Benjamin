@@ -4,6 +4,11 @@
 //   ข้อทดสอบ: tests/tools/session-tools.test.mjs · ห้ามข้ามด้วย --no-verify
 import { execFileSync, spawnSync } from "node:child_process";
 import { อ่านเซสชัน } from "../lib/session.mjs";
+import { localในindex, ข้อความปฏิเสธ } from "../lib/localGuard.mjs";
+
+// ไฟล์ใต้ .local/ ห้ามเข้า commit (26 พ.ย. 69 · รวม git add -f) — ตรวจทุกโฟลเดอร์ รวมโฟลเดอร์หลัก (scripts/lib/localGuard.mjs)
+const ไฟล์local = localในindex(process.cwd());
+if (ไฟล์local.length) { console.error(ข้อความปฏิเสธ("commit ", ไฟล์local)); process.exit(1); }
 
 // ไฟล์ที่ git เก็บห้ามมีเบอร์โทรรูปแบบจริง/ป้ายข้อมูลจากฐานจริง (บอสสั่งด่วน 16 พ.ย. 69 ข้อ 5) — ตรวจทุกโฟลเดอร์ รวมโฟลเดอร์หลัก · ตก = commit ไม่ผ่าน
 const ตรวจเบอร์ = spawnSync(process.execPath, ["scripts/check-no-real-phones.mjs"], { stdio: "inherit" });

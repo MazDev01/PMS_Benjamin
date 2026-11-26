@@ -8,9 +8,9 @@
 // ผล:   exit 0 + "ผ่าน" เท่านั้นถึงเขียนฐานจริงต่อได้ · exit 1 = ไม่ผ่าน (บอกเหตุผลภาษาไทย) · exit 3 = มีงานอื่นถือล็อกอยู่
 //
 // ตั้งค่าได้ (มีค่าตั้งต้นของเครื่องนี้):
-//   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (C:/.claude/pms-prod-ops)
-//   PMS_RESTORE_WORKDIR    โฟลเดอร์ supabase ของฐานเปล่าที่ใช้ซ้อมกู้ (C:/.claude/pms-restore-check · project pms-blank)
-//   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (C:/.claude/pms-prod-backups) — นอก repo เสมอ (มีข้อมูลลูกค้าจริง)
+//   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (.local/prod-ops)
+//   PMS_RESTORE_WORKDIR    โฟลเดอร์ supabase ของฐานเปล่าที่ใช้ซ้อมกู้ (.local/restore-check · project pms-blank)
+//   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (.local/prod-backups) — ใน .local ที่ git ไม่เก็บ (มีข้อมูลลูกค้าจริง)
 //   PMS_FAKE_EMPTY=<ขั้น>   ข้อทดสอบเท่านั้น (--target local): จำลองคำสั่งของขั้นนั้นคืนผลว่าง (dump = ไฟล์สำรอง 2-data.sql ว่าง)
 //   PMS_DRILL_SABOTAGE=1   ข้อทดสอบเท่านั้น (ใช้ได้กับ --target local เท่านั้น): ลบ 1 แถวในฐานที่กู้ ก่อนเทียบ → ต้องไม่ผ่าน
 //   PMS_DRILL_SABOTAGE=seq ข้อทดสอบเท่านั้น (--target local): เลื่อนตัวนับ 1 ตัวในฐานที่กู้ → ต้องไม่ผ่าน
@@ -24,6 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
+import { ที่ใน } from "./lib/localPaths.mjs";
 import { อ่านคำสั่งสำรอง, ย่อข้อผิดพลาดdump } from "./lib/backupArgs.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
@@ -37,9 +38,9 @@ if (process.env.PMS_FAKE_EMPTY && target !== "local") { console.error("⛔ PMS_F
 if (process.env.PMS_DRILL_ADVANCE_SEQ === "1" && target !== "local") { console.error("⛔ PMS_DRILL_ADVANCE_SEQ ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 if (process.env.PMS_DRILL_SABOTAGE && target !== "local") { console.error("⛔ PMS_DRILL_SABOTAGE ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 
-const OPS = process.env.PMS_PROD_OPS_DIR || "C:/.claude/pms-prod-ops";
-const RESTORE = process.env.PMS_RESTORE_WORKDIR || "C:/.claude/pms-restore-check";
-const ROOT = process.env.PMS_BACKUP_ROOT || "C:/.claude/pms-prod-backups";
+const OPS = process.env.PMS_PROD_OPS_DIR || ที่ใน("prod-ops");
+const RESTORE = process.env.PMS_RESTORE_WORKDIR || ที่ใน("restore-check");
+const ROOT = process.env.PMS_BACKUP_ROOT || ที่ใน("prod-backups");
 // ฐานทดสอบ pms-dbcheck — ต้นทางของ --target local · บัญชีเขียนของผู้ถือล็อก (ฐานทดสอบปิดบัญชีอื่นแล้ว · testDbGuard.mjs)
 const LOCAL_DB = () => `postgresql://pms_writer:${encodeURIComponent(process.env.PMS_TESTDB_PG_PASSWORD ?? "")}@127.0.0.1:55322/postgres`;
 const LOCAL_CONTAINER = "supabase_db_pms-dbcheck";

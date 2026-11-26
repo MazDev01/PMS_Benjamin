@@ -15,9 +15,10 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { ที่ใน } from "./localPaths.mjs";
 
 export const ไฟล์ลาย = () => process.env.PMS_TESTDB_SCHEMA_CACHE || path.join(os.homedir(), ".pms-testdb-schema.json");
-export const ที่ฐานทดสอบ = () => process.env.PMS_TEST_DB_DIR || "C:/.claude/pms-dbcheck";
+export const ที่ฐานทดสอบ = () => process.env.PMS_TEST_DB_DIR || ที่ใน("dbcheck");
 const คอนเทนเนอร์ = process.env.PMS_TESTDB_CONTAINER || "supabase_db_pms-dbcheck";
 
 /** แฮชของไฟล์ใบปรับฐานทั้งหมดในโฟลเดอร์ + ข้อมูลตั้งต้น (ชื่อ + เนื้อ · ไม่สนการขึ้นบรรทัดของ Windows) */
@@ -100,9 +101,9 @@ export function ที่มาที่น่าจะเป็น(ส่วน
   } catch { /* ไม่มีบันทึกการจอง */ }
   const เจ้าของเลข = (v) => (Array.isArray(จอง) ? จอง : []).find(y => y?.เลข === v)?.เซสชัน ?? null;
   for (const [v, n] of เกินใบ) บอก.push(`ฐานมีใบ ${v} (${n}) ที่ไม่มีไฟล์ในโฟลเดอร์นี้${เจ้าของเลข(v) ? ` — เลขนี้จองโดยเซสชัน ${เจ้าของเลข(v)}` : ""}`);
-  // ② ชื่อสิ่งที่ไม่ตรง อยู่ในไฟล์ใบของเซสชันไหน (โฟลเดอร์ C:/.claude/pms-wt/<ชื่อ>) แต่ไม่อยู่ในไฟล์ของโฟลเดอร์นี้
+  // ② ชื่อสิ่งที่ไม่ตรง อยู่ในไฟล์ใบของเซสชันไหน (โฟลเดอร์ .local/wt/<ชื่อ>) แต่ไม่อยู่ในไฟล์ของโฟลเดอร์นี้
   const ชื่อสั้น = [...new Set([...ส่วนต่าง.เกิน, ...ส่วนต่าง.ต่าง].map(k => k.split("|")[1].replace(/\(.*$/, "").replace(/^public\./, "").split(".")[0]))].slice(0, 30);
-  const ที่เซสชัน = process.env.PMS_WT_DIR || "C:/.claude/pms-wt";
+  const ที่เซสชัน = process.env.PMS_WT_DIR || ที่ใน("wt");
   const ของเรา = readdirSync(path.join(ราก, "supabase/migrations")).filter(f => f.endsWith(".sql"));
   if (existsSync(ที่เซสชัน)) for (const s of readdirSync(ที่เซสชัน)) {
     const d = path.join(ที่เซสชัน, s, "supabase/migrations");

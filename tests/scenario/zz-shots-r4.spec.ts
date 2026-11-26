@@ -1,3 +1,4 @@
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 import { test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -8,7 +9,7 @@ import { settle } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ } from "./hqQuoteFixture";
 
 // ── ถ่ายรูปหน้าจอ "ก่อน/หลัง" รอบ 4 (ลดหน้าจอซ้ำ · บอสสั่ง 21 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────────
-//   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง PMS_SHOTS_DIR=C:/.claude/pms-shots/round4 npm run test:prodbuild -- tests/scenario/zz-shots-r4.spec.ts
+//   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง PMS_SHOTS_DIR=.local/shots/round4 npm run test:prodbuild -- tests/scenario/zz-shots-r4.spec.ts
 //   (หรือกับเซิร์ฟเวอร์ที่รันอยู่แล้ว: npx playwright test -c tests/scenario/shots.config.ts)
 //   ทุกฉากถ่าย 2 ขนาด · ฉากไหนเปิดไม่ได้ (หน้าเปลี่ยนแล้ว) จดชื่อลงไฟล์ ข้ามแล้วถ่ายฉากต่อไป
 test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังของรอบ 4 — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
@@ -17,7 +18,7 @@ test.describe.configure({ mode: "serial" });
 test.setTimeout(900_000);
 
 const รอบ = process.env.PMS_SHOTS ?? "ก่อน";
-const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-shots/round4";
+const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? `${ที่ใน("shots")}/round4`;
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }];
 const แท็ก = `${Date.now() % 100000}`;
 const ชื่อ = (s: string) => `ZZTEST-รอบ4-${s}-${แท็ก}`;

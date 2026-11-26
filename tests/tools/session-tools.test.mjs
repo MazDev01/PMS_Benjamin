@@ -43,6 +43,7 @@ const ไฟล์ที่ใช้ = [
   "scripts/git-hooks/pre-commit.mjs", "scripts/git-hooks/pre-push.mjs", "scripts/check-no-real-phones.mjs",
   "scripts/lib/fileLock.mjs", "scripts/lib/prodLock.mjs", "scripts/lib/readOnlySql.mjs", "scripts/lib/supabaseCli.mjs", "scripts/lib/session.mjs", "scripts/lib/sessions.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/flakyAck.mjs", "scripts/lib/fastGate.mjs", "scripts/lib/flakyLog.mjs",
   "scripts/lib/gitFiles.mjs", "scripts/lib/testDbLock.mjs", "scripts/lib/testDbGuard.mjs", "scripts/lib/testDbFetchKey.mjs", "scripts/lib/testDbSchema.mjs", "scripts/lib/ports.json",
+  "scripts/lib/localPaths.mjs", "scripts/lib/localGuard.mjs",
 ];
 
 try {
