@@ -4,7 +4,7 @@ import { ADMIN, RYG, skipReason } from "./supabaseEnv";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle } from "./helpers";
+import { settle, กางกระดิ่งทั้งหมด } from "./helpers";
 import { เตรียมใบHQ, ทำใบลูกค้าจากใบHQ, ล้างใบHQทดสอบ, เลขลูกค้าเป้าหมายทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { สร้างดีลเลอร์รหัสยาว, ล้างดีลเลอร์รหัสยาว } from "./longCodeDealer";
 // ดีลเลอร์ที่ยังไม่ตั้งเป้าแต่มียอดขาย — รหัสของไฟล์นี้เอง (ZZWWW เป็นของ flow-b ที่รันขนานกัน)
@@ -69,8 +69,10 @@ async function เปิดกระดิ่ง(page: Page) {
   await expect(page.locator("span").filter({ hasText: /^การแจ้งเตือน$/ }).first()).toBeVisible();
 }
 const นับยังไม่อ่าน = async (page: Page) => {
-  const b = page.locator("[data-unread-count]");
-  return (await b.count()) ? Number(await b.first().getAttribute("data-unread-count")) : 0;
+  // กระดิ่งต้องอยู่บนจอจริง (ไม่เจอกระดิ่ง = ตก ไม่ใช่ 0) · ไม่มีป้ายตัวเลข = ยังไม่อ่าน 0 (NotificationBell แสดงป้ายเมื่อ > 0)
+  await expect(page.getByRole("button", { name: "การแจ้งเตือน", exact: true }).first(), "มีปุ่มกระดิ่ง").toBeVisible();
+  const ป้าย = await page.locator("[data-unread-count]").evaluateAll(es => es.map(e => Number(e.getAttribute("data-unread-count"))));
+  return ป้าย[0] ?? 0;
 };
 
 test("[ค·5] ดีลเลอร์: ไม่มีช่องประเมินราคา · มูลค่า = ยอดใบล่าสุด (ไม่มีใบ = \"—\") ทั้งตาราง แผง และฐาน", async ({ page }) => {
@@ -150,11 +152,10 @@ test("[ค·7] ดีลเลอร์: \"HQ ส่งราคาแล้ว\
   await expect.poll(() => นับยังไม่อ่าน(page), { timeout: 20_000, message: "เรื่องวันนี้ต้องนับ" }).toBeGreaterThan(0);
   // ⚠️ ห้ามเทียบตัวเลขรวมก่อน/หลังกด — ในรอบเต็ม ข้อทดสอบอื่นสร้างเรื่องใหม่ให้ RYG ตลอด (ไม่นิ่ง 20 ต.ค. 69: คาด 5 ได้ 6)
   //   ตรวจที่ "เรื่องนี้เรื่องเดียว": จุดแดงก่อนกด → หายหลังกด → ยังหายหลังรีเฟรช
-  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
   const เรื่องนี้ = () => page.getByRole("button").filter({ hasText: "HQ ส่งราคาแล้ว" }).filter({ hasText: มีใบ }).first();
   const เปิดดูเรื่องนี้ = async () => {
     await เปิดกระดิ่ง(page);
-    if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+    await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
     await expect(เรื่องนี้(), "ดีลเลอร์ได้เรื่อง HQ ส่งราคาแล้ว").toBeVisible({ timeout: 15_000 });
   };
   await เปิดดูเรื่องนี้();
@@ -225,8 +226,7 @@ test("[ค·7 · รอบ 4] HQ: คำขอราคาใหม่ · ขอ
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await settle(page);
   await เปิดกระดิ่ง(page);
-  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
-  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
   await expect(page.locator('[data-notif-kind="request_reprice"]').filter({ hasText: คำขอสอง.request_no }).first(),
     "HQ ได้เรื่องขอแก้ราคา (แยกจากคำขอใหม่)").toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-notif-kind="request_new"]').filter({ hasText: คำขอสอง.request_no }), "ขอแก้ราคาไม่ซ้ำเป็นคำขอใหม่").toHaveCount(0);

@@ -93,6 +93,7 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
   const { data: ส่งแล้วฐาน } = await hq.rpc("hq_quote_board", { p_group: "quoted", p_q: ป้าย });
   const เรียง = เรียงคำขอตามกำหนด(((ส่งแล้วฐาน as { rows: { id: number; status: string; due_at: string; submitted_at: string; request_no: string }[] }).rows)
     .map(r => ({ id: r.id, status: r.status as never, dueAt: r.due_at, submittedAt: r.submitted_at, no: r.request_no })));
+  expect(เรียง.length, "ฐาน: คำขอของข้อที่ส่งใบแล้ว 2 คำขอ (ให้วัดเวลาเปลี่ยนตัวกรอง)").toBe(2);   // 26 พ.ย. 69 · เดิม if (เลข) ไม่มีก็ข้ามการวัด
   const เลข = เรียง[0]?.no ?? null;
   let สลับสถานะ = NaN;
   if (เลข) {
@@ -102,7 +103,8 @@ test("[ui·hq] คำขอใบเสนอราคา: ตัวกรอง
     สลับสถานะ = Date.now() - t0;
   }
   let เลือกคำขอ = NaN;
-  if (await แถวคำขอ(page).count() > 1) {
+  await expect.poll(() => แถวคำขอ(page).evaluateAll(es => es.length), { message: "กลุ่มที่เลือกมีคำขออย่างน้อย 2 แถวให้วัดเวลาเปิด" }).toBeGreaterThan(1);   // 26 พ.ย. 69 · เดิม if count > 1
+  {
     const ชื่อ = (await แถวคำขอ(page).nth(1).getAttribute("aria-label")) ?? "";
     const t0 = Date.now();
     await แถวคำขอ(page).nth(1).click();

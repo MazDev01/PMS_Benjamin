@@ -68,7 +68,7 @@ async function เปิดฟอร์มออกใบ(page: import("@playwri
     .eq("status", "sent").eq("quote_requests.dealer_code", "RYG").in("quote_requests.lead_num_id", เลขลีด).limit(1) : { data: [] };
   if (ใบHQ?.length) {
     await expect(ทำใหม่.or(แก้เดิม).first(), "มีใบ HQ แล้ว — ปุ่มทำใบ/แก้ใบต้องกดได้เมื่อแผงโหลดเสร็จ").toBeEnabled({ timeout: 20_000 });
-    if (await แก้เดิม.count() > 0) { await แก้เดิม.first().click(); return; }
+    if (await แก้เดิม.count() > 0) { await แก้เดิม.first().click(); return; }   // ไม่ใช่การข้าม: บรรทัดบนรอปุ่มใดปุ่มหนึ่งขึ้นแล้ว — แยกทาง แก้ใบร่างเดิม / ทำใบใหม่ (ไม่มีการตรวจที่ถูกข้าม)
     await ทำใหม่.click(); return;
   }
   await เปิดฟอร์มทำใบจากใบHQ(page, "RYG", COMPANY);

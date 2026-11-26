@@ -157,7 +157,8 @@ async function ถ่าย(page: Page, ชื่อ: string) {
     await t.scrollIntoViewIfNeeded().catch(() => {});
     // ถ่ายกรอบรอบตาราง (รวมส่วนสรุป/ขอบ) — ถ้าหากรอบไม่ได้ ถ่ายตัวตาราง
     const กรอบ = t.locator("xpath=ancestor::*[contains(@class,'table-wrap') or contains(@class,'table-scroll') or @data-panel][1]");
-    const เป้า = (await กรอบ.count()) ? กรอบ : t;
+    const มีกรอบ = await t.evaluate(e => !!e.parentElement?.closest(".table-wrap, .table-scroll, [data-panel]"));   // ตรงกับ xpath ด้านบน (26 พ.ย. 69 · เดิมแยกทางด้วย count)
+    const เป้า = มีกรอบ ? กรอบ : t;
     await เป้า.screenshot({ path: path.join(ที่, `${String(++ลำดับรูป).padStart(2, "0")}-${ชื่อ}${n > 1 ? `-${i + 1}` : ""}.png`) }).catch(() => {});
   }
 }

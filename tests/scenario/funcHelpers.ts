@@ -406,7 +406,11 @@ export async function นำเข้าลูกค้าหนึ่งรา�
   await page.getByRole("button", { name: /^นำเข้า \d+ ราย$/ }).click();
   // ชื่อซ้ำ = ระบบถามก่อนว่าจะอัปเดตหรือแทนที่ (บอสสั่ง 2 ก.ย. 69) — เทสต์เลือก "อัปเดตข้อมูล"
   const ป๊อปอัพซ้ำ = page.getByRole("dialog", { name: "พบชื่อลูกค้าซ้ำ" });
-  if (await ป๊อปอัพซ้ำ.isVisible().catch(() => false)) {
+  // 26 พ.ย. 69: รอจนหน้าจอตอบอย่างใดอย่างหนึ่ง (ป๊อปอัพชื่อซ้ำ / ปุ่มนำเข้าหายเพราะนำเข้าเสร็จ) แล้วค่อยแยกทาง
+  const ปุ่มนำเข้า = page.getByRole("button", { name: /^นำเข้า \d+ ราย$/ });
+  await expect.poll(async () => (await ป๊อปอัพซ้ำ.evaluateAll(es => es.length)) > 0 || (await ปุ่มนำเข้า.evaluateAll(es => es.length)) === 0,
+    { timeout: 20_000, message: "นำเข้าแล้วต้องถามชื่อซ้ำ หรือจบการนำเข้า" }).toBe(true);
+  if ((await ป๊อปอัพซ้ำ.evaluateAll(es => es.length)) > 0) {   // ไม่ใช่การข้าม: ชื่อซ้ำ = เลือกแก้ไขข้อมูล · ไม่ซ้ำ = นำเข้าจบแล้ว
     await ป๊อปอัพซ้ำ.getByRole("button", { name: "แก้ไขข้อมูล" }).click();
   }
 }

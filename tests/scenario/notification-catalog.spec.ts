@@ -4,7 +4,7 @@ import { EXISTING_CUSTOMER_ID } from "./global-setup";
 import { SERVICE_ROLE_READY } from "./adminEnv";
 import { db, DEALER_ORIGIN, HQ_ORIGIN, loginUI } from "./funcHelpers";
 import { adminClient } from "./testDealers";
-import { settle, ช่องตัวกรอง } from "./helpers";
+import { settle, ช่องตัวกรอง, กางกระดิ่งทั้งหมด } from "./helpers";
 import { รันSQLในฐาน } from "./localDb";
 import { เตรียมใบHQ, ล้างใบHQทดสอบ, type ใบHQพร้อมใช้ } from "./hqQuoteFixture";
 import { ช่องผู้สนใจครบ, ช่องใบครบ } from "./requiredFixtures";
@@ -39,8 +39,7 @@ test.afterAll(async () => {
 
 async function เปิดเรื่อง(page: Page, kind: string, มีคำ: string) {
   await page.getByRole("button", { name: "การแจ้งเตือน" }).first().click();
-  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
-  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
   const เรื่อง = page.locator(`[data-notif-kind="${kind}"]`).filter({ hasText: มีคำ }).first();
   await expect(เรื่อง, `กระดิ่งต้องมีเรื่อง ${kind} ของ ${มีคำ}`).toBeVisible({ timeout: 20_000 });
   await เรื่อง.click();

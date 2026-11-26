@@ -53,11 +53,12 @@ test("[auth] รหัสดีลเลอร์ใช้ที่หน้า�
   //   ตอนรันทั้งชุด มีการล็อกอินผ่านหน้าจอถี่มาก บริการยืนยันตัวตนจะหน่วงคำขอเป็นครั้งคราว
   //   คำขอที่ถูกหน่วงไม่ได้แปลว่าระบบยอมให้เข้า — แค่ตอบช้าจนเลยเวลารอ
   const ข้อความ = page.getByText(/เป็นของดีลเลอร์/).first();
-  if (!(await ข้อความ.isVisible().catch(() => false))) {
-    await page.waitForTimeout(2000);
-    await tryLogin(page, HQ_ORIGIN, "/hq/login", RYG);
-  }
-  await expect(ข้อความ, "ต้องบอกว่าบัญชีนี้ใช้ที่นี่ไม่ได้").toBeVisible({ timeout: 20_000 });
+  //   26 พ.ย. 69: ลองซ้ำด้วย toPass (รอบแรกรอข้อความ 10 วิ · ไม่ขึ้น = ล็อกอินใหม่) แทน isVisible().catch + รอตายตัว 2 วิ
+  let ครั้ง = 0;
+  await expect(async () => {
+    if (ครั้ง++ > 0) await tryLogin(page, HQ_ORIGIN, "/hq/login", RYG);
+    await expect(ข้อความ).toBeVisible({ timeout: 10_000 });
+  }, "ต้องบอกว่าบัญชีนี้ใช้ที่นี่ไม่ได้").toPass({ timeout: 45_000 });
 
   await page.goto(`${HQ_ORIGIN}/hq/dashboard`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(5000);

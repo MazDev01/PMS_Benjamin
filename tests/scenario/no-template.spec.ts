@@ -1,7 +1,7 @@
 import { test, expect, request as pwRequest } from "@playwright/test";
 import { RYG, ADMIN, skipReason } from "./supabaseEnv";
 import { DEALER_ORIGIN, HQ_ORIGIN, loginUI, db, ไปแผงลีดจากแถวใบ } from "./funcHelpers";
-import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, แถวตามชื่อ, ตั้งต้น } from "./helpers";
+import { settle, กดตกลงในกล่องยืนยัน, เปิดใบHQในกล่องงาน, แถวตามชื่อ, ตั้งต้น, กางกระดิ่งทั้งหมด } from "./helpers";
 import { adminClient } from "./testDealers";
 import { ล้างใบHQทดสอบ, วางใบเดิมที่ฐาน, ลบใบทดสอบที่ฐาน } from "./legacyQuotes";
 
@@ -118,8 +118,7 @@ test("[func·dealer] ลูกค้าเป้าหมายที่มี�
     // 1) กระดิ่งแจ้งเตือน — รอบ 4 (ใบ 0231): สถานะลีดเฉย ๆ ไม่ใช่เรื่องในตารางกลาง (ติดตาม = นัดหมายถึงกำหนดวันนี้)
     //    กระดิ่งจึงไม่มีเรื่องของลูกค้าเป้าหมายนี้เลย และไม่มีชื่อแม่แบบเก่าแน่นอน
     await page.getByRole("button", { name: "การแจ้งเตือน" }).click();
-    const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
-    if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+    await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
     await expect(page.locator("span").filter({ hasText: /^การแจ้งเตือน$/ }).first()).toBeVisible({ timeout: 20_000 });
     await expect(page.locator("[data-notif-kind]").filter({ hasText: ชื่อ }), "สถานะลีดอย่างเดียวไม่สร้างแจ้งเตือน").toHaveCount(0);
     await expect(page.getByText(แม่แบบเก่า, { exact: false }), "ข้อความแจ้งเตือนต้องไม่มีชื่อแม่แบบเก่า").toHaveCount(0);
@@ -205,7 +204,7 @@ test("[func] ครบวงจรไม่มีแม่แบบ: ดีล�
   await settle(h);
   const { ใบ: กล่อง } = await เปิดใบHQในกล่องงาน(h, บริษัท);
   await expect(กล่อง.getByLabel("เพิ่มรายการจากแม่แบบ"), "BOQ ของ HQ ต้องไม่มีตัวเลือกแม่แบบ").toHaveCount(0);
-  if (await กล่อง.getByLabel("ชื่อรายการ 1").count() === 0) await กล่อง.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  await expect(กล่อง.getByLabel("ชื่อรายการ 1", { exact: true }), "ใบที่แก้ได้เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (ไม่ต้องกดเพิ่ม)").toBeVisible({ timeout: 20_000 });
   await กล่อง.getByLabel("ชื่อรายการ 1").fill("โครงสร้างเหล็กพร้อมติดตั้ง");
   await กล่อง.getByLabel("จำนวน 1").fill("800");
   await กล่อง.getByLabel("หน่วย 1", { exact: true }).selectOption("ตร.ม.");   // ดรอปดาวน์ (บอสสั่ง 3 พ.ย. 69)

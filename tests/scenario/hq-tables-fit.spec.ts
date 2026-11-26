@@ -41,9 +41,11 @@ async function ตรวจพอดี(ตาราง: Locator, ป้าย: 
   const เซลล์ชื่อ = ตาราง.locator("tbody tr.clickable td:first-child");
   for (let i = 0; i < Math.min(await เซลล์ชื่อ.count(), 25); i++) {
     const td = เซลล์ชื่อ.nth(i);
-    const ตัว = td.locator("strong, [data-perf-row] > *").first();
-    const เป้า = (await ตัว.count()) ? ตัว : td;
-    if (!(await เป้า.evaluate(e => e.scrollWidth > e.clientWidth + 1))) continue;
+    // ตัวที่ถือชื่อ (strong / ตัวในแถวผลงาน) ถ้ามี ไม่มี = ช่องเอง — เลือกและวัดใน evaluate ครั้งเดียว (26 พ.ย. 69 · เดิมแยกทางด้วย count)
+    const วัด = await td.evaluate(e => { const ใน = e.querySelector("strong, [data-perf-row] > *") as HTMLElement | null; const t = ใน ?? e;
+      return { ใน: !!ใน, ล้น: t.scrollWidth > t.clientWidth + 1 }; });
+    if (!วัด.ล้น) continue;   // ไม่ใช่การข้าม: ชื่อไม่ถูกตัด ไม่มีอะไรต้องชี้ดู
+    const เป้า = วัด.ใน ? td.locator("strong, [data-perf-row] > *").first() : td;
     await เป้า.hover();
     await expect(เป้า, `${ป้าย}: ชื่อที่ถูกตัดชี้แล้วเห็นเต็ม`).toHaveAttribute("title", /S/);
   }
