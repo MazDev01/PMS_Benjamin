@@ -10,7 +10,7 @@
 // ตั้งค่าได้ (มีค่าตั้งต้นของเครื่องนี้):
 //   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (.local/prod-ops)
 //   PMS_RESTORE_WORKDIR    โฟลเดอร์ supabase ของฐานเปล่าที่ใช้ซ้อมกู้ (.local/restore-check · project pms-blank)
-//   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (.local/prod-backups) — ใน .local ที่ git ไม่เก็บ (มีข้อมูลลูกค้าจริง)
+//   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (C:/.claude/pms-private/prod-backups · PMS_PRIVATE_ROOT) — นอก repo (มีข้อมูลลูกค้าจริง · 26 พ.ย. 69)
 //   PMS_FAKE_EMPTY=<ขั้น>   ข้อทดสอบเท่านั้น (--target local): จำลองคำสั่งของขั้นนั้นคืนผลว่าง (dump = ไฟล์สำรอง 2-data.sql ว่าง)
 //   PMS_DRILL_SABOTAGE=1   ข้อทดสอบเท่านั้น (ใช้ได้กับ --target local เท่านั้น): ลบ 1 แถวในฐานที่กู้ ก่อนเทียบ → ต้องไม่ผ่าน
 //   PMS_DRILL_SABOTAGE=seq ข้อทดสอบเท่านั้น (--target local): เลื่อนตัวนับ 1 ตัวในฐานที่กู้ → ต้องไม่ผ่าน
@@ -24,7 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { loadTarget } from "./lib/targetEnv.mjs";
-import { ที่ใน } from "./lib/localPaths.mjs";
+import { ที่ใน, ที่ส่วนตัว } from "./lib/localPaths.mjs";
 import { อ่านคำสั่งสำรอง, ย่อข้อผิดพลาดdump } from "./lib/backupArgs.mjs";
 import { ขอล็อกฐานทดสอบ } from "./lib/testDbLock.mjs";
 import { อาร์กิวเมนต์psql } from "./lib/testDbGuard.mjs";
@@ -40,7 +40,7 @@ if (process.env.PMS_DRILL_SABOTAGE && target !== "local") { console.error("⛔ P
 
 const OPS = process.env.PMS_PROD_OPS_DIR || ที่ใน("prod-ops");
 const RESTORE = process.env.PMS_RESTORE_WORKDIR || ที่ใน("restore-check");
-const ROOT = process.env.PMS_BACKUP_ROOT || ที่ใน("prod-backups");
+const ROOT = process.env.PMS_BACKUP_ROOT || (() => { try { return ที่ส่วนตัว("prod-backups"); } catch (e) { console.error(e.message); process.exit(2); } })();
 // ฐานทดสอบ pms-dbcheck — ต้นทางของ --target local · บัญชีเขียนของผู้ถือล็อก (ฐานทดสอบปิดบัญชีอื่นแล้ว · testDbGuard.mjs)
 const LOCAL_DB = () => `postgresql://pms_writer:${encodeURIComponent(process.env.PMS_TESTDB_PG_PASSWORD ?? "")}@127.0.0.1:55322/postgres`;
 const LOCAL_CONTAINER = "supabase_db_pms-dbcheck";

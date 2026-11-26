@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 // หัวข้อความปลอดภัยชุดเดียวกันทั้งสองแอป — แก้ที่เดียวมีผลทั้งระบบ
 import { securityHeaderRules } from "../../packages/shared/lib/securityHeaders.mjs";
 
@@ -16,6 +17,9 @@ const nextConfig: NextConfig = {
   // โฟลเดอร์ .local (โฟลเดอร์เซสชัน · ฐานในเครื่อง · ข้อมูลจริง/กุญแจ · git ไม่เก็บ) ห้ามติดไปกับผล build ของเซิร์ฟเวอร์ (26 พ.ย. 69)
   //   ทางเทียบจากโฟลเดอร์แอป · ข้อทดสอบ tests/tools/local-folder.test.mjs
   outputFileTracingExcludes: { "*": ["../../.local/**", ".local/**"] },
+  // รากของ repo = 2 ชั้นเหนือโฟลเดอร์แอป (26 พ.ย. 69) — โฟลเดอร์เซสชันอยู่ใต้ .local/wt ของโฟลเดอร์หลักที่มี pnpm-lock.yaml อีกตัว
+  //   ไม่ตั้ง = Next เลือกโฟลเดอร์หลักเป็นราก + เตือน "Detected additional lockfiles" · บน Vercel ได้รากเดิม (ราก repo ที่มี lockfile ตัวเดียว)
+  outputFileTracingRoot: path.resolve(__dirname, "../.."),
 
   eslint: { ignoreDuringBuilds: true },
   // แอป HQ: หน้า login อยู่ที่ /hq/login (ไม่มี /login เปล่า) — ให้ AuthGuard (แชร์) เด้งมาที่นี่แทน /login

@@ -20,8 +20,6 @@ export const ตารางย้าย: Readonly<Record<string, string>> = Obj
   "preview": "pms-preview",
   "prod-ops": "pms-prod-ops",
   "prod-tools": "pms-prod-tools",
-  "prod-backups": "pms-prod-backups",
-  "prod-secrets": "pms-prod-secrets",
   "private-data": "pms-private-data",
   "migration-reservations.md": "pms-migration-reservations.md",
 });

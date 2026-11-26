@@ -18,6 +18,7 @@
 //   ก. ใบที่จะลงเลขน้อยกว่าใบล่าสุดบนฐาน (ต้อง --include-all ซึ่งห้าม) = ไม่ลง · ข. ใบที่จะลงต้องอยู่ในรายการใบของรอบตรวจเต็มที่ผ่านแล้วล่าสุด
 //   จดรายชื่อใบบนฐานจริงทุกครั้งที่อ่านได้ (<ที่เก็บรอบ>/prod-migrations.json · ลงสำเร็จ = ใบในเครื่องทั้งหมด) — รอบตรวจเต็มเทียบกับไฟล์นี้
 // บันทึกทุกครั้งที่รัน (บอสสั่ง 4 พ.ย. 69): <PMS_BACKUP_ROOT>/db-push-log.jsonl ต่อท้ายบรรทัดละครั้ง (PMS_PUSH_LOG แทนได้)
+//   ค่าตั้งต้น = C:/.claude/pms-private/prod-backups (นอก repo · 26 พ.ย. 69) · ไม่เจอ = หยุดก่อนทำอะไร (exit 2)
 //   { เริ่ม, จบ, ผล: ลง/ไม่ลง/ตก/หยุดกลางทาง, เหตุ, ใบ, ชุดสำรอง, ผู้ใช้, เครื่อง, โฟลเดอร์, โหมด, pid, exit }
 //   เขียนตอนโปรเซสจบเสมอ — รวมไม่ผ่านด่านใบ/ขอล็อกไม่ได้ (ตัวช่วยสั่ง exit เอง)/สำรองตก/กด Ctrl+C กลางทาง
 //
@@ -35,7 +36,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { loadTarget } from "./lib/targetEnv.mjs";
-import { ที่ใน } from "./lib/localPaths.mjs";
+import { ที่ส่วนตัว } from "./lib/localPaths.mjs";
 import { ขอล็อก } from "./lib/prodLock.mjs";
 import { ตรวจใบก่อนลง, ข้อความไม่ผ่าน, โฟลเดอร์ใบ } from "./lib/migrationGate.mjs";
 import { จดใบบนฐาน, ตรวจใบก่อนลงฐาน, ใบในโฟลเดอร์, รอบผ่านล่าสุด } from "./lib/migrationOrder.mjs";
@@ -46,7 +47,7 @@ const dry = args.includes("--dry-run");
 
 // ── บันทึกการรัน: เขียนตอนโปรเซสจบเสมอ (process.exit จากตัวช่วยใด ๆ ก็ผ่าน "exit") ──
 const ไฟล์บันทึก = process.env.PMS_PUSH_LOG
-  || path.join(process.env.PMS_BACKUP_ROOT || ที่ใน("prod-backups"), "db-push-log.jsonl");
+  || path.join(process.env.PMS_BACKUP_ROOT || (() => { try { return ที่ส่วนตัว("prod-backups"); } catch (e) { console.error(e.message); process.exit(2); } })(), "db-push-log.jsonl");
 const บันทึก = {
   เริ่ม: new Date().toISOString(), จบ: null, ผล: "ตก", เหตุ: "จบก่อนถึงขั้นลงใบ", ใบ: [], ชุดสำรอง: null,
   ผู้ใช้: (() => { try { return os.userInfo().username; } catch { return process.env.USERNAME ?? null; } })(),

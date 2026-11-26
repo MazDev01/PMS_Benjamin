@@ -17,7 +17,7 @@ import { อ่านเซสชัน } from "../lib/session.mjs";
 import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "../lib/readOnlySql.mjs";
 import { คำสั่งCLI, แถวจากผลCLI } from "../lib/supabaseCli.mjs";
-import { ที่ใน } from "../lib/localPaths.mjs";
+import { ที่ใน, ที่อยู่ส่วนตัว } from "../lib/localPaths.mjs";
 import { localในการส่ง, ข้อความปฏิเสธ } from "../lib/localGuard.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
@@ -95,7 +95,7 @@ const วิธีแก้ต่อฐานไม่ได้ = (เหตุ)
   `  1. เปิด terminal แล้วไปที่โฟลเดอร์ทำงานกับฐานจริง:  cd ${ที่ฐานจริง}`,
   "  2. ทดลองถามฐานจริง:  npx supabase db query --linked \"select max(version) from supabase_migrations.schema_migrations\"",
   "  3. ข้อ 2 ขึ้นว่ายังไม่ได้ล็อกอิน / access token:  npx supabase login  (ล็อกอินในเบราว์เซอร์) แล้วกลับไปข้อ 2",
-  `  4. ข้อ 2 ขึ้นว่ายังไม่ได้ผูกโปรเจกต์ (not linked) หรือไม่มีโฟลเดอร์:  npx supabase link --project-ref <รหัสโปรเจกต์ฐานจริง ดูใน ${ที่ใน("prod-secrets")}/> แล้วกลับไปข้อ 2`,
+  `  4. ข้อ 2 ขึ้นว่ายังไม่ได้ผูกโปรเจกต์ (not linked) หรือไม่มีโฟลเดอร์:  npx supabase link --project-ref <รหัสโปรเจกต์ฐานจริง ดูใน ${ที่อยู่ส่วนตัว("prod-secrets")}/> แล้วกลับไปข้อ 2`,
   "  5. ข้อ 2 รอนานเกิน 2 นาที:  รันซ้ำอีกครั้ง (ครั้งแรกเครื่องมืออาจโหลดนาน) · ยังค้าง = เน็ตหรือฐานจริงมีปัญหา แจ้งคนรวมงาน",
   "  6. ข้อ 2 ได้เลขใบล่าสุดแล้ว → push ใหม่จากโฟลเดอร์หลัก",
 ];

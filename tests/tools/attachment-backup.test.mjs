@@ -1,6 +1,6 @@
 // ── ข้อทดสอบ: สำรองไฟล์แนบแบบดาวน์โหลดเฉพาะไฟล์ใหม่/เปลี่ยน + กู้ได้ครบ (บอสเลือกทาง 3 · ข้อ 8 · 18 พ.ย. 69) ─────────────
 //   เดิม scripts/backup.mjs ไม่สำรองตัวไฟล์แนบเลย → โค้ดเดิมตกตั้งแต่ข้อแรก (ไม่มี _attachments)
-//   รันกับฐานทดสอบในเครื่องเท่านั้น (--test · ที่อยู่ต้องเป็น 127.0.0.1/localhost) · ชุดสำรองอยู่ในโฟลเดอร์ชั่วคราว ไม่ใช่ pms-prod-backups
+//   รันกับฐานทดสอบในเครื่องเท่านั้น (--test · ที่อยู่ต้องเป็น 127.0.0.1/localhost) · ชุดสำรองอยู่ในโฟลเดอร์ชั่วคราว ไม่ใช่ที่เก็บสำรองฐานจริง (C:/.claude/pms-private/prod-backups · ชื่อเดิม pms-prod-backups)
 //   1) ชุด A: ไฟล์ทดสอบ 2 ไฟล์ถูกดาวน์โหลด เนื้อหาตรง
 //   2) แก้ไฟล์ที่ 2 + เพิ่มไฟล์ที่ 3 → ชุด B: ดาวน์โหลดเฉพาะไฟล์ 2/3 · ไฟล์ 1 และไฟล์อื่นทั้งหมดคัดลอกจากชุด A
 //   3) ทำไฟล์ 1 ในชุด B เสีย → ชุด C ต้องดาวน์โหลดไฟล์ 1 ใหม่ (ไม่คัดลอกของเสีย) · ชุด B ไม่ถูกใช้เป็นชุดก่อนถ้าไม่ครบ (ตรวจด้วยหน่วย)
@@ -30,7 +30,7 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+/.test(env.NEXT_PUBLIC_SUPABASE_URL 
 const svc = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const ฐานชุด = mkdtempSync(path.join(os.tmpdir(), "pms-attach-backup-"));
-if (/pms-prod-backups/i.test(ฐานชุด)) { console.error("⛔ ห้ามใช้ pms-prod-backups"); process.exit(2); }
+if (/prod-backups|pms-private/i.test(ฐานชุด)) { console.error("⛔ ห้ามใช้ที่เก็บสำรองฐานจริง (pms-private/prod-backups · pms-prod-backups)"); process.exit(2); }
 const BUCKET = "dealer-files";
 const คำนำ = `ZZT/attach-backup-${process.pid}`;
 const ไฟล์ = [1, 2, 3].map((n) => `${คำนำ}/file-${n}.pdf`);   // ชื่อ ASCII — ที่เก็บไฟล์ไม่รับชื่ออักษรไทย
