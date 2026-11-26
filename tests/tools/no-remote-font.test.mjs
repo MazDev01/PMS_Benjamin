@@ -2,6 +2,7 @@
 //   1) ไม่มีโค้ดของแอป/แพ็กเกจกลางใช้ next/font/google (ดึงจาก Google ทุกครั้งที่ build)
 //   2) ฟอนต์มาจาก packages/shared/lib/fonts.ts (next/font/local) · ไฟล์ฟอนต์ที่อ้างมีอยู่จริง + สัญญาอนุญาต OFL
 //   3) ทั้งสองแอปใส่ตัวแปรฟอนต์ทั้งไทย + ละติน · --font-sans ใช้ทั้งสองตัว
+//   4) (26 พ.ย. 69) ไม่มีโค้ดอ้างที่อยู่ฟอนต์ของ Google เลย — หน้าพิมพ์ใบใช้ Sarabun ในโปรเจกต์ (ตกบนโค้ดก่อนหน้า: quotationPrint · dealerProposalPrint · securityHeaders)
 //   ตกบนโค้ดเดิม: layout ทั้งสองแอป import Noto_Sans_Thai จาก next/font/google
 //   การพิสูจน์ build ตอนไม่มีอินเทอร์เน็ต (ตั้ง proxy ปลอม) ทำในโฟลเดอร์แยก ดูรายงานงาน
 // รัน: node tests/tools/no-remote-font.test.mjs
@@ -22,10 +23,13 @@ const ไล่ = (ที่, ออก = []) => {
   return ออก;
 };
 const ไฟล์ = [...ไล่("apps"), ...ไล่("packages")];
-// เฉพาะที่ดึงตอน build (next/font/google) — หน้าพิมพ์ใบ (quotationPrint · dealerProposalPrint) โหลด Sarabun จาก Google
-//   ที่เบราว์เซอร์ของผู้ใช้ตอนกดพิมพ์ ไม่เกี่ยวกับขั้นสร้างเว็บ จึงไม่อยู่ในข้อนี้
 const ใช้google = ไฟล์.filter(f => /from\s+["']next\/font\/google["']/.test(readFileSync(f, "utf8")));
 ผล(ใช้google.length === 0, "ไม่มีโค้ดใช้ next/font/google (ดึงฟอนต์จาก Google ตอน build)", ใช้google.join("\n"));
+// หน้าพิมพ์ใบ (quotationPrint · dealerProposalPrint) เดิมโหลด Sarabun จาก Google ที่เบราว์เซอร์ตอนกดพิมพ์ — 26 พ.ย. 69 (บอสสั่ง 12 พ.ย. 69)
+//   ย้ายไฟล์ Sarabun มาไว้ในโปรเจกต์ (lib/printFont.ts · apps/*/public/fonts/sarabun) → โค้ดแอป/แพ็กเกจห้ามมีที่อยู่ฟอนต์ของ Google เลย (นอกคอมเมนต์)
+const ที่อยู่google = /fonts\.(googleapis|gstatic)\.com/;
+const อ้างgoogle = ไฟล์.flatMap(f => readFileSync(f, "utf8").split(/\r?\n/).map((l, i) => [l, i]).filter(([l]) => ที่อยู่google.test(String(l).replace(/^\s*\/\/.*$/, "").replace(/\s\/\/\s.*$/, ""))).map(([, i]) => `${f}:${Number(i) + 1}`));
+ผล(อ้างgoogle.length === 0, "ไม่มีโค้ดอ้าง fonts.googleapis.com / fonts.gstatic.com (หน้าพิมพ์ใบใช้ Sarabun ในโปรเจกต์)", อ้างgoogle.join("\n"));
 
 const fonts = "packages/shared/lib/fonts.ts";
 ผล(existsSync(fonts), "มีตัวกลางฟอนต์ packages/shared/lib/fonts.ts");

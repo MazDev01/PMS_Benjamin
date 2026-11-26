@@ -8,6 +8,7 @@
 import type { DealerPackageProposal, DealerProspect, HQCompany } from "./data/types";
 import { มูลค่าอ่านง่าย, ระยะสัญญาอ่านง่าย } from "./dealerProposals";
 import { fmtISOToThai } from "./mock";
+import { ฟอนต์พิมพ์CSS } from "./printFont";   // Sarabun จากไฟล์ในโปรเจกต์ ไม่โหลด Google ตอนพิมพ์ (บอสสั่ง 12 พ.ย. 69)
 
 function esc(s: unknown) {
   return String(s ?? "").replace(/[&<>"]/g, c => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as Record<string, string>)[c]));
@@ -33,9 +34,8 @@ export function buildDealerProposalHTML(p: DealerPackageProposal, prospect: ผ�
 
   return `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>
 <title>ใบค่าแฟรนไชส์ ${esc(p.proposalNo)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+${ฟอนต์พิมพ์CSS()}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Sarabun','Tahoma',sans-serif;color:#2D2D2D;font-size:13px;line-height:1.5;background:#f3f4f6}
 .sheet{width:210mm;min-height:297mm;margin:12px auto;padding:16mm 14mm;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12)}

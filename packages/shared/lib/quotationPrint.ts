@@ -8,6 +8,7 @@ import { loadHQPolicy, fmtISOToThai, type IssuerProfile, type QuotationMock } fr
 // เดิมไม่ได้ประกาศไว้ → เอกสารพิมพ์เงื่อนไขที่เขียนตายในโค้ด ดีลเลอร์แก้ที่หน้าตั้งค่าไปก็ไม่มีผล
 import { คิดภาษีใบเสนอราคา } from "./quoteTax";
 import { คลาสของชนิด, จัดรูปจำนวน, จัดรูปหน่วย, type ชนิดคอลัมน์ } from "./lineItemColumns";
+import { ฟอนต์พิมพ์CSS } from "./printFont";   // Sarabun จากไฟล์ในโปรเจกต์ ไม่โหลด Google ตอนพิมพ์ (บอสสั่ง 12 พ.ย. 69)
 
 export type DocProfile = { stamp: string; signature: string; vatPercent: number; quotePrefix: string; runningNumber: number; termsAndConditions?: string; validityDays?: number;
   /** หัว/ท้ายเอกสาร (ตั้งค่าดีลเลอร์ › เอกสาร · 19 พ.ย. 69 เดิมบันทึกแล้วไม่พิมพ์) — หัว = ใต้ข้อมูลบริษัท · ท้าย = ก่อนลายเซ็น · ว่าง = ไม่พิมพ์ */
@@ -81,9 +82,8 @@ export function buildQuotationHTML(q: QuotationMock, issuer: IssuerProfile, cust
     (issuer.website ?? "").trim(), issuer.taxId ? ("เลขผู้เสียภาษี " + issuer.taxId) : ""].filter(Boolean).join("\n");
   return `<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/>
 <title>ใบเสนอราคา ${esc(q.id)}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+${ฟอนต์พิมพ์CSS()}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Sarabun','Tahoma',sans-serif;color:#2D2D2D;font-size:13px;line-height:1.5;background:#f3f4f6}
 .sheet{width:210mm;min-height:297mm;margin:12px auto;padding:16mm 14mm;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12)}
