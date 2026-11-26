@@ -156,7 +156,10 @@ export interface QuoteRequestsRepo {
   /** ใบ HQ ของคำขอ (ขั้น 5–6 · ด่าน 2) — ดีลเลอร์เห็นเฉพาะใบที่ส่งแล้ว (ฐานกรองให้) · ยังไม่มี = null */
   hqQuoteFor(requestId: number): Promise<import("../quoteRequests").HqQuote | null>;
   /** HQ บันทึกร่างใบ (ทำ BOQ) — คำขอที่ยังไม่รับเรื่อง = รับเรื่องให้เลย · ส่งแล้วแก้ไม่ได้ */
-  saveHqQuote(requestId: number, lines: import("../quoteRequests").HqQuoteLine[], validUntil: string, note: string): Promise<import("../quoteRequests").HqQuote>;
+  saveHqQuote(requestId: number, lines: import("../quoteRequests").HqQuoteLine[], validUntil: string, note: string,
+    /** ฉบับที่เปิดมา (ใบ 0305) — updatedAt ของใบตอนโหลด · ยังไม่มีใบ = null · ไม่ส่ง = ไม่ตรวจ
+     *  ไม่ตรงกับใบในฐาน = ฐานปฏิเสธ quote_stale "มีคนแก้ใบนี้ก่อนคุณ โหลดใหม่ก่อนบันทึก" */
+    base?: { updatedAt: string | null }): Promise<import("../quoteRequests").HqQuote>;
   /** HQ ส่งใบให้ดีลเลอร์ — ล็อกเวอร์ชัน · หยุดนับ 14 วัน · อีเมลถึงดีลเลอร์ (ฐานทำเอง) */
   sendHqQuote(requestId: number): Promise<import("../quoteRequests").HqQuote>;
   /** HQ เริ่มเวอร์ชันใหม่จากใบที่ส่งไปแล้ว (หลังดีลเลอร์ขอแก้ราคา) */

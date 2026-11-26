@@ -117,6 +117,10 @@ export const quoteRequestsPOST = handler("quoteRequests.write", async (req: Next
     case "save-hq": {
       const { data, error } = await sb.rpc("hq_quote_save", {
         p_request_id: id, p_lines: Array.isArray(b.lines) ? b.lines : [], p_valid_until: b.validUntil ? String(b.validUntil) : null, p_note: String(b.note ?? ""),
+        // ฉบับที่เปิดมา (ใบ 0305) — ส่งมา = ฐานเทียบกับใบตอนนี้ · ไม่ตรง = quote_stale (dbFail ส่งต่อข้อความของฐานทั้งดุ้น)
+        ...(b.base && typeof b.base === "object"
+          ? { p_check_base: true, p_base_updated_at: (b.base as { updatedAt?: unknown }).updatedAt == null ? null : String((b.base as { updatedAt?: unknown }).updatedAt) }
+          : {}),
       });
       if (error) return dbFail("quoteRequests.saveHq", error);
       return ok(toCamel(data as Row));

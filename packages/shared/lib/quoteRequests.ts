@@ -105,6 +105,8 @@ export type HqQuote = {
   note: string;
   sentAt: string | null;
   sentByName: string;
+  /** เวลาแก้ไขล่าสุด (ข้อความเดิมจากฐาน) — ใช้เป็นฉบับที่เปิดมาตอนบันทึก (ใบ 0305 กันบันทึกทับกันเงียบ) */
+  updatedAt?: string;
 };
 export const hqQuoteStatusLabel: Record<HqQuoteStatus, string> = {
   draft: "ร่าง (ดีลเลอร์ยังไม่เห็น)",

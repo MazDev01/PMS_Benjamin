@@ -301,7 +301,7 @@ const quoteRequests: QuoteRequestsRepo = {
   reprice: (id, reason, spec, estimate) => post<QuoteRequest>("/quote-requests", { op: "reprice", id, reason, spec, estimate }),
   accept: async (id) => { await post("/quote-requests", { op: "accept", id }); },
   hqQuoteFor: (requestId) => apiFetch<HqQuote | null>(`/quote-requests?view=hq-quote&request=${requestId}`),
-  saveHqQuote: (requestId, lines, validUntil, note) => post<HqQuote>("/quote-requests", { op: "save-hq", id: requestId, lines, validUntil, note }),
+  saveHqQuote: (requestId, lines, validUntil, note, base) => post<HqQuote>("/quote-requests", { op: "save-hq", id: requestId, lines, validUntil, note, ...(base ? { base } : {}) }),
   sendHqQuote: (requestId) => post<HqQuote>("/quote-requests", { op: "send-hq", id: requestId }),
   copyHqQuote: (requestId, sourceHqQuoteId) => post<HqQuote>("/quote-requests", { op: "copy-hq", id: requestId, sourceId: sourceHqQuoteId }),
   revertWon: async (dealerCode, quotationId, reason, to) => { await post("/quote-requests", { op: "revert-won", dealer: dealerCode, quote: quotationId, reason, to }); },
