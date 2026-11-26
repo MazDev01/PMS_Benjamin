@@ -10,6 +10,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
 
 let ตก = 0;
 const ผล = (ถูก, ชื่อ, เพิ่ม = "") => { if (!ถูก) ตก++; console.log(`${ถูก ? "✓" : "✗"} ${ชื่อ}${ถูก ? "" : `\n   ${String(เพิ่ม).slice(-1200)}`}`); };
@@ -98,7 +99,8 @@ try {
   ผล(p.code === 0 && /ใบที่จะลงเรียงต่อจากใบบนฐาน/.test(p.out), "db:push ใบเรียงต่อ + อยู่ในรอบที่ผ่านล่าสุด = ผ่านตัวกัน", p.out);
   const จด = JSON.parse(readFileSync(join(รอบที่, "prod-migrations.json"), "utf8"));
   ผล(JSON.stringify(จด.ใบ) === JSON.stringify(["0001_a.sql", "0002_b.sql"]) && /db:push/.test(จด.ที่มา), "db:push จดรายชื่อใบบนฐาน (ใบในเครื่องที่ไม่ต้องลง)", JSON.stringify(จด));
-  ผล(!existsSync("C:/.claude/pms-round/prod-migrations.json") || !readFileSync("C:/.claude/pms-round/prod-migrations.json", "utf8").includes("0001_a.sql"), "ไม่จดทับที่เก็บรอบจริง");
+  const รอบจริง = join(ที่ใน("round"), "prod-migrations.json");   // ที่เก็บรอบจริง (.local/round · ก่อนย้าย C:/.claude/pms-round)
+  ผล(!existsSync(รอบจริง) || !readFileSync(รอบจริง, "utf8").includes("0001_a.sql"), "ไม่จดทับที่เก็บรอบจริง");
 } finally {
   rmSync(ที่, { recursive: true, force: true });
 }

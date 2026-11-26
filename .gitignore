@@ -1,3 +1,8 @@
+# ── โฟลเดอร์ในเครื่องทั้งหมด (บอสเลือก 24 พ.ย. 69 "ย้ายเข้า Benjamin-HQ-main") — git ไม่เก็บทั้งโฟลเดอร์ · repo เป็น public ──
+#   โฟลเดอร์เซสชัน · ฐานทดสอบ/ฐาน dev · รอบตรวจ · ที่ผูกฐานจริง · ไฟล์สำรองข้อมูลจริง · กุญแจฐานจริง · ข้อมูลส่วนตัวจากเบนจามิน
+#   ตัวกลางที่อยู่ scripts/lib/localPaths.mjs · ตัวกันขึ้น GitHub (pre-commit · pre-push · รวม git add -f) scripts/lib/localGuard.mjs
+/.local/
+
 # dependencies (ทุกชั้น — โมโนเรโป: root + apps/* + packages/*)
 node_modules/
 
@@ -62,7 +67,7 @@ scripts/data/hq-leads-seed.json
 scripts/data/hq-leads-bot-seed.json
 
 # ── ไฟล์ตาราง/ข้อมูลดิบ: ห้ามเข้า repo (บอสสั่ง 15 ต.ค. 69) ──
-# ไฟล์ Excel จากเบนจามินมีเบอร์/อีเมลจริง — เก็บนอก repo ที่ C:\.claude\pms-private-data\
+# ไฟล์ Excel จากเบนจามินมีเบอร์/อีเมลจริง — เก็บใน .local/private-data ที่ git ไม่เก็บ (เดิม C:\.claude\pms-private-data\)
 # ข้อยกเว้นเฉพาะไฟล์ที่ตรวจแล้วว่าไม่มีข้อมูลจริง (แบบฟอร์มเปล่า · ไฟล์ตัวอย่างของเว็บเดโม)
 *.xlsx
 *.xls

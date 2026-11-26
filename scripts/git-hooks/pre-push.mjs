@@ -17,6 +17,8 @@ import { อ่านเซสชัน } from "../lib/session.mjs";
 import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "../lib/readOnlySql.mjs";
 import { คำสั่งCLI, แถวจากผลCLI } from "../lib/supabaseCli.mjs";
+import { ที่ใน } from "../lib/localPaths.mjs";
+import { localในการส่ง, ข้อความปฏิเสธ } from "../lib/localGuard.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
 const สาขาที่ขึ้นเว็บจริง = "refs/heads/monorepo";
@@ -25,6 +27,12 @@ const ของจริง = /github\.com/i.test(remoteUrl);
 
 const ทั้งหมด = readFileSync(0, "utf8").split(/\r?\n/).filter(Boolean)
   .map(l => { const [localRef, localSha, remoteRef, remoteSha] = l.split(" "); return { localRef, localSha, remoteRef, remoteSha }; });
+
+// ทุก branch ทุกโฟลเดอร์: commit ที่ส่งห้ามมีไฟล์ใต้ .local/ (26 พ.ย. 69 · repo เป็น public · scripts/lib/localGuard.mjs)
+for (const x of ทั้งหมด) {
+  const ไฟล์local = localในการส่ง(process.cwd(), { localSha: x.localSha, remoteSha: x.remoteSha, remoteName });
+  if (ไฟล์local.length) { console.error(ข้อความปฏิเสธ(`push ไป ${String(x.remoteRef).replace("refs/heads/", "")} `, ไฟล์local)); process.exit(1); }
+}
 
 // เซสชันลูก: push ได้เฉพาะ branch ของตัวเอง
 const เซสชัน = อ่านเซสชัน(process.cwd());
@@ -49,7 +57,7 @@ const ปฏิเสธ = (บรรทัด) => {
   process.exit(1);
 };
 
-const ที่ฐานจริง = process.env.PMS_PROD_OPS_DIR ?? "C:/.claude/pms-prod-ops";
+const ที่ฐานจริง = process.env.PMS_PROD_OPS_DIR ?? ที่ใน("prod-ops");
 
 /** ใบปรับฐานที่ลงฐานจริงแล้ว (อ่านอย่างเดียว) · คืน { ใบ } หรือ { เหตุ } = ถามไม่ได้ (เหตุบอกว่าติดตรงไหน) */
 function ใบบนฐานจริง() {
@@ -87,7 +95,7 @@ const วิธีแก้ต่อฐานไม่ได้ = (เหตุ)
   `  1. เปิด terminal แล้วไปที่โฟลเดอร์ทำงานกับฐานจริง:  cd ${ที่ฐานจริง}`,
   "  2. ทดลองถามฐานจริง:  npx supabase db query --linked \"select max(version) from supabase_migrations.schema_migrations\"",
   "  3. ข้อ 2 ขึ้นว่ายังไม่ได้ล็อกอิน / access token:  npx supabase login  (ล็อกอินในเบราว์เซอร์) แล้วกลับไปข้อ 2",
-  "  4. ข้อ 2 ขึ้นว่ายังไม่ได้ผูกโปรเจกต์ (not linked) หรือไม่มีโฟลเดอร์:  npx supabase link --project-ref <รหัสโปรเจกต์ฐานจริง ดูใน C:/.claude/pms-prod-secrets/> แล้วกลับไปข้อ 2",
+  `  4. ข้อ 2 ขึ้นว่ายังไม่ได้ผูกโปรเจกต์ (not linked) หรือไม่มีโฟลเดอร์:  npx supabase link --project-ref <รหัสโปรเจกต์ฐานจริง ดูใน ${ที่ใน("prod-secrets")}/> แล้วกลับไปข้อ 2`,
   "  5. ข้อ 2 รอนานเกิน 2 นาที:  รันซ้ำอีกครั้ง (ครั้งแรกเครื่องมืออาจโหลดนาน) · ยังค้าง = เน็ตหรือฐานจริงมีปัญหา แจ้งคนรวมงาน",
   "  6. ข้อ 2 ได้เลขใบล่าสุดแล้ว → push ใหม่จากโฟลเดอร์หลัก",
 ];

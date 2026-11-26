@@ -7,7 +7,7 @@
 //   · test:prodbuild รอบเต็มเริ่มได้เฉพาะเมื่อปิดรอบแล้ว · รายการไม่เปลี่ยนหลังปิด · รอบนั้นยังไม่ใช้ (ผ่าน) ไปแล้ว — ไม่มีทางข้าม
 //   · ข้อยกเว้น: บั๊กเว็บจริงที่ทำข้อมูลเสีย = ถามบอสทันที ไม่รอรวมรอบ — ยังปิดรอบด้วยคำสั่งเดียวกัน ใส่ --เร่งด่วน
 // ไฟล์ (จุดกลางนอก repo — ทุกโฟลเดอร์เซสชันเห็นตรงกัน แบบทะเบียนเซสชัน):
-//   <ที่> = PMS_ROUND_DIR (ข้อทดสอบชี้ที่อื่น · ย้ายที่เก็บเท่านั้น ไม่ได้ปิดตัวกัน) หรือ C:/.claude/pms-round
+//   <ที่> = PMS_ROUND_DIR (ข้อทดสอบชี้ที่อื่น · ย้ายที่เก็บเท่านั้น ไม่ได้ปิดตัวกัน) หรือ .local/round (scripts/lib/localPaths.mjs · ก่อนย้าย = C:/.claude/pms-round)
 //   <ที่>/queue.json     รายการรอรอบ { งาน: [{ id, งาน, เซสชัน, ทดสอบผ่าน, เวลาเพิ่ม, ผ่านเมื่อ?, ใบ?: ["0277", ...] }] }
 //   <ที่>/round.json     รอบที่ปิดล่าสุด { รอบ, สถานะ: "ปิดแล้ว"|"กำลังตรวจ"|"ผ่านแล้ว", บอสตอบ, เร่งด่วน, ปิดเมื่อ, งาน[], ตัดออก[], ใบ[], ลายนิ้วมือ, ... }
 //   ใบของงาน (round:add --ใบ <เลข> · บอสสั่ง 5 พ.ย. 69): ใบปรับฐานที่งานนั้นเพิ่ม → ปิดรอบจดรวมเป็นใบของรอบ · ลายนิ้วมือรวมใบด้วย
@@ -17,12 +17,11 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { ตัวล็อก } from "./fileLock.mjs";
+import { ที่ใน } from "./localPaths.mjs";
 
-export const ที่เก็บรอบ = () => process.env.PMS_ROUND_DIR
-  || (process.platform === "win32" ? "C:/.claude/pms-round" : path.join(os.homedir(), ".pms-round"));
+export const ที่เก็บรอบ = () => process.env.PMS_ROUND_DIR || ที่ใน("round");
 const ไฟล์ = (ชื่อ) => path.join(ที่เก็บรอบ(), ชื่อ);
 const อ่าน = (ชื่อ, ว่าง) => { try { return JSON.parse(readFileSync(ไฟล์(ชื่อ), "utf8")); } catch { return ว่าง; } };
 const เขียน = (ชื่อ, ค่า) => {

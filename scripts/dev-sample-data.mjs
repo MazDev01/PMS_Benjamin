@@ -11,7 +11,7 @@
 //      node scripts/dev-sample-data.mjs --only=ชื่อ,ชื่อ  (เฉพาะบางส่วน · ใช้กับ --reset ได้)
 //      node scripts/dev-sample-data.mjs --ตรวจปลายทาง=<url> (ตรวจอย่างเดียว: ปลายทางนี้ลงได้ไหม · ไม่ต่อฐาน ไม่อ่าน ไม่เขียน · บอสสั่ง 13 พ.ย. 69)
 //      scripts/dev-db.mjs เรียกให้เองหลังใส่ข้อมูลตั้งต้นของฐาน dev
-// รหัสผ่านบัญชีที่ข้อมูลตัวอย่างสร้าง: C:/.claude/pms-dev/บัญชีตัวอย่าง.json (นอก repo)
+// รหัสผ่านบัญชีที่ข้อมูลตัวอย่างสร้าง: .local/dev/บัญชีตัวอย่าง.json (ใน .local ที่ git ไม่เก็บ · ก่อนย้าย C:/.claude/pms-dev)
 // ตัวกันฐานจริง: ตรวจปลายทาง() ใน scripts/dev-sample/ตัวช่วย.mjs — ทำงานก่อนสร้างการเชื่อมต่อ · ข้อทดสอบ tests/tools/dev-sample-guard.test.mjs
 import { เตรียม, ตรวจปลายทาง, พอร์ตฐานdev } from "./dev-sample/ตัวช่วย.mjs";
 

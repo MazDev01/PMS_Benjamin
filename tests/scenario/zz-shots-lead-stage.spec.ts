@@ -1,3 +1,4 @@
+import { ที่ใน } from "./localPaths";
 import { test, expect, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -10,12 +11,12 @@ import { ล้างใบHQทดสอบ, เลขลูกค้าเป�
 
 // ── ถ่ายรูปก่อน/หลัง รายการเตือน 5 ขั้น + หน้า HQ เส้นทางการขาย (บอสสั่ง 27 ต.ค. 69) — ไม่ใช่ข้อทดสอบ ─────────────────────
 //   รันเองเท่านั้น: PMS_SHOTS=ก่อน|หลัง npm run test:prodbuild -- tests/scenario/zz-shots-lead-stage.spec.ts
-//   รูปลง C:/.claude/pms-shots/lead-stage/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
+//   รูปลง .local/shots/lead-stage/ (PMS_SHOTS_DIR เปลี่ยนได้) · จอกว้าง + มือถือ
 test.skip(() => !process.env.PMS_SHOTS, "ถ่ายรูปก่อน/หลังรายการเตือน — รันเองเมื่อสั่ง PMS_SHOTS=ก่อน|หลัง (ไม่ใช่ข้อทดสอบ)");
 test.skip(() => skipReason() !== "" || !SERVICE_ROLE_READY, skipReason() || "ต้องมีกุญแจฝั่งเซิร์ฟเวอร์");
 test.setTimeout(600_000);
 
-const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-shots/lead-stage";
+const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? `${ที่ใน("shots")}/lead-stage`;
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }];
 const เลข = เลขลูกค้าเป้าหมายทดสอบ();
 const บริษัท = `ZZTEST-ถ่ายรูปรายการเตือน-${Date.now() % 100_000}`;

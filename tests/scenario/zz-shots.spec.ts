@@ -1,3 +1,4 @@
+import { ที่ใน } from "./localPaths";
 import { test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
@@ -21,7 +22,7 @@ test.setTimeout(300_000);
 
 const ช่วง = process.env.PMS_SHOTS_PHASE ?? "ก";
 const รอบ = process.env.PMS_SHOTS ?? "ก่อน";
-const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? "C:/.claude/pms-shots/round2";
+const โฟลเดอร์ = process.env.PMS_SHOTS_DIR ?? `${ที่ใน("shots")}/round2`;
 const จอ = [{ ชื่อ: "จอกว้าง", w: 1440, h: 900 }, { ชื่อ: "มือถือ", w: 390, h: 844 }];
 const แท็ก = `${Date.now() % 100000}`;
 const บริษัท = `ZZTEST-ภาพก่อนหลัง-${แท็ก}`;

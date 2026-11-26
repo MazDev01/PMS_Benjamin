@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 
 if (process.env.PMS_TESTDB_LOCK_HELD) { console.error("⛔ รันเดี่ยวเท่านั้น"); process.exit(2); }
 const ราก = process.cwd();
-const ไฟล์ = ["testDbLock.mjs", "testDbSchema.mjs", "testDbGuard.mjs", "fileLock.mjs", "session.mjs", "testDbFetchKey.mjs", "ports.json"];
+const ไฟล์ = ["testDbLock.mjs", "testDbSchema.mjs", "testDbGuard.mjs", "fileLock.mjs", "session.mjs", "testDbFetchKey.mjs", "localPaths.mjs", "ports.json"];
 const แบบ = [
   ["ไม่เทียบโครงสร้างเลย", "testDbLock.mjs", s => s.replace("  try { ให้ฐานตรงกับไฟล์(process.cwd()); }", "  try { void ให้ฐานตรงกับไฟล์; }")],
   ["เทียบแล้วไม่สร้างใหม่ (บอกแล้วรันต่อ)", "testDbLock.mjs", s => s.replace("  const ผล = สร้างใหม่จากไฟล์(ราก);", "  const ผล = { ok: true }; void สร้างใหม่จากไฟล์;")],

@@ -1,16 +1,17 @@
 // ── ผลสำรอง+ซ้อมกู้ล่าสุดของฐานจริง: ทุกสคริปต์ที่เขียนฐานจริงต้องเห็น "ผ่าน" ภายใน 30 นาที (บอสสั่ง 28 ต.ค. 69) ───────────
 // เหตุ: 28 ต.ค. 69 ซ้อมกู้ตก แต่คำสั่งที่ต่อด้วย ";" ปล่อย prod-live เขียนสาขาทดสอบลงฐานจริงต่อ — ให้เครื่องกัน ไม่ใช่จำ
-// ไฟล์ผลกลาง (นอก repo): <PMS_BACKUP_ROOT>/ผลซ้อมกู้ล่าสุด.json { ผ่าน, เวลา, ชุด, เหตุ }
+// ไฟล์ผลกลาง (ใน .local ที่ git ไม่เก็บ): <PMS_BACKUP_ROOT>/ผลซ้อมกู้ล่าสุด.json { ผ่าน, เวลา, ชุด, เหตุ }
 //   scripts/prod-backup-verify.mjs (--target prod) เขียน "ไม่ผ่าน · กำลังสำรอง" ทันทีที่เริ่ม → ผ่านแล้วค่อยเขียน "ผ่าน"
 //   (รอบใหม่ล้มกลางทาง = ผลผ่านเก่าใช้ไม่ได้)
 // ผู้ตรวจ: tests/prod-live/run.mjs --target prod (setup · test · files · trial · cleanup) — ไม่มี/ไม่ผ่าน/เก่าเกิน = ไม่รัน ก่อนต่อฐาน
 // ข้อทดสอบ: tests/tools/prod-live-guard.test.mjs
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { ที่ใน } from "./localPaths.mjs";
 
 export const นาทีที่ยอม = 30;
 export const ไฟล์ผลซ้อมกู้ = () => process.env.PMS_BACKUP_RESULT
-  || path.join(process.env.PMS_BACKUP_ROOT || "C:/.claude/pms-prod-backups", "ผลซ้อมกู้ล่าสุด.json");
+  || path.join(process.env.PMS_BACKUP_ROOT || ที่ใน("prod-backups"), "ผลซ้อมกู้ล่าสุด.json");
 
 export function บันทึกผลซ้อมกู้({ ผ่าน, ชุด, เหตุ = "" }) {
   const f = ไฟล์ผลซ้อมกู้();

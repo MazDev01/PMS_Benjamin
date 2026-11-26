@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   env: { PMS_APP: "dealer", PMS_BUILD_ID: รุ่นเดโม() },
   // ไม่ประกาศชนิดเซิร์ฟเวอร์ให้คนภายนอกรู้ (ตรวจพบ 27 ส.ค. 69) — ลดข้อมูลตั้งต้นให้คนที่ไล่หาช่องโหว่
   poweredByHeader: false,
+  // โฟลเดอร์ .local (โฟลเดอร์เซสชัน · ฐานในเครื่อง · ข้อมูลจริง/กุญแจ · git ไม่เก็บ) ห้ามติดไปกับผล build ของเซิร์ฟเวอร์ (26 พ.ย. 69)
+  //   ทางเทียบจากโฟลเดอร์แอป · ข้อทดสอบ tests/tools/local-folder.test.mjs
+  outputFileTracingExcludes: { "*": ["../../.local/**", ".local/**"] },
 
   eslint: { ignoreDuringBuilds: true },
   async headers() {

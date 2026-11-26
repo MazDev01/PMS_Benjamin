@@ -12,7 +12,7 @@ import { pathToFileURL } from "node:url";
 
 if (process.env.PMS_TESTDB_LOCK_HELD) { console.error("⛔ รันเดี่ยวเท่านั้น (ห้ามรันใต้ล็อกของตัวแม่)"); process.exit(2); }
 const ราก = process.cwd();
-const ไฟล์ = ["testDbGuard.mjs", "testDbLock.mjs", "fileLock.mjs", "session.mjs", "testDbFetchKey.mjs", "testDbSchema.mjs", "ports.json"];   // ครบทุกไฟล์ที่ตัวล็อก import (ขาดตัวเดียว = ข้อทดสอบล้มก่อนตรวจ ดูเหมือน "ไม่ตก")
+const ไฟล์ = ["testDbGuard.mjs", "testDbLock.mjs", "fileLock.mjs", "session.mjs", "testDbFetchKey.mjs", "testDbSchema.mjs", "localPaths.mjs", "ports.json"];   // ครบทุกไฟล์ที่ตัวล็อก import (ขาดตัวเดียว = ข้อทดสอบล้มก่อนตรวจ ดูเหมือน "ไม่ตก")
 const แบบ = [
   ["pg_hba เปิด trust ทุกทาง", s => s.replace('"local all  pms_lockadmin  scram-sha-256",', '"local all  all  trust", "host  all  all  all  trust", "local all  pms_lockadmin  scram-sha-256",')],
   ["คำสั่งก่อนทุกคำขอไม่บังคับอ่านอย่างเดียว", s => s.replace("perform set_config('transaction_read_only', 'on', true);", "perform 1;")],

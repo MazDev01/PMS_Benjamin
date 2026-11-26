@@ -43,7 +43,7 @@ try {
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", "-b", "monorepo"], { cwd: repo });
   for (const f of [".githooks/pre-push", "scripts/git-hooks/pre-push.mjs", "scripts/lib/commitGate.mjs", "scripts/lib/flakyAck.mjs", "scripts/lib/fastGate.mjs", "scripts/lib/flakyLog.mjs", "scripts/lib/session.mjs", "scripts/lib/ports.json",
-                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs", "scripts/lib/readOnlySql.mjs", "scripts/lib/supabaseCli.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
+                   "scripts/lib/prodLock.mjs", "scripts/lib/fileLock.mjs", "scripts/lib/readOnlySql.mjs", "scripts/lib/supabaseCli.mjs", "scripts/lib/localPaths.mjs", "scripts/lib/localGuard.mjs"]) { if (existsSync(join(ราก, f))) คัด(f); }
   // ── mutation proof: ทำตัวกันในสำเนาให้พังทีละแบบ ──
   //   แปลงขึ้นบรรทัดเป็น \n ก่อน — โฟลเดอร์ที่ git แปลงเป็น CRLF จะหาข้อความไม่เจอ (ข้อทดสอบพังเองแทนที่จะพิสูจน์)
   const แก้สำเนา = (f, a, b) => { const p = join(repo, f), s = readFileSync(p, "utf8").replace(/\r\n/g, "\n"); if (!s.includes(a)) throw new Error(`ไม่พบ ${a}`); writeFileSync(p, s.replace(a, b)); };
