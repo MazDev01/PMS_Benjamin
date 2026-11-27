@@ -17,7 +17,7 @@ import { อ่านเซสชัน } from "../lib/session.mjs";
 import { รอฐานจริงว่าง } from "../lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "../lib/readOnlySql.mjs";
 import { คำสั่งCLI, แถวจากผลCLI } from "../lib/supabaseCli.mjs";
-import { ที่ส่วนตัว, ที่อยู่ส่วนตัว } from "../lib/localPaths.mjs";
+import { ที่ใน, ที่อยู่ส่วนตัว } from "../lib/localPaths.mjs";
 import { localในการส่ง, ข้อความปฏิเสธ } from "../lib/localGuard.mjs";
 
 const [, , remoteName = "", remoteUrl = ""] = process.argv;
@@ -57,16 +57,13 @@ const ปฏิเสธ = (บรรทัด) => {
   process.exit(1);
 };
 
-// ที่ผูกฐานจริงอยู่นอก repo (C:/.claude/pms-private/prod-ops · 27 พ.ย. 69) — ไม่เจอ/อยู่ใต้ repo = ถามฐานจริงไม่ได้ (บอกเหตุ ไม่ถอยไป .local)
-let ที่ผิดฐานจริง = "";
-const ที่ฐานจริง = process.env.PMS_PROD_OPS_DIR ?? (() => { try { return ที่ส่วนตัว("prod-ops"); } catch (e) { ที่ผิดฐานจริง = e.message.replace(/^⛔\s*/, ""); return ที่อยู่ส่วนตัว("prod-ops"); } })();
+const ที่ฐานจริง = process.env.PMS_PROD_OPS_DIR ?? ที่ใน("prod-ops");
 
 /** ใบปรับฐานที่ลงฐานจริงแล้ว (อ่านอย่างเดียว) · คืน { ใบ } หรือ { เหตุ } = ถามไม่ได้ (เหตุบอกว่าติดตรงไหน) */
 function ใบบนฐานจริง() {
   if (!ของจริง && process.env.PMS_PROD_VERSIONS_FILE) {
     try { return { ใบ: JSON.parse(readFileSync(process.env.PMS_PROD_VERSIONS_FILE, "utf8")) }; } catch { return { เหตุ: "อ่านไฟล์ใบปลอมของข้อทดสอบไม่ได้" }; }
   }
-  if (ที่ผิดฐานจริง) return { เหตุ: ที่ผิดฐานจริง };
   if (!existsSync(path.join(ที่ฐานจริง, "supabase/.temp/project-ref"))) return { เหตุ: `โฟลเดอร์ ${ที่ฐานจริง} ยังไม่ได้ผูกฐานจริง (ไม่มีโฟลเดอร์ หรือยังไม่ได้ supabase link)` };
   // ระหว่างบอส db:push / สำรอง+ซ้อมกู้ = รอให้จบก่อน (ถามแบบ --linked ตั้งรหัสใหม่ให้บัญชีที่ขั้นสำรองใช้ → สำรองตก · 29 ต.ค. 69)
   รอฐานจริงว่าง("git push: ตรวจใบปรับฐานบนฐานจริง");
@@ -78,7 +75,7 @@ function ใบบนฐานจริง() {
     // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง · โหมด json ถามไม่ได้ (push 3 พ.ย. 69 ตกที่นี่) → --yes เฉพาะคำสั่งอ่าน (บอสเลือก ก)
     if (!ตรวจอ่านอย่างเดียว(คำถาม).ได้) return { เหตุ: "คำถามตรวจใบไม่ใช่คำสั่งอ่านล้วน — ไม่ต่อฐานจริง" };
     // CLI ของโปรเจกต์ (npx ในโฟลเดอร์ผูกฐานจริงดึงรุ่นอื่น) · ผลอ่านได้ทั้ง [ ... ] และ { rows } (scripts/lib/supabaseCli.mjs · 3 พ.ย. 69)
-    const r = spawnSync(คำสั่งCLI(), ["db", "query", "--linked", "--yes", "--workdir", `"${ที่ฐานจริง}"`, "-f", `"${q}"`, "--output-format", "json"],
+    const r = spawnSync(คำสั่งCLI(), ["db", "query", "--linked", "--yes", "-f", `"${q}"`, "--output-format", "json"],
       { cwd: ที่ฐานจริง, encoding: "utf8", shell: true, timeout: 120_000 });
     if (r.error?.code === "ETIMEDOUT" || r.signal) return { เหตุ: "ถามฐานจริงนานเกิน 2 นาทีจนหมดเวลา" };
     if (r.status !== 0) {

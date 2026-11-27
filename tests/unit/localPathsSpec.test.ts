@@ -48,7 +48,9 @@ describe("localPaths: ฉบับ spec = ฉบับสคริปต์", ()
     try {
       delete process.env.PMS_PRIVATE_ROOT;
       expect("prod-ops" in ส.ตารางย้าย || "prod-ops" in ฉบับspec.ตารางย้าย, "prod-ops ไม่อยู่ในตารางย้าย .local ทั้งสองฉบับ").toBe(false);
-      expect(() => ส.ที่ใน("prod-ops")).toThrow(/ไม่รู้จักชื่อ/);
+      // ผู้เรียกเดิม (pre-push ฉบับก่อน · ที่ใน("prod-ops")) ได้ที่ส่วนตัว ไม่ใช่ .local · ฉบับ spec ไม่มีใครใช้ = ไม่รู้จักชื่อ
+      expect(ส.ที่ใน("prod-ops")).toBe(ส.ที่อยู่ส่วนตัว("prod-ops"));
+      expect(ส.ที่ใน("prod-ops")).not.toContain("/.local/");
       expect(() => ฉบับspec.ที่ใน("prod-ops")).toThrow(/ไม่รู้จักชื่อ/);
       const ที่ = ส.ที่อยู่ส่วนตัว("prod-ops");
       expect(ที่).toBe(`${ส.รากส่วนตัว()}/prod-ops`);
