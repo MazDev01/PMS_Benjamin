@@ -11,7 +11,7 @@
 // ช่วงก่อนย้ายจริง (scripts/move-local.mjs): ที่ใหม่ยังไม่มี แต่ที่เดิม C:/.claude/pms-<ชื่อ> ยังอยู่ = ใช้ที่เดิม
 //   ตัดสินทีละโฟลเดอร์ · ย้ายแล้วที่ใหม่มีอยู่ = ใช้ที่ใหม่เสมอ · ไม่มีทั้งคู่ = ที่ใหม่ (สร้างที่ใหม่)
 //   PMS_LEGACY_ROOT เปลี่ยนรากที่เดิมได้ (ข้อทดสอบ) · ค่า "-" = ไม่ดูที่เดิมเลย
-// env เดิมเฉพาะโฟลเดอร์ (PMS_WT_ROOT · PMS_TEST_DB_DIR · PMS_DEV_DB_DIR · PMS_PROD_OPS_DIR · PMS_BACKUP_ROOT (ทับรากส่วนตัว) ·
+// env เดิมเฉพาะโฟลเดอร์ (PMS_WT_ROOT · PMS_TEST_DB_DIR · PMS_DEV_DB_DIR · PMS_PROD_OPS_DIR (ทับที่ส่วนตัว prod-ops) · PMS_BACKUP_ROOT (ทับรากส่วนตัว) ·
 //   PMS_RESTORE_WORKDIR · PMS_ROUND_DIR ฯลฯ) ยังทับได้ตามเดิม — ผู้เรียกเช็ก env ก่อนแล้วค่อยเรียก ที่ใน()
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -30,7 +30,6 @@ export const ตารางย้าย = Object.freeze({
   "handoff": "pms-handoff",
   "shots": "pms-shots",
   "preview": "pms-preview",
-  "prod-ops": "pms-prod-ops",
   "prod-tools": "pms-prod-tools",
   "private-data": "pms-private-data",
   "migration-reservations.md": "pms-migration-reservations.md",
@@ -41,11 +40,14 @@ export const ตารางย้าย = Object.freeze({
 //   ที่อยู่ = <รากส่วนตัว>/prod-backups · <รากส่วนตัว>/prod-secrets · รากส่วนตัว = PMS_PRIVATE_ROOT หรือ C:/.claude/pms-private
 //   ไม่อยู่ใน ตารางย้าย (ไม่ย้ายเข้า .local อีก) · ไม่มีทางถอยไปที่เดิม (.local/prod-* · C:/.claude/pms-prod-*)
 //   ไม่เจอ = หยุดพร้อมบอกที่อยู่ (ไม่สร้างใหม่) · ตัวตรวจ scripts/check-private-outside-repo.mjs: ชื่อเหล่านี้ใต้ repo = ตก
+// prod-ops (โฟลเดอร์ที่ Supabase CLI ผูกฐานจริง) ย้ายมาด้วย (บอสสั่ง 27 พ.ย. 69): บอสลงใบ 0305 ตกขั้นสำรอง "Cannot find project ref"
+//   เหตุ: .local/prod-ops ไม่มี supabase/config.toml → CLI เดินขึ้นไปหาจนเจอ supabase/config.toml ของ repo (ไม่ได้ผูกฐานจริง)
+//   ตอนอยู่ C:/.claude/pms-prod-ops ไม่มี config.toml ข้างบนจึงไม่เคยเจอ · ทุกคำสั่ง CLI ฐานจริงใส่ --workdir <prod-ops> ด้วย
 
 /** ชื่อในรากส่วนตัว */
-export const ชื่อส่วนตัว = Object.freeze(["prod-backups", "prod-secrets"]);
+export const ชื่อส่วนตัว = Object.freeze(["prod-backups", "prod-secrets", "prod-ops"]);
 /** ชื่อโฟลเดอร์ที่ห้ามมีใต้ repo (รวม .local · โฟลเดอร์เซสชัน) — ชื่อใหม่ + ชื่อเดิม · ตัวตรวจที่เดินทั้งโฟลเดอร์ห้ามเปิดข้างใน */
-export const ห้ามเปิด = Object.freeze([...ชื่อส่วนตัว, "pms-prod-backups", "pms-prod-secrets"]);
+export const ห้ามเปิด = Object.freeze([...ชื่อส่วนตัว, "pms-prod-backups", "pms-prod-secrets", "pms-prod-ops"]);
 
 const ทับ = (p) => p.replace(/\\/g, "/");
 const โค้ดชุดนี้ = () => process.cwd();
@@ -101,6 +103,9 @@ export function ที่เดิม(ชื่อ) {
 
 /** ที่อยู่ของโฟลเดอร์/ไฟล์ <ชื่อ> (คีย์ใน ตารางย้าย) — ที่ใหม่ถ้ามีอยู่ · ยังไม่ย้ายแต่ที่เดิมมีอยู่ = ที่เดิม · ไม่มีทั้งคู่ = ที่ใหม่ */
 export function ที่ใน(ชื่อ, { cwd = โค้ดชุดนี้(), มีอยู่ = existsSync } = {}) {
+  // prod-ops ย้ายไปรากส่วนตัว (27 พ.ย. 69) — ผู้เรียกเดิม (scripts/git-hooks/pre-push.mjs ยังเรียก ที่ใน("prod-ops") · แก้ในรอบเต็มหน้า
+  //   เพราะเป็นไฟล์เครื่องมือรอบ) ได้ที่ใหม่ ไม่ใช่ .local · ไม่ตรวจว่ามีอยู่ (ผู้เรียกตรวจ project-ref เอง) · ที่อื่นใช้ ที่ส่วนตัว("prod-ops")
+  if (ชื่อ === "prod-ops") return ที่อยู่ส่วนตัว("prod-ops");
   if (!(ชื่อ in ตารางย้าย)) throw new Error(`ไม่รู้จักชื่อ "${ชื่อ}" ใน .local (ดู ตารางย้าย ใน scripts/lib/localPaths.mjs)`);
   const ใหม่ = `${รากLocal(cwd)}/${ชื่อ}`;
   if (มีอยู่(ใหม่)) return ใหม่;

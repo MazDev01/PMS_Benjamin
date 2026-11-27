@@ -21,7 +21,7 @@ import { เลือกไฟล์แนบทดสอบ } from "./quoteFile
 import { รันSQLไฟล์ } from "../../scripts/lib/supabaseCli.mjs";
 import { ตรวจผลนับ, ตรวจยอดล้าง } from "../../scripts/lib/cleanupCount.mjs";
 import { ตัวล็อก } from "../../scripts/lib/fileLock.mjs";
-import { ที่ใน } from "../../scripts/lib/localPaths.mjs";
+import { ที่ใน, ที่ส่วนตัว } from "../../scripts/lib/localPaths.mjs";
 import os from "node:os";
 
 const args = process.argv.slice(2);
@@ -183,7 +183,8 @@ if (phase === "files") {
 if (phase === "cleanup") {
   // ฐานในเครื่องล้างโดยรอบตรวจเต็ม (scripts/test-prodbuild.mjs) · ที่นี่ฐานจริงเท่านั้น ผ่านโฟลเดอร์ที่ผูกฐานจริงไว้ (supabase link)
   if (target !== "prod") ตาย("cleanup ใช้กับ --target prod เท่านั้น (ฐานในเครื่องล้างโดยรอบตรวจเต็ม)");
-  const OPS = process.env.PMS_PROD_OPS_DIR ?? ที่ใน("prod-ops");
+  // ที่ผูกฐานจริงอยู่นอก repo (C:/.claude/pms-private/prod-ops · 27 พ.ย. 69) — ไม่เจอ/อยู่ใต้ repo = หยุด ไม่ถอยไป .local
+  const OPS = process.env.PMS_PROD_OPS_DIR ?? (() => { try { return ที่ส่วนตัว("prod-ops"); } catch (e) { ตาย(e.message); } })();
   // Supabase CLI 2.109 ถามยืนยันทุกคำสั่ง SQL กับฐานจริง (โหมด json ถามไม่ได้) → ใส่ --yes ให้ · ขั้นนี้มีคำสั่งเขียน (cleanup.sql)
   //   บอสเลือก ก (3 พ.ย. 69): ขั้นเขียนฐานจริงบอสรันเอง — ต้องพิมพ์ --yes-prod เอง · AI ห้ามใส่ธงนี้
   if (!ยืนยันเขียน) ตาย("ขั้นล้างเขียนฐานจริง — บอสรันเอง: node tests/prod-live/run.mjs --target prod cleanup --yes-prod");
