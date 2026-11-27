@@ -18,7 +18,6 @@ export const ตารางย้าย: Readonly<Record<string, string>> = Obj
   "handoff": "pms-handoff",
   "shots": "pms-shots",
   "preview": "pms-preview",
-  "prod-ops": "pms-prod-ops",
   "prod-tools": "pms-prod-tools",
   "private-data": "pms-private-data",
   "migration-reservations.md": "pms-migration-reservations.md",

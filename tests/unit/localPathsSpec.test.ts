@@ -40,6 +40,35 @@ describe("localPaths: ฉบับ spec = ฉบับสคริปต์", ()
     } finally { rmSync(ที่, { recursive: true, force: true }); }
   });
 
+  // prod-ops (ที่ CLI ผูกฐานจริง) อยู่นอก repo (บอสสั่ง 27 พ.ย. 69) — เดิมอยู่ .local/prod-ops แล้ว CLI เดินขึ้นไปเจอ supabase/config.toml ของ repo
+  //   ตกบนโค้ดเดิม: prod-ops อยู่ในตารางย้าย · ที่ใน("prod-ops") = <repo>/.local/prod-ops · ที่อยู่ส่วนตัว("prod-ops") ไม่รู้จักชื่อ
+  //   ค่าตั้งต้นตรงตัวของรากส่วนตัว ตรวจที่ tests/tools/private-outside-repo.test.mjs (ไฟล์ที่ยกเว้นข้อห้ามเขียนที่อยู่ตรง ๆ)
+  it("prod-ops ชี้ที่ส่วนตัว (<รากส่วนตัว>/prod-ops · ค่าตั้งต้น pms-private) ไม่ใช่ใต้ repo · ไม่มีทางถอยไป .local", () => {
+    const เดิม = process.env.PMS_PRIVATE_ROOT;
+    try {
+      delete process.env.PMS_PRIVATE_ROOT;
+      expect("prod-ops" in ส.ตารางย้าย || "prod-ops" in ฉบับspec.ตารางย้าย, "prod-ops ไม่อยู่ในตารางย้าย .local ทั้งสองฉบับ").toBe(false);
+      expect(() => ส.ที่ใน("prod-ops")).toThrow(/ไม่รู้จักชื่อ/);
+      expect(() => ฉบับspec.ที่ใน("prod-ops")).toThrow(/ไม่รู้จักชื่อ/);
+      const ที่ = ส.ที่อยู่ส่วนตัว("prod-ops");
+      expect(ที่).toBe(`${ส.รากส่วนตัว()}/prod-ops`);
+      expect(ที่.endsWith("/pms-private/prod-ops") || ที่.endsWith("/.pms-private/prod-ops"), `ค่าตั้งต้นอยู่ในรากส่วนตัว (${ที่})`).toBe(true);
+      const rel = path.relative(path.resolve(ส.โฟลเดอร์หลัก()), path.resolve(ที่));
+      expect(rel.startsWith("..") || path.isAbsolute(rel), `ไม่อยู่ใต้ repo (${rel})`).toBe(true);
+      expect(ส.ห้ามเปิด).toEqual(expect.arrayContaining(["prod-ops", "pms-prod-ops"]));
+      // ไม่เจอ = หยุด ไม่สร้างใหม่ · รากส่วนตัวใต้ repo = หยุด
+      const ชั่วคราว = mkdtempSync(path.join(tmpdir(), "prodops-"));
+      try {
+        process.env.PMS_PRIVATE_ROOT = ชั่วคราว;
+        expect(() => ส.ที่ส่วนตัว("prod-ops")).toThrow(/ไม่เจอโฟลเดอร์/);   // cwd = repo นี้ (โฟลเดอร์ชั่วคราวอยู่นอก repo)
+        mkdirSync(path.join(ชั่วคราว, "prod-ops"));
+        expect(ส.ที่ส่วนตัว("prod-ops")).toBe(`${ชั่วคราว.replace(/\\/g, "/")}/prod-ops`);
+        process.env.PMS_PRIVATE_ROOT = path.join(ส.โฟลเดอร์หลัก(), ".local", "zz-ไม่มีจริง");
+        expect(() => ส.ที่ส่วนตัว("prod-ops")).toThrow(/อยู่ใต้ repo/);
+      } finally { rmSync(ชั่วคราว, { recursive: true, force: true }); }
+    } finally { if (เดิม === undefined) delete process.env.PMS_PRIVATE_ROOT; else process.env.PMS_PRIVATE_ROOT = เดิม; }
+  });
+
   it("ชื่อที่ไม่รู้จัก = หยุดทั้งสองฉบับ", () => {
     expect(() => ฉบับspec.ที่ใน("ไม่มีชื่อนี้")).toThrow(/ไม่รู้จักชื่อ/);
     expect(() => ส.ที่ใน("ไม่มีชื่อนี้")).toThrow(/ไม่รู้จักชื่อ/);

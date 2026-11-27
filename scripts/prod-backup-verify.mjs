@@ -8,7 +8,7 @@
 // ผล:   exit 0 + "ผ่าน" เท่านั้นถึงเขียนฐานจริงต่อได้ · exit 1 = ไม่ผ่าน (บอกเหตุผลภาษาไทย) · exit 3 = มีงานอื่นถือล็อกอยู่
 //
 // ตั้งค่าได้ (มีค่าตั้งต้นของเครื่องนี้):
-//   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (.local/prod-ops)
+//   PMS_PROD_OPS_DIR       โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (C:/.claude/pms-private/prod-ops · นอก repo · 27 พ.ย. 69)
 //   PMS_RESTORE_WORKDIR    โฟลเดอร์ supabase ของฐานเปล่าที่ใช้ซ้อมกู้ (.local/restore-check · project pms-blank)
 //   PMS_BACKUP_ROOT        ที่เก็บไฟล์สำรอง (C:/.claude/pms-private/prod-backups · PMS_PRIVATE_ROOT) — นอก repo (มีข้อมูลลูกค้าจริง · 26 พ.ย. 69)
 //   PMS_FAKE_EMPTY=<ขั้น>   ข้อทดสอบเท่านั้น (--target local): จำลองคำสั่งของขั้นนั้นคืนผลว่าง (dump = ไฟล์สำรอง 2-data.sql ว่าง)
@@ -38,7 +38,9 @@ if (process.env.PMS_FAKE_EMPTY && target !== "local") { console.error("⛔ PMS_F
 if (process.env.PMS_DRILL_ADVANCE_SEQ === "1" && target !== "local") { console.error("⛔ PMS_DRILL_ADVANCE_SEQ ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 if (process.env.PMS_DRILL_SABOTAGE && target !== "local") { console.error("⛔ PMS_DRILL_SABOTAGE ใช้ได้กับ --target local เท่านั้น"); process.exit(2); }
 
-const OPS = process.env.PMS_PROD_OPS_DIR || ที่ใน("prod-ops");
+// ที่ผูกฐานจริงอยู่นอก repo (27 พ.ย. 69 · ใช้เฉพาะ --target prod) — ไม่เจอ/อยู่ใต้ repo = หยุด ไม่ถอยไป .local
+//   ทุกคำสั่ง CLI ฐานจริงใส่ --workdir OPS — เดิมมีแค่ cwd: CLI เดินหา supabase/config.toml ขึ้นไปจนเจอของ repo → "Cannot find project ref"
+const OPS = process.env.PMS_PROD_OPS_DIR || (target !== "prod" ? "" : (() => { try { return ที่ส่วนตัว("prod-ops"); } catch (e) { console.error(e.message); process.exit(2); } })());
 const RESTORE = process.env.PMS_RESTORE_WORKDIR || ที่ใน("restore-check");
 const ROOT = process.env.PMS_BACKUP_ROOT || (() => { try { return ที่ส่วนตัว("prod-backups"); } catch (e) { console.error(e.message); process.exit(2); } })();
 // ฐานทดสอบ pms-dbcheck — ต้นทางของ --target local · บัญชีเขียนของผู้ถือล็อก (ฐานทดสอบปิดบัญชีอื่นแล้ว · testDbGuard.mjs)
@@ -129,7 +131,7 @@ for (const [f, extra] of ชุด) {
   ขั้น(`ดึงไฟล์สำรอง ${f}`);
   // ฐานจริง: CLI ของโปรเจกต์ (npx ในโฟลเดอร์ผูกฐานจริงดึงรุ่นอื่นมา · scripts/lib/supabaseCli.mjs · 3 พ.ย. 69)
   const r = target === "prod"
-    ? รัน(คำสั่งCLI(), ["db", "dump", ...ต้นทางเลือก, ...extra, "-f", `"${path.join(D, f)}"`], { cwd: OPS, shell: true })
+    ? รัน(คำสั่งCLI(), ["db", "dump", ...ต้นทางเลือก, "--workdir", `"${OPS}"`, ...extra, "-f", `"${path.join(D, f)}"`], { cwd: OPS, shell: true })
     : รัน("npx", ["supabase", "db", "dump", ...ต้นทางเลือก, ...extra, "-f", path.join(D, f)], { cwd: REPO });
   if (process.env.PMS_FAKE_EMPTY === "dump" && f === "2-data.sql") writeFileSync(path.join(D, f), "");   // ทดสอบเครื่องมือ: จำลองไฟล์สำรองว่าง
   if (r.error) ไม่ผ่าน(`ขั้น "ดึงไฟล์สำรอง ${f}" ล้ม — เรียกโปรแกรม npx ไม่ได้ (${r.error.code ?? r.error.message})`);
@@ -176,7 +178,7 @@ const นับต้นทาง = (sqlFile, ชื่อขั้น) => {
     //   (บอสเลือก ก · 3 พ.ย. 69 · ตัวตรวจเดียวกับ prod:query — scripts/lib/readOnlySql.mjs)
     const อ่าน = ตรวจอ่านอย่างเดียว(readFileSync(sqlFile, "utf8"));
     if (!อ่าน.ได้) return ไม่ผ่าน(`ขั้น "${ชื่อขั้น}" — ไฟล์นับไม่ใช่คำสั่งอ่านล้วน (${อ่าน.เหตุ}) · ไม่ต่อฐานจริง`);
-    const r = รันตรวจ(ชื่อขั้น, คำสั่งCLI(), ["db", "query", "--linked", "--yes", "-f", `"${sqlFile}"`, "--output-format", "json"], { cwd: OPS, shell: true }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
+    const r = รันตรวจ(ชื่อขั้น, คำสั่งCLI(), ["db", "query", "--linked", "--yes", "--workdir", `"${OPS}"`, "-f", `"${sqlFile}"`, "--output-format", "json"], { cwd: OPS, shell: true }, { ต้องมีผล: true, ไฟล์ผลดิบ: ".count.log" });
     return ค่าแรก(ชื่อขั้น, r);
   }
   const r = รันตรวจ(ชื่อขั้น, "docker", [...อาร์กิวเมนต์psql(LOCAL_CONTAINER, { เขียน: false }), "-X", "-A", "-t"],

@@ -1,6 +1,6 @@
 // ── ข้อทดสอบ: สำรองฐานจริง + กุญแจ อยู่นอก repo (บอสสั่ง 26 พ.ย. 69) ─────────────────────────────────────────────────
 //   1) ตัวตรวจ scripts/check-private-outside-repo.mjs: ราก repo ปลอม (โฟลเดอร์ชั่วคราว) ไม่มีโฟลเดอร์ชื่อต้องห้าม = ผ่าน
-//      · โฟลเดอร์ว่างชื่อ prod-backups / prod-secrets / pms-prod-backups / pms-prod-secrets ที่ใดก็ได้ (ราก · .local · โฟลเดอร์เซสชัน
+//      · โฟลเดอร์ว่างชื่อ prod-backups / prod-secrets / prod-ops (27 พ.ย. 69) + ชื่อเดิม pms-* ที่ใดก็ได้ (ราก · .local · โฟลเดอร์เซสชัน
 //      · ตัวพิมพ์ใหญ่) = ตก · รันในโฟลเดอร์เซสชันก็ตรวจทั้งโฟลเดอร์หลัก · ไม่พิมพ์ชื่อไฟล์ข้างใน · PMS_PRIVATE_ROOT ใต้ repo = ตก
 //      · อยู่ใน pnpm checks
 //   2) ตัวกลางที่อยู่: prod-backups/prod-secrets ไม่อยู่ในตารางย้าย .local · ที่ส่วนตัว() = <PMS_PRIVATE_ROOT>/<ชื่อ> · ไม่มี = หยุด (ไม่สร้าง)
@@ -26,7 +26,8 @@ for (const k of ["PMS_BACKUP_ROOT", "PMS_PUSH_LOG", "PMS_BACKUP_RESULT"]) delete
 const ตัวตรวจ = path.join(ราก, "scripts/check-private-outside-repo.mjs");
 const ตรวจ = (cwd, env = envลูก) => spawnSync(process.execPath, [ตัวตรวจ], { cwd, encoding: "utf8", env });
 const git = (cwd, ...a) => execFileSync("git", a, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-const ชื่อต้องห้าม = ["prod-backups", "prod-secrets", "pms-prod-backups", "pms-prod-secrets"];
+// prod-ops / pms-prod-ops เพิ่ม 27 พ.ย. 69 (บอสสั่ง · ที่ผูกฐานจริงใต้ repo ทำให้ CLI เจอ supabase/config.toml ของ repo → ลงใบ 0305 ตกขั้นสำรอง)
+const ชื่อต้องห้าม = ["prod-backups", "prod-secrets", "pms-prod-backups", "pms-prod-secrets", "prod-ops", "pms-prod-ops"];
 
 try {
   // ── 1) ตัวตรวจ ──
@@ -39,7 +40,7 @@ try {
     mkdirSync(path.join(ปลอม, "apps/hq"), { recursive: true });
     let r = ตรวจ(ปลอม);
     ผล(r.status === 0 && /ใต้ repo: 0/.test(r.stdout), "ราก repo ปลอมไม่มีโฟลเดอร์ชื่อต้องห้าม = ผ่าน", r.stdout + r.stderr);
-    const ที่วาง = [".local", "", ".local/wt/s1", ".local/wt/s1/apps"];
+    const ที่วาง = [".local", "", ".local/wt/s1", ".local/wt/s1/apps", ".local", ""];
     for (const [i, ชื่อ] of ชื่อต้องห้าม.entries()) {
       const ที่ = path.join(ปลอม, ที่วาง[i], ชื่อ);
       mkdirSync(ที่, { recursive: true });   // โฟลเดอร์ว่าง
@@ -81,12 +82,14 @@ try {
   ผล(!("prod-backups" in lp.ตารางย้าย) && !("prod-secrets" in lp.ตารางย้าย), "prod-backups · prod-secrets ไม่อยู่ในตารางย้าย .local (ไม่ย้ายเข้า repo อีก)", Object.keys(lp.ตารางย้าย).join(", "));
   const ts = readFileSync(path.join(ราก, "tests/scenario/localPaths.ts"), "utf8");
   ผล(!/"prod-(backups|secrets)"/.test(ts), "ฉบับ spec (tests/scenario/localPaths.ts) ก็ไม่มี 2 ชื่อนี้");
+  ผล(!("prod-ops" in lp.ตารางย้าย) && !/"prod-ops"/.test(ts) && (lp.ชื่อส่วนตัว ?? []).includes("prod-ops"), "prod-ops ไม่อยู่ในตารางย้าย .local (ทั้งสองฉบับ) · อยู่ในชื่อส่วนตัว (27 พ.ย. 69)", Object.keys(lp.ตารางย้าย).join(", "));
   ผล(typeof lp.ที่ส่วนตัว === "function" && typeof lp.รากส่วนตัว === "function", "มี ที่ส่วนตัว() · รากส่วนตัว() ใน localPaths");
   if (typeof lp.ที่ส่วนตัว === "function") {
     const เดิม = process.env.PMS_PRIVATE_ROOT;
     try {
       delete process.env.PMS_PRIVATE_ROOT;
       if (process.platform === "win32") ผล(lp.รากส่วนตัว() === "C:/.claude/pms-private", "ค่าตั้งต้นรากส่วนตัว = C:/.claude/pms-private", lp.รากส่วนตัว());
+      if (process.platform === "win32") ผล(lp.ที่อยู่ส่วนตัว("prod-ops") === "C:/.claude/pms-private/prod-ops", "ค่าตั้งต้นที่ผูกฐานจริง = C:/.claude/pms-private/prod-ops (27 พ.ย. 69)", lp.ที่อยู่ส่วนตัว("prod-ops"));
       process.env.PMS_PRIVATE_ROOT = ส่วนตัวปลอม;
       let โยน = ""; try { lp.ที่ส่วนตัว("prod-backups", { cwd: ราก }); } catch (e) { โยน = e.message; }
       ผล(/ไม่เจอโฟลเดอร์/.test(โยน) && โยน.includes("private/prod-backups") && !existsSync(path.join(ส่วนตัวปลอม, "prod-backups")), "ไม่มีที่เก็บ = หยุดพร้อมบอกที่อยู่ ไม่สร้างใหม่", โยน);
@@ -112,7 +115,16 @@ try {
   ผล(r.status === 2 && /ไม่เจอโฟลเดอร์ .*private\/prod-backups/.test(r.stderr), "db:push ไม่เจอที่เก็บสำรอง = หยุด (exit 2) พร้อมบอกที่อยู่", `${r.status}\n${r.stdout}${r.stderr}`);
   r = spawnSync(process.execPath, ["scripts/prod-backup-verify.mjs", "--target", "local", "zz-ทดสอบ"], { cwd: ราก, encoding: "utf8", env: envเครื่องมือ, timeout: 60_000 });
   ผล(r.status === 2 && /ไม่เจอโฟลเดอร์ .*private\/prod-backups/.test(r.stderr), "ตัวสำรองไม่เจอที่เก็บ = หยุด (exit 2) พร้อมบอกที่อยู่", `${r.status}\n${r.stdout}${r.stderr}`);
+  // ที่ผูกฐานจริง (prod-ops) ไม่เจอ = prod:query หยุดก่อนต่อฐาน (โหมดไม่รันจริง · ไม่แตะฐานใด ๆ) · มี = คำสั่งมี --workdir <ที่ส่วนตัว>/prod-ops
+  const envถาม = { ...envเครื่องมือ, PMS_PROD_QUERY_DRY: "1" };
+  delete envถาม.PMS_PROD_OPS_DIR;
+  r = spawnSync(process.execPath, ["scripts/prod-query.mjs", "select 1"], { cwd: ราก, encoding: "utf8", env: envถาม, timeout: 60_000 });
+  ผล(r.status === 2 && /ไม่เจอโฟลเดอร์ .*private\/prod-ops/.test(r.stderr), "prod:query ไม่เจอที่ผูกฐานจริงนอก repo = หยุด (exit 2) ไม่ถอยไป .local/prod-ops", `${r.status}\n${r.stdout}${r.stderr}`);
   ผล(readdirSync(ส่วนตัวปลอม).length === 0, "เครื่องมือไม่สร้างโฟลเดอร์ใหม่ในที่เก็บ", readdirSync(ส่วนตัวปลอม).join(", "));
+  mkdirSync(path.join(ส่วนตัวปลอม, "prod-ops"));
+  r = spawnSync(process.execPath, ["scripts/prod-query.mjs", "select 1"], { cwd: ราก, encoding: "utf8", env: envถาม, timeout: 60_000 });
+  ผล(r.status === 0 && r.stdout.includes(`--workdir ${ส่วนตัวปลอม.replace(/\\/g, "/")}/prod-ops`), "prod:query มีที่ผูกฐานจริง = ส่ง --workdir <ที่ส่วนตัว>/prod-ops", `${r.status}\n${r.stdout}${r.stderr}`);
+  rmSync(path.join(ส่วนตัวปลอม, "prod-ops"), { recursive: true });
   const mark = await import(pathToFileURL(path.join(ราก, "scripts/lib/prodBackupMark.mjs")).href);
   const เดิม = { r: process.env.PMS_PRIVATE_ROOT, b: process.env.PMS_BACKUP_ROOT, x: process.env.PMS_BACKUP_RESULT };
   try {

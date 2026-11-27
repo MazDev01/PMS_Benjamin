@@ -7,7 +7,7 @@
 // ใช้:  npm run prod:query -- "select count(*) from public.dealers"
 //       npm run prod:query -- -f path/to/query.sql
 //   ตัวเลือกอื่นส่งต่อให้ CLI ตามเดิม (เช่น --output-format json)
-// PMS_PROD_OPS_DIR = โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (ค่าตั้งต้น .local/prod-ops · scripts/lib/localPaths.mjs)
+// PMS_PROD_OPS_DIR = โฟลเดอร์ที่ CLI ผูกฐานจริงไว้ (ค่าตั้งต้น C:/.claude/pms-private/prod-ops · ที่ส่วนตัว ใน scripts/lib/localPaths.mjs)
 // PMS_PROD_QUERY_DRY=1 = พิมพ์คำสั่งที่จะรันแทนการรัน (ข้อทดสอบ tests/tools/prod-read-waits.test.mjs · ไม่แตะฐาน)
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -15,9 +15,10 @@ import path from "node:path";
 import { รอฐานจริงว่าง } from "./lib/prodLock.mjs";
 import { ตรวจอ่านอย่างเดียว } from "./lib/readOnlySql.mjs";
 import { คำสั่งCLI } from "./lib/supabaseCli.mjs";
-import { ที่ใน } from "./lib/localPaths.mjs";
+import { ที่ส่วนตัว } from "./lib/localPaths.mjs";
 
-const OPS = process.env.PMS_PROD_OPS_DIR || ที่ใน("prod-ops");
+// ที่ผูกฐานจริงอยู่นอก repo (C:/.claude/pms-private/prod-ops · 27 พ.ย. 69) — ไม่เจอ/อยู่ใต้ repo = หยุด ไม่ถอยไป .local
+const OPS = process.env.PMS_PROD_OPS_DIR || (() => { try { return ที่ส่วนตัว("prod-ops"); } catch (e) { console.error(e.message); process.exit(2); } })();
 const args = process.argv.slice(2);
 if (!args.length) {
   console.error('ใช้: npm run prod:query -- "<คำสั่ง SQL>"  หรือ  npm run prod:query -- -f <ไฟล์ .sql>');
