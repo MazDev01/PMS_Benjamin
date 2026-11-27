@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { กดยกเลิกในกล่องยืนยัน } from "./helpers";
+import { กดยกเลิกในกล่องยืนยัน, กางกระดิ่งทั้งหมด } from "./helpers";
 import { open, openLeadQuotationForm } from "./helpers";
 
 // ─── Persona: UX Expert ───────────────────────────────────────────────────────
@@ -208,8 +208,7 @@ test("[ux·hq] กระดิ่ง HQ มีแต่เรื่องใน�
   await expect(page.getByText("การแจ้งเตือน", { exact: true })).toBeVisible();
   await expect(page.getByText("ต้องดูด่วน"), "กฎแจ้งเตือนงาน HQ เดิมออกจากกระดิ่งแล้ว").toHaveCount(0);
   await expect(page.getByText("ดูบันทึกการใช้งานทั้งหมด"), "ไม่มีฟีดบันทึกการใช้งานในกระดิ่ง").toHaveCount(0);
-  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
-  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
   for (const k of await page.locator("[data-notif-kind]").evaluateAll(es => es.map(e => e.getAttribute("data-notif-kind")))) {
     expect(ชนิดของHQ, `เรื่อง ${k} ไม่อยู่ในตารางกลางฝั่ง HQ`).toContain(k);
   }
@@ -221,8 +220,7 @@ test("[ux·dealer] กระดิ่งดีลเลอร์มีแต่�
   await page.getByRole("button", { name: "การแจ้งเตือน" }).first().click();
   await expect(page.getByText("การแจ้งเตือน", { exact: true })).toBeVisible();
   await expect(page.getByText("ดูบันทึกการใช้งานทั้งหมด")).toHaveCount(0); // ต้องไม่ใช่ audit
-  const ดูทั้งหมด = page.locator("[data-notif-more]")   /* ปุ่มของแผงกระดิ่ง — แดชบอร์ดมีปุ่ม "ดูทั้งหมด" ของการ์ดด้วย */;
-  if (await ดูทั้งหมด.count()) await ดูทั้งหมด.first().click();
+  await กางกระดิ่งทั้งหมด(page);   // เห็นครบทุกเรื่อง (ตัวช่วยกลาง helpers.ts · แทน if count)
   for (const k of await page.locator("[data-notif-kind]").evaluateAll(es => es.map(e => e.getAttribute("data-notif-kind")))) {
     expect(ชนิดของดีลเลอร์, `เรื่อง ${k} ไม่อยู่ในตารางกลางฝั่งดีลเลอร์`).toContain(k);
   }

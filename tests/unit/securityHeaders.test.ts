@@ -39,9 +39,16 @@ describe("กฎความปลอดภัยของหน้าเว็�
     expect(csp).toContain("base-uri 'self'");
   });
 
-  it("ฟอนต์ของเอกสารที่พิมพ์ต้องไม่ถูกบล็อก (ไม่งั้นใบเสนอราคาเปลี่ยนฟอนต์)", () => {
-    expect(csp).toContain("fonts.gstatic.com");
-    expect(csp).toContain("fonts.googleapis.com");
+  // ฟอนต์ของเอกสารที่พิมพ์ (Sarabun) อยู่ในเว็บเราเอง (บอสสั่ง 12 พ.ย. 69 · ทำ 26 พ.ย. 69 · lib/printFont.ts)
+  //   → font-src 'self' พอ · ปิดทาง Google ทั้งสองชุดกฎ (ตอนรันจริง nonce + ชุดหัวข้อทั่วไป) ไม่ให้เบราว์เซอร์ส่งคำขอไป Google
+  it("ฟอนต์ของเอกสารที่พิมพ์มาจากเว็บเราเอง ('self') และไม่เปิดทาง Google", () => {
+    const fontSrc = csp.split(";").find((d: string) => d.trim().startsWith("font-src")) ?? "";
+    expect(fontSrc).toContain("'self'");
+    const ทั่วไป = SECURITY_HEADERS.find(h => h.key === "Content-Security-Policy")?.value ?? "";
+    for (const กฎ of [csp, ทั่วไป]) {
+      expect(กฎ).not.toContain("fonts.gstatic.com");
+      expect(กฎ).not.toContain("fonts.googleapis.com");
+    }
   });
 
   it("หัวข้อความปลอดภัยพื้นฐานต้องครบทุกตัว", () => {

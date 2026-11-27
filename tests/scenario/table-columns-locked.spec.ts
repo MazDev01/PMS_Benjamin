@@ -47,7 +47,9 @@ async function ตรวจหน้า(page: Page, origin: string, h: ตั้
 
   // 1) หน้า 2 (ถ้ามี) — หัวคอลัมน์ตำแหน่งเดิม
   const แถบหน้า = ตาราง.locator("xpath=ancestor::*[.//button[normalize-space()='ถัดไป']][1]").getByRole("button", { name: "ถัดไป" }).first();
-  if (await แถบหน้า.count() && await แถบหน้า.isEnabled()) {
+  await expect(แถบหน้า, `${h.path}: แถบเปลี่ยนหน้าแสดงตลอด (TablePagination)`).toHaveCount(1);   // 26 พ.ย. 69 · เดิม count && isEnabled = ไม่เจอแถบก็ข้ามเงียบ
+  const มีหน้า2 = await แถบหน้า.evaluate(b => !(b as HTMLButtonElement).disabled);
+  if (มีหน้า2) {   // ไม่ใช่การข้าม: ข้อมูลหน้าเดียว ปุ่มถัดไปปิด — ไม่มีหน้า 2 ให้เทียบ
     await แถบหน้า.click();
     await settle(page);
     expect(await ตำแหน่งหัว(page, h.ตาราง), `${h.path}: หน้า 2 หัวคอลัมน์ตำแหน่งเดียวกับหน้า 1`).toEqual(ตั้งต้น);

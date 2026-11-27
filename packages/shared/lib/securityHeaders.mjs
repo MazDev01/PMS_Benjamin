@@ -16,10 +16,10 @@
 //            + ห้ามเว็บอื่นฝังหน้าเราใน iframe + ห้ามเปลี่ยนปลายทางของฟอร์ม + ห้ามเปลี่ยน base URL
 //
 // ก่อนเปิดบังคับใช้ ไล่ตรวจแล้วว่ามีอะไรจะโดนบล็อกบ้าง:
-//   • ฟอนต์ของหน้าเว็บ — ไม่กระทบ ถูกฝังมากับตัวแอปตอน build แล้ว (next/font/google)
-//   • ฟอนต์ของ "ใบเสนอราคาที่พิมพ์ออกมา" — กระทบ! quotationPrint.ts ดึง Sarabun จากภายนอกตอนใช้งานจริง
-//     หน้าต่างพิมพ์สืบทอด CSP มาจากหน้าที่เปิดมัน → ถ้าไม่เปิดทางไว้ เอกสารจะตกไปใช้ฟอนต์สำรอง
-//     หน้าตาเพี้ยนจากที่ออกแบบ (จึงเปิดทางให้ fonts.googleapis.com / fonts.gstatic.com โดยเฉพาะ)
+//   • ฟอนต์ของหน้าเว็บ — ไม่กระทบ ไฟล์ฟอนต์อยู่ในโปรเจกต์ (next/font/local · packages/shared/lib/fonts.ts)
+//   • ฟอนต์ของ "ใบที่พิมพ์ออกมา" (Sarabun) — เดิมดึงจาก Google ตอนพิมพ์ จึงเคยเปิดทาง fonts.googleapis.com / fonts.gstatic.com
+//     26 พ.ย. 69 (บอสสั่ง 12 พ.ย. 69): ไฟล์ Sarabun อยู่ใน apps/*/public/fonts/sarabun · โหลดจากเว็บเราเอง ('self')
+//     → ปิดทาง Google ทั้งสองแล้ว (หน้าต่างพิมพ์สืบทอด CSP จากหน้าที่เปิดมัน · font-src 'self' พอ · packages/shared/lib/printFont.ts)
 //   • ระบบแจ้งเตือนข้อผิดพลาด (Sentry) — เปิดทางให้อัตโนมัติเมื่อตั้ง DSN (ดู connectSrc ด้านล่าง)
 
 // ── ปลายทางที่หน้าเว็บส่งข้อมูลออกไปได้ ────────────────────────────────────────────
@@ -68,10 +68,10 @@ const connectSrc = `connect-src 'self' https://*.supabase.co wss://*.supabase.co
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // Next.js hydrate ด้วย inline script
-  // fonts.googleapis.com = สไตล์ชีตของฟอนต์ในเอกสารที่พิมพ์ (ดูเหตุผลด้านบน)
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  // ฟอนต์ของเอกสารที่พิมพ์มาจากเว็บเราเอง (26 พ.ย. 69 · ปิดทาง fonts.googleapis.com แล้ว · ดูเหตุผลด้านบน)
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",                  // โลโก้/รูปโปรไฟล์เก็บเป็น data URL
-  "font-src 'self' data: https://fonts.gstatic.com",    // ไฟล์ฟอนต์จริงของเอกสารที่พิมพ์
+  "font-src 'self' data:",    // ไฟล์ฟอนต์ของเอกสารที่พิมพ์อยู่ในเว็บเราเอง (/fonts/sarabun · ปิดทาง fonts.gstatic.com แล้ว)
   connectSrc,
   // กรอบแสดงตัวอย่างไฟล์ในหน้าไฟล์ (PDF) — ไฟล์ตัวอย่างในเว็บเราเอง ('self'),
   // ไฟล์ที่ผู้ใช้อัปโหลดในโหมดสาธิต (blob:) และไฟล์จริงจาก Supabase Storage
@@ -97,9 +97,9 @@ export function cspWithNonce(nonce) {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    "font-src 'self' data: https://fonts.gstatic.com",
+    "font-src 'self' data:",
     connectSrc,
     // กรอบแสดงตัวอย่างไฟล์ในหน้าไฟล์ (PDF) — ไฟล์ตัวอย่างในเว็บเราเอง ('self'),
     // ไฟล์ที่ผู้ใช้อัปโหลดในโหมดสาธิต (blob:) และไฟล์จริงจาก Supabase Storage

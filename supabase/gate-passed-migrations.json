@@ -1,8 +1,8 @@
 {
  "คำอธิบาย": "ใบปรับฐานที่ผ่านรอบตรวจเต็มแล้ว — เขียนโดย scripts/test-prodbuild.mjs เท่านั้น ห้ามแก้มือ (db:push:prod ตรวจกับไฟล์นี้)",
- "บันทึกเมื่อ": "2026-11-26 15:49:03",
- "รอบ": "2026-11-26-14-32-09",
- "จำนวน": 303,
+ "บันทึกเมื่อ": "2026-11-27 13:11:34",
+ "รอบ": "2026-11-27-11-51-07",
+ "จำนวน": 304,
  "ใบ": {
   "0001_schema.sql": "32f78822739ea76e0cab1dee5f4c3ca94838577da2f0b6813165ff5d67753ff4",
   "0002_rls.sql": "0e1fbc253d3553f4b73e3dc080c61cbc8bee4350a286955545ffc1b0a863be7d",
@@ -306,6 +306,13 @@
   "0301_lead_lost_reason_options.sql": "43f43e835641ff340c654b6072add3ff1d78ca827440fa727b7d08ee11744f49",
   "0302_quote_rejected_bell.sql": "3c67c4aa4cd8b618474ed74d76fe11935e746235a63fb0dc30617e35a13fb6bc",
   "0303_option_other_always.sql": "a61aaf63036374c654e769612bbfcf2c99fdc12ed9b50a3639e5a59042c6124c",
-  "0304_brand_logo.sql": "7c4a012fea4edd22fabb07bbcb557bde6e6c5e4e9e2764a46bb0cf0e6d554a67"
+  "0304_brand_logo.sql": "7c4a012fea4edd22fabb07bbcb557bde6e6c5e4e9e2764a46bb0cf0e6d554a67",
+  "0305_hq_quote_save_stale_guard.sql": "57706fcb4977c44cb946b4594316c4ab0eb85a53e0f4e5a45848c60e1c8609f4"
+ },
+ "รอรับทราบ": {
+  "รอบ": "2026-11-27-11-51-07",
+  "ข้อไม่นิ่ง": [
+   "hq-quote-save-stale.spec.ts › [ui·hq] เปิดใบเดียวกัน 2 หน้าต่าง — หน้าต่างที่บันทึกทีหลังเห็นคำเตือน ไม่ทับงานของคนแรก · โหลดใบล่าสุดแล้วบันทึกต่อได้"
+  ]
  }
 }

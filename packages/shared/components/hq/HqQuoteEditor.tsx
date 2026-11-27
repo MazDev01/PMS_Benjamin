@@ -49,7 +49,13 @@ const วันยืนราคาตั้งต้น = () => new Date(Date.
 const สเปกยาว = 160;
 
 /** ร่างที่พิมพ์ค้าง (ยังไม่บันทึก) ของคำขอหนึ่ง — หน้าแม่ถือไว้ข้ามการสลับคำขอ */
-export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string };
+export type ร่างใบHQ = { lines: แถววาง[]; validUntil: string; note: string;
+  /** ฉบับที่เปิดมาตอนเริ่มพิมพ์ร่างนี้ (ใบ 0305) — กลับมาแล้วบันทึก ฐานยังเทียบกับฉบับนั้น ไม่ใช่ฉบับที่เพิ่งโหลด
+   *  (ถ้าใช้ฉบับที่เพิ่งโหลด ร่างเก่าจะทับงานที่คนอื่นบันทึกระหว่างนั้นเงียบ ๆ) */
+  ฐาน?: string | null };
+/** ข้อความของฐานเมื่อมีคนบันทึกใบนี้ก่อน (ใบ 0305 · quote_stale) */
+export const ข้อความใบถูกแก้ก่อน = "มีคนแก้ใบนี้ก่อนคุณ โหลดใหม่ก่อนบันทึก";
+const เป็นใบถูกแก้ก่อน = (e: unknown) => /quote_stale|มีคนแก้ใบนี้ก่อนคุณ/.test(String((e as { message?: unknown })?.message ?? ""));
 
 export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline = false, headerExtra, onDirtyChange, onBusyChange, ร่างค้าง, onFilesChanged }: {
   // หน้าต่างเต็มจอ (6 พ.ย. 69) เลิกแล้ว — หน้าต่างกลางจอ กว้างค่ากลาง ความกว้างหน้าต่าง (บอสตอบ 10 พ.ย. 69)
@@ -80,6 +86,11 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   const [busy, setBusy] = useState(false);
   const [กู้ร่าง, setกู้ร่าง] = useState(false);
   const [สเปกเต็ม, setสเปกเต็ม] = useState(false);
+  // ฉบับที่เปิดมา (ใบ 0305): updatedAt ของใบตอนโหลด/บันทึกล่าสุด · ยังไม่มีใบ = null — ส่งไปให้ฐานเทียบทุกครั้งที่บันทึก
+  const [ฐาน, setฐาน] = useState<string | null>(null);
+  // ฐานปฏิเสธเพราะมีคนบันทึกก่อน — แถบเตือน + ปุ่มโหลดใบล่าสุด (ร่างบนจอยังอยู่จนกว่าจะกดโหลด)
+  const [ถูกแก้ก่อน, setถูกแก้ก่อน] = useState(false);
+  const [รอบโหลด, setรอบโหลด] = useState(0);
   // ภาพของใบตอนโหลด/บันทึกล่าสุด — ต่างจากที่อยู่บนจอ = มีการแก้ที่ยังไม่บันทึก (แถวว่างไม่นับ)
   const [ภาพที่บันทึก, setภาพที่บันทึก] = useState<string | null>(null);
   const ภาพ = (ls: HqQuoteLine[], v: string, n: string) =>
@@ -90,6 +101,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     repo.hqQuoteFor(request.id).then(h => {
       if (!alive) return;
       setใบ(h);
+      setฐาน(h?.updatedAt ?? null); setถูกแก้ก่อน(false);
       const แก้ได้ตอนโหลด = (!h || h.status === "draft") && (request.status === "new" || request.status === "pricing");
       const บันทึกแล้ว = h ? h.lineItems : [];
       const ยืน = h?.validUntil ?? วันยืนราคาตั้งต้น();
@@ -97,6 +109,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
       const ร่าง = แก้ได้ตอนโหลด ? ร่างค้าง?.get(request.id) : undefined;
       if (ร่าง) {
         setLines(ร่าง.lines); setยืนราคาถึง(ร่าง.validUntil); setหมายเหตุ(ร่าง.note); setกู้ร่าง(true);
+        if (ร่าง.ฐาน !== undefined) setฐาน(ร่าง.ฐาน);
       } else {
         // ใบที่แก้ได้และยังไม่มีรายการ: มีวัสดุจากคำขอ = เปิดมามีรายการนั้น (H8 · ใบ 0244) · ไม่มี = แถวว่างพร้อมพิมพ์ 1 แถว
         //   รายการจากคำขอนับเป็นจุดเริ่ม (ไม่ถือว่าแก้ค้าง) — ออกไปแล้วกลับมาก็เปิดมาเหมือนเดิม
@@ -112,7 +125,7 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     // ขอแก้ราคา: ใบเวอร์ชันก่อนหน้า (ใช้เป็นจุดเริ่มของเวอร์ชันใหม่)
     if (request.supersedesId) repo.hqQuoteFor(request.supersedesId).then(h => alive && setใบก่อน(h)).catch(e => logRepoRead("quoteRequests.hqQuoteFor(prev)", e));
     return () => { alive = false; };
-  }, [request.id, request.supersedesId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [request.id, request.supersedesId, รอบโหลด]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ล็อก = !!ใบ && ใบ.status !== "draft";
   const แก้ได้ = !ล็อก && (request.status === "new" || request.status === "pricing");
@@ -136,13 +149,15 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
   // เก็บร่างค้างไว้ที่หน้าแม่ทุกครั้งที่แก้ — สลับไปคำขออื่นแล้วกลับมา = ได้คืนครบ · บันทึกแล้ว/ไม่มีอะไรค้าง = ล้างทิ้ง
   useEffect(() => {
     if (!ร่างค้าง || ภาพที่บันทึก === null) return;
-    if (แก้ค้าง) ร่างค้าง.set(request.id, { lines, validUntil: ยืนราคาถึง, note: หมายเหตุ });
+    if (แก้ค้าง) ร่างค้าง.set(request.id, { lines, validUntil: ยืนราคาถึง, note: หมายเหตุ, ฐาน });
     else ร่างค้าง.delete(request.id);
-  }, [ร่างค้าง, request.id, แก้ค้าง, lines, ยืนราคาถึง, หมายเหตุ, ภาพที่บันทึก]);
+  }, [ร่างค้าง, request.id, แก้ค้าง, lines, ยืนราคาถึง, หมายเหตุ, ภาพที่บันทึก, ฐาน]);
   const บันทึก = async (): Promise<HqQuote | null> => {
     const clean: HqQuoteLine[] = ใช้.map(({ เตือน: _ไม่ใช้, ...l }) => ({ ...l, name: l.name.trim(), unit: l.unit.trim(), qty: Number(l.qty), unitCost: Number(l.unitCost) }));
-    const h = await repo.saveHqQuote(request.id, clean, ยืนราคาถึง, หมายเหตุ);
-    setใบ(h);
+    let h: HqQuote;
+    try { h = await repo.saveHqQuote(request.id, clean, ยืนราคาถึง, หมายเหตุ, { updatedAt: ฐาน }); }
+    catch (e) { if (เป็นใบถูกแก้ก่อน(e)) setถูกแก้ก่อน(true); throw e; }
+    setใบ(h); setฐาน(h.updatedAt ?? null); setถูกแก้ก่อน(false);
     setภาพที่บันทึก(ภาพ(clean, ยืนราคาถึง, หมายเหตุ));
     setกู้ร่าง(false);
     return h;
@@ -171,16 +186,23 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
     } catch (e) { แจ้งพลาด(friendlyError(e)); }
     finally { setBusy(false); }
   };
+  /** โหลดใบล่าสุดจากฐาน (หลังถูกปฏิเสธเพราะมีคนแก้ก่อน) — ทิ้งร่างบนจอ ถามก่อน */
+  const โหลดใบล่าสุด = async () => {
+    const ตกลง = await ยืนยัน({ หัวข้อ: "โหลดใบล่าสุด?", รายละเอียด: "สิ่งที่พิมพ์ค้างบนจอจะหาย แล้วแสดงใบที่บันทึกล่าสุดในระบบ", ปุ่มตกลง: "โหลดใบล่าสุด" });
+    if (!ตกลง) return;
+    ร่างค้าง?.delete(request.id);
+    setกู้ร่าง(false); setใบ(undefined); setรอบโหลด(n => n + 1);
+  };
   const เริ่มจากใบก่อน = async () => {
     if (!ใบก่อน) return;
     setBusy(true);
     try {
       const h = await repo.copyHqQuote(request.id, ใบก่อน.id);
-      setใบ(h); setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note);
+      setใบ(h); setฐาน(h.updatedAt ?? null); setLines(h.lineItems); setยืนราคาถึง(h.validUntil ?? วันยืนราคาตั้งต้น()); setหมายเหตุ(h.note);
       setภาพที่บันทึก(ภาพ(h.lineItems, h.validUntil ?? วันยืนราคาตั้งต้น(), h.note));
       แจ้งสำเร็จ(`เริ่มฉบับใหม่จาก ${ใบก่อน.quoteNo} แล้ว — แก้รายการแล้วส่งได้เลย`);
       onChanged();
-    } catch (e) { แจ้งพลาด(friendlyError(e)); }
+    } catch (e) { if (เป็นใบถูกแก้ก่อน(e)) setถูกแก้ก่อน(true); แจ้งพลาด(friendlyError(e)); }   // มีคนทำร่างไว้แล้ว (ใบ 0305) = เตือน + โหลดใบล่าสุด
     finally { setBusy(false); }
   };
 
@@ -276,6 +298,13 @@ export function HqQuoteEditor({ request, dealerName, onClose, onChanged, inline 
           </div>
 
           {ใบ === undefined && <div style={{ color: "#9ca3af", fontSize: "0.84rem" }}>กำลังโหลด…</div>}
+
+          {ถูกแก้ก่อน && แก้ได้ && (
+            <div role="alert" data-testid="hq-quote-stale" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "8px 12px", fontSize: "0.8rem", color: "#991b1b", fontWeight: 600 }}>
+              <span style={{ flex: 1 }}>{ข้อความใบถูกแก้ก่อน} — ใบที่บันทึกในระบบไม่ใช่ฉบับที่คุณเปิดไว้ สิ่งที่พิมพ์บนจอยังไม่ถูกบันทึก</span>
+              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => void โหลดใบล่าสุด()}>โหลดใบล่าสุด</button>
+            </div>
+          )}
 
           {กู้ร่าง && แก้ได้ && (
             <div role="status" data-testid="draft-restored" style={{ display: "flex", alignItems: "center", gap: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "8px 12px", fontSize: "0.8rem", color: "#92400e" }}>

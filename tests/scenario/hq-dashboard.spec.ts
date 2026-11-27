@@ -192,9 +192,14 @@ test("[แดชบอร์ด HQ] วันนี้ต้องทำ: ตร
   };
   const อ่าน = async () => {
     await expect(page.locator("[aria-label='วันนี้ต้องทำ'] [data-testid^='today-']").first()).toBeVisible({ timeout: 30_000 });
-    if (await page.getByTestId("today-clear").count()) return { open: 0, overdue: 0, franchise: 0 };
-    const v = async (id: string) => Number(await page.locator(`[data-testid='${id}'] [data-value], [data-testid='${id}'][data-value]`).first().getAttribute("data-value") ?? 0);
-    return { open: await v("today-requests"), overdue: (await page.getByTestId("today-overdue").count()) ? await v("today-overdue") : 0, franchise: await v("today-franchise") };
+    // อ่านจากจอครั้งเดียว (26 พ.ย. 69 · เดิมแยกทางด้วย count): "ไม่มีงานค้าง" = 0 ทุกช่อง · ไม่มีการ์ดเกินกำหนด = 0
+    //   แต่ "ไม่มีงานค้าง" พร้อมการ์ดตัวเลข = จอขัดกันเอง → คืนค่าที่ไม่มีวันตรงกับตาราง (ข้อตก) แทนการเลือกทางใดทางหนึ่ง
+    const จอ = await page.locator("[aria-label='วันนี้ต้องทำ']").first().evaluate(e => {
+      const ค่า = (id: string) => { const x = e.querySelector(`[data-testid='${id}'] [data-value], [data-testid='${id}'][data-value]`); return x ? Number(x.getAttribute("data-value") ?? 0) : null; };
+      return { ว่าง: !!e.querySelector("[data-testid='today-clear']"), open: ค่า("today-requests"), overdue: ค่า("today-overdue"), franchise: ค่า("today-franchise") };
+    });
+    if (จอ.ว่าง) return จอ.open === null && จอ.franchise === null ? { open: 0, overdue: 0, franchise: 0 } : { open: -1, overdue: -1, franchise: -1 };
+    return { open: จอ.open ?? -1, overdue: จอ.overdue ?? 0, franchise: จอ.franchise ?? -1 };
   };
   // ข้อทดสอบอื่นสร้าง/ปิดคำขอระหว่างทาง — อ่านจอกับตารางซ้ำจนตรงกัน
   await expect.poll(async () => { await เปิด(page); return JSON.stringify(await อ่าน()) === JSON.stringify(await จากตาราง()); },

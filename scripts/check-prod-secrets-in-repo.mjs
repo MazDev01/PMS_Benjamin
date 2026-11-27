@@ -2,10 +2,11 @@
 //
 // ที่มา: เจอไฟล์สำรองค่าเชื่อมต่อฐานจริง (apps/hq/.env.local.prod-backup) วางข้าง .env.local ของชุดทดสอบ
 //   สลับผิดไฟล์ครั้งเดียว = ชุดทดสอบ 563 ข้อรันกับฐานจริง (ลบ/สร้างแถว · ตั้งตัวนับเลขเอกสารทั้งฐาน)
-//   ย้ายไป C:\.claude\pms-prod-secrets\ แล้ว · git ไม่เคยเก็บ (ตรวจประวัติแล้ว) · 26 พ.ย. 69 ที่ใหม่ .local/prod-secrets (scripts/lib/localPaths.mjs)
+//   ย้ายออกจาก repo แล้ว · git ไม่เคยเก็บ (ตรวจประวัติแล้ว) · 26 พ.ย. 69 ที่ใหม่ C:/.claude/pms-private/prod-secrets (scripts/lib/localPaths.mjs)
 // ตรวจทุกไฟล์ในโฟลเดอร์ repo รวมไฟล์ที่ git ไม่เก็บ (.env*, backups/) — ยกเว้น node_modules / .git / .next* / .turbo
 // .local/ (โฟลเดอร์ในเครื่อง · 26 พ.ย. 69): ตรวจด้วย (โฟลเดอร์เซสชัน · ฐานในเครื่อง — กุญแจฐานจริงหลงไปอยู่ข้างชุดทดสอบได้เหมือนเดิม)
-//   ยกเว้น .local/prod-secrets · .local/prod-backups = ที่เก็บกุญแจ/ไฟล์สำรองข้อมูลจริงโดยตั้งใจ — ไม่เปิดอ่านไฟล์ข้างในเลย (ห้ามเปิด ใน localPaths)
+//   โฟลเดอร์ชื่อ prod-secrets · prod-backups (และชื่อเดิม pms-prod-*) ที่ใดก็ได้ = ไม่เปิดอ่านไฟล์ข้างในเลย (ห้ามเปิด ใน localPaths)
+//   26 พ.ย. 69 ของจริงอยู่นอก repo (C:/.claude/pms-private) แล้ว — เจอชื่อนี้ใต้ repo = ตกที่ scripts/check-private-outside-repo.mjs
 //   มีโฟลเดอร์ .local แต่ git ไม่ได้กันไว้ (.gitignore ไม่มี /.local/) = ตก
 //   ตก เมื่อไฟล์มีกุญแจระดับเซิร์ฟเวอร์ (service role) ของฐานจริง:
 //   • เครื่องที่มี .env.production.local: ไฟล์ที่มีรหัสโปรเจกต์ฐานจริง + กุญแจ service role (ค่า SUPABASE_SERVICE_ROLE_KEY / JWT / sb_secret_)
@@ -16,11 +17,11 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { ห้ามเปิด } from "./lib/localPaths.mjs";
+import { ห้ามเปิด, ที่อยู่ส่วนตัว } from "./lib/localPaths.mjs";
 
 const ยกเว้นไฟล์ = new Set([".env.production.local"]);
 const ข้ามโฟลเดอร์ = new Set(["node_modules", ".git", ".next", ".turbo", "test-results", "playwright-report"]);
-const ไม่เปิด = new Set(ห้ามเปิด.map(n => `.local/${n}`));
+const ไม่เปิด = new Set(ห้ามเปิด.map(n => n.toLowerCase()));
 const ใหญ่สุด = 20 * 1024 * 1024;
 
 const อ่านค่า = (file, key) => {
@@ -41,7 +42,7 @@ const เดิน = d => {
     if (ข้ามโฟลเดอร์.has(n) || n.startsWith(".next")) continue;
     const p = path.join(d, n);
     const rel = path.relative(".", p).split(path.sep).join("/");
-    if (ไม่เปิด.has(rel.toLowerCase())) { ข้ามที่ตั้งใจ.push(rel); continue; }   // ไม่ stat ไม่ readdir ไม่เปิดไฟล์ข้างใน
+    if (ไม่เปิด.has(n.toLowerCase())) { ข้ามที่ตั้งใจ.push(rel); continue; }   // ไม่ stat ไม่ readdir ไม่เปิดไฟล์ข้างใน
     let st; try { st = statSync(p); } catch { continue; }
     if (st.isDirectory()) { เดิน(p); continue; }
     if (ยกเว้นไฟล์.has(rel) || st.size > ใหญ่สุด) continue;
@@ -73,7 +74,7 @@ if (existsSync(".local")) {
 console.log(`ไฟล์ใน repo ที่มีกุญแจ service role ของฐานจริง: ${เจอ.length} (ตรวจ ${ตรวจ} ไฟล์ · ยกเว้น ${[...ยกเว้นไฟล์].join(", ")}${ข้ามที่ตั้งใจ.length ? ` · ไม่เปิด ${ข้ามที่ตั้งใจ.join(", ")}` : ""}${รหัสฐานจริง ? "" : " · เครื่องนี้ไม่มีไฟล์ฐานจริง ตรวจแบบที่ 3 อย่างเดียว"})`);
 if (เจอ.length) {
   for (const x of เจอ) console.log(`  ✗ ${x}`);
-  console.log("  → ย้ายไฟล์ไปไว้ที่ .local/prod-secrets/ (git ไม่เก็บ · ตัวตรวจไม่เปิดอ่าน) · ห้ามวางค่าเชื่อมต่อฐานจริงไว้ข้างไฟล์ของชุดทดสอบ");
+  console.log(`  → ย้ายไฟล์ไปไว้ที่ ${ที่อยู่ส่วนตัว("prod-secrets")}/ (นอก repo) · ห้ามวางค่าเชื่อมต่อฐานจริงไว้ข้างไฟล์ของชุดทดสอบ`);
   process.exitCode = 1;
 }
 if (localไม่ถูกกัน) {

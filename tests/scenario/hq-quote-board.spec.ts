@@ -160,7 +160,7 @@ test("[ui·hq] ใบมีการแก้ค้าง → ปิด/เป�
   const { ใบ } = await เปิดใบHQในกล่องงาน(page, ของ("B").บริษัท);
   // ใบโหลดเสร็จ · ไม่มีแถวว่างให้พิมพ์ = กดเพิ่มก่อน — ข้อนี้ตรวจเรื่องร่าง ไม่ใช่เรื่องแถวว่าง
   await expect(ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" })).toBeVisible({ timeout: 20_000 });
-  if (await ใบ.getByLabel("ชื่อรายการ 1").count() === 0) await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  await expect(ใบ.getByLabel("ชื่อรายการ 1", { exact: true }), "ใบที่แก้ได้เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (ไม่ต้องกดเพิ่ม)").toBeVisible({ timeout: 20_000 });
   await ใบ.getByLabel("ชื่อรายการ 1").fill("รายการที่ยังไม่บันทึก");
   await ใบ.getByLabel("ต้นทุนต่อหน่วย 1").fill("2500");
 

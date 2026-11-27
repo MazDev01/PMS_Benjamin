@@ -692,8 +692,10 @@ export const SupabaseAdapter: DataAdapter = {
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return data ? toCamel<HqQuote>(data as Row) : null;
     },
-    saveHqQuote: async (requestId, lines, validUntil, note) => {
-      const { data, error } = await sb().rpc("hq_quote_save", { p_request_id: requestId, p_lines: lines, p_valid_until: validUntil || null, p_note: note });
+    saveHqQuote: async (requestId, lines, validUntil, note, base) => {
+      // ฉบับที่เปิดมา (ใบ 0305) — ส่งข้อความเวลาเดิมที่ฐานตอบ ไม่แปลงเป็น Date (ไมโครวินาทีหาย = ไม่ตรงเอง)
+      const { data, error } = await sb().rpc("hq_quote_save", { p_request_id: requestId, p_lines: lines, p_valid_until: validUntil || null, p_note: note,
+        ...(base ? { p_check_base: true, p_base_updated_at: base.updatedAt } : {}) });
       if (error) throw new DbError(error.message, (error as { code?: string }).code);
       return toCamel<HqQuote>(data as Row);
     },

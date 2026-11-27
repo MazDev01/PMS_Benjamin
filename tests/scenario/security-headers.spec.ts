@@ -16,8 +16,17 @@ const REQUIRED: Array<[string, RegExp]> = [
   ["content-security-policy", /frame-ancestors 'none'/i],
   // ปลายทางภายนอกต้องถูกจำกัด — ถ้าใครเผลอเปิดกว้าง (เช่นใส่ * ) ข้อนี้จะจับได้
   ["content-security-policy", /connect-src 'self' https:\/\/\*\.supabase\.co/i],
-  // ฟอนต์ของเอกสารที่พิมพ์ต้องไม่ถูกบล็อก ไม่งั้นใบเสนอราคาที่ส่งลูกค้าจะเปลี่ยนฟอนต์
-  ["content-security-policy", /font-src[^;]*fonts\.gstatic\.com/i],
+  // ฟอนต์ของเอกสารที่พิมพ์ (Sarabun) มาจากเว็บเราเอง — font-src ต้องมี 'self'
+  // (เดิมบังคับ fonts.gstatic.com ตอนหน้าพิมพ์ยังดึงจาก Google · งาน Sarabun 472ce1c2 ปิดทาง Google ตามคำสั่งบอส 12 พ.ย. 69)
+  ["content-security-policy", /font-src 'self'/i],
+];
+
+// ข้อห้ามใน CSP (ตรวจกลับด้าน 27 พ.ย. 69) — ต้องไม่เปิดทางไป Google ให้ฟอนต์อีก
+const CSP_FORBIDDEN: Array<[string, RegExp]> = [
+  ["font-src มี fonts.gstatic.com", /font-src[^;]*fonts\.gstatic\.com/i],
+  ["style-src มี fonts.googleapis.com", /style-src[^;]*fonts\.googleapis\.com/i],
+  ["connect-src มี fonts.googleapis.com", /connect-src[^;]*fonts\.googleapis\.com/i],
+  ["CSP ส่วนใดก็ตามมีที่อยู่ฟอนต์ Google", /fonts\.(googleapis|gstatic)\.com/i],
 ];
 
 // ห้ามเหลือหัวข้อโหมด "รายงานอย่างเดียว" ค้างไว้คู่กัน — จะทำให้เข้าใจผิดว่ายังไม่ได้บังคับใช้
@@ -35,6 +44,9 @@ for (const [name, origin, path] of [
     expect(missing.map(m => m[0]),
       `ขาดหัวข้อความปลอดภัย: ${missing.map(m => m[0]).join(", ")} (ที่ได้: ${Object.keys(headers).filter(k => /security|frame|content-type-opt|referrer|permissions/.test(k)).join(", ")})`,
     ).toEqual([]);
+    const csp = headers["content-security-policy"] ?? "";
+    const opened = CSP_FORBIDDEN.filter(([, re]) => re.test(csp)).map(([label]) => label);
+    expect(opened, `CSP ต้องไม่เปิดทางฟอนต์ Google: ${opened.join(", ")}`).toEqual([]);
     const leftover = FORBIDDEN.filter(h => headers[h]);
     expect(leftover, `ต้องไม่เหลือหัวข้อโหมดรายงานอย่างเดียว: ${leftover.join(", ")}`).toEqual([]);
   });

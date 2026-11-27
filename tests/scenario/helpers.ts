@@ -387,6 +387,25 @@ export const แถวคำขอ = (page: Page, ข้อความ?: string
   const ทุก = ตารางคำขอ(page).locator("tbody tr.clickable");
   return ข้อความ ? ทุก.filter({ hasText: ข้อความ }) : ทุก;
 };
+/** กางแผงกระดิ่งให้เห็นครบทุกเรื่อง (เรียกหลังเปิดแผง) — 26 พ.ย. 69 แทน if (await ดูทั้งหมด.count()) คลิก 6 จุด (ข้อผ่านหลอก)
+ *  แผงแสดง 8 เรื่องแรก · เกิน 8 = มีปุ่ม "ดูทั้งหมด (n)" (NotificationBell.tsx แสดงก่อน = 8)
+ *  รอรายการโหลดก่อน (มีเรื่อง หรือ "ไม่มีการแจ้งเตือน") แล้วตรวจว่าปุ่มตรงกับจำนวนจริงทั้งสองทาง:
+ *    ไม่มีปุ่ม = ต้องเห็นไม่เกิน 8 เรื่อง · มีปุ่ม = ตัวเลขบนปุ่มเกิน 8 และกดแล้วเห็นครบตามตัวเลข */
+export async function กางกระดิ่งทั้งหมด(page: Page) {
+  const เรื่อง = page.locator("[data-notif-kind]");
+  await expect(เรื่อง.first().or(page.getByText("ไม่มีการแจ้งเตือน", { exact: true })), "แผงกระดิ่งโหลดรายการแล้ว").toBeVisible({ timeout: 20_000 });
+  const ปุ่ม = page.locator("[data-notif-more]");
+  const ข้อความปุ่ม = await ปุ่ม.evaluateAll(es => es.map(e => e.textContent ?? ""));
+  if (ข้อความปุ่ม.length === 0) {   // ไม่ใช่การข้าม: เรื่องไม่เกิน 8 แผงไม่มีปุ่ม — ตรวจจำนวนแทน
+    expect(await เรื่อง.evaluateAll(es => es.length), "ไม่มีปุ่มดูทั้งหมด = เรื่องในแผงไม่เกิน 8").toBeLessThanOrEqual(8);
+    return;
+  }
+  const รวม = Number(/\((\d+)\)/.exec(ข้อความปุ่ม[0])?.[1] ?? NaN);
+  expect(รวม, `มีปุ่มดูทั้งหมด = เรื่องเกิน 8 (ปุ่ม "${ข้อความปุ่ม[0]}")`).toBeGreaterThan(8);
+  await ปุ่ม.click();
+  await expect(ปุ่ม, "กดแล้วปุ่มเปลี่ยนเป็นแสดงน้อยลง").toHaveText("แสดงน้อยลง");
+  await expect.poll(() => เรื่อง.evaluateAll(es => es.length), { message: "กดดูทั้งหมดแล้วเห็นครบตามตัวเลขบนปุ่ม" }).toBeGreaterThanOrEqual(รวม);
+}
 /** หน้าต่างใบ HQ ที่เปิดอยู่ */
 export const หน้าต่างใบHQ = (page: Page) => page.getByRole("dialog", { name: "ใบ HQ" });
 

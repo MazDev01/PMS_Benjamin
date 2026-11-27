@@ -54,7 +54,11 @@ async function ขั้นในตารางและแผง(page: Page, c
   const แถบ = page.getByRole("list", { name: "ขั้นการขาย" });
   await expect(แถบ).toBeVisible({ timeout: 15_000 });
   const ตอนนี้ = แถบ.locator('li[aria-current="step"]');
-  const ในแผง = await ตอนนี้.count() ? (await ตอนนี้.innerText()).trim() : null;
+  // ขั้นที่ไฮไลต์: ไม่เกิน 1 ช่อง · ไม่มี = null (ลีดปิดไม่สำเร็จ แผงไม่มีขั้นปัจจุบัน — ผู้เรียกตรวจเองว่าคาด null หรือไม่ บรรทัด "แผงต้องไฮไลต์ขั้นปัจจุบัน")
+  //   26 พ.ย. 69 · เดิม count ? ข้อความ : null — ไฮไลต์ซ้อน 2 ช่องก็ไม่มีใครเห็น
+  const ช่องปัจจุบัน = await ตอนนี้.allInnerTexts();
+  expect(ช่องปัจจุบัน.length, "แถบขั้นในแผงไฮไลต์ขั้นปัจจุบันไม่เกิน 1 ช่อง").toBeLessThanOrEqual(1);
+  const ในแผง: string | null = ช่องปัจจุบัน[0]?.trim() ?? null;
   // ลำดับขั้นที่ไฮไลต์ = ตำแหน่งใน 4 ช่อง · ทุกช่องในแผงมีเลขลำดับนำหน้า (บอสสั่ง 13 พ.ย. 69 · กลับด้าน 28 ต.ค. 69)
   const ทุกช่อง = (await แถบ.locator("li").allInnerTexts()).map(ปกติ);
   expect(ทุกช่อง.filter(t => !/^[1-4]\. /.test(t)), "แถบ 4 ขั้นในแผงลีดขึ้นต้นด้วยเลขลำดับ").toEqual([]);

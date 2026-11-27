@@ -71,11 +71,15 @@ test("[func·hq] สร้างดีลเลอร์ = สร้างบั
   await expect(okModal.or(errMsg).first(), "ต้องเห็นผลจริงอย่างใดอย่างหนึ่ง").toBeVisible({ timeout: 25_000 });
 
   const rows = (await sb.from("dealers").select("code,name").eq("code", NEW_CODE)).data ?? [];
-  if (await okModal.isVisible()) {
-    expect(rows.length, "ตั้ง key แล้ว → ดีลเลอร์ต้องลง DB").toBe(1);
+  // ผลบนจอกับฐานต้องตรงกันทั้งสองทาง (26 พ.ย. 69 · เดิมแยกทางด้วย isVisible = จอบอกสำเร็จแต่ฐานไม่มีก็ไม่มีใครเห็นถ้าข้อความผิดทาง)
+  expect(rows.length, "ดีลเลอร์ใหม่ลงฐาน 0 หรือ 1 แถวเท่านั้น").toBeLessThanOrEqual(1);
+  if (rows.length === 1) {   // ไม่ใช่การข้าม: ทางที่ตั้ง key ไว้ — ตรวจจอ + ชื่อในฐาน
+    await expect(okModal, "ดีลเลอร์ลงฐานแล้ว → จอต้องบอกสำเร็จ").toBeVisible();
+    await expect(errMsg, "สำเร็จแล้วต้องไม่มีข้อความระบบตั้งค่าไม่ครบ").toHaveCount(0);
     expect(rows[0].name).toBe(NEW_NAME);
   } else {
-    expect(rows.length, "ไม่มี key → ต้องไม่เหลือดีลเลอร์ผีใน DB (บัญชีล็อกอินไม่ได้)").toBe(0);
+    await expect(errMsg, "ไม่มี key → จอต้องบอกว่าระบบยังตั้งค่าไม่ครบ").toBeVisible();
+    await expect(okModal, "ไม่มีดีลเลอร์ในฐาน → จอต้องไม่บอกสำเร็จ").toHaveCount(0);
   }
 });
 

@@ -78,7 +78,7 @@ test("[ui·hq] วางจาก Excel 3 แถว = 3 รายการ · �
   const ใบ = await เข้าใบ(page, "ก");
   // ใบโหลดเสร็จ · ไม่มีแถวว่างให้พิมพ์ (โค้ดก่อน 26 ต.ค. 69) = กดเพิ่มก่อน — ข้อนี้ตรวจการวาง ไม่ใช่เรื่องแถวว่าง
   await expect(ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" })).toBeVisible({ timeout: 20_000 });
-  if (await ใบ.getByLabel("ชื่อรายการ 1").count() === 0) await ใบ.getByRole("button", { name: "เพิ่มรายการอื่น" }).click();
+  await expect(ใบ.getByLabel("ชื่อรายการ 1", { exact: true }), "ใบที่แก้ได้เปิดมามีแถวว่างพร้อมพิมพ์ 1 แถว (ไม่ต้องกดเพิ่ม)").toBeVisible({ timeout: 20_000 });
   const T = String.fromCharCode(9), N = String.fromCharCode(13, 10);
   const ข้อความ = ["โครงสร้างเหล็ก" + T + "800" + T + "ตร.ม." + T + "1,250", "หลังคาเมทัลชีท" + T + "820" + T + "ตร.ม." + T + "450.50", "ค่าขนส่ง" + T + "1" + T + "งาน" + T + "15000"].join(N) + N;
   const วาง = (label: string, text: string) => ใบ.getByLabel(label).evaluate((el, t) => {

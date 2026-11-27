@@ -3,11 +3,13 @@
 //   2) โค้ดไม่เขียน C:/.claude/pms-* ตรง ๆ อีก (นอกคอมเมนต์ · ยกเว้นข้อทดสอบตัวกันคำสั่งที่ใช้เป็นตัวอย่างคำสั่ง)
 //   3) git ไม่เก็บ .local (.gitignore) · Vercel ไม่อัป (.vercelignore) · next ไม่ติดไปกับผล build
 //   4) pre-commit ปฏิเสธไฟล์ใต้ .local แม้ git add -f · pre-push ปฏิเสธ commit ที่มี/เคยมีไฟล์ใต้ .local (ทุก branch)
-//   5) ตัวตรวจกุญแจฐานจริงตรวจใน .local (เจอกุญแจในโฟลเดอร์เซสชัน = ตก) แต่ไม่เปิด .local/prod-secrets · .local/prod-backups
+//   5) ตัวตรวจกุญแจฐานจริงตรวจใน .local (เจอกุญแจในโฟลเดอร์เซสชัน = ตก) แต่ไม่เปิดโฟลเดอร์ชื่อ prod-secrets · prod-backups
+//      (26 พ.ย. 69 ของจริงอยู่นอก repo · ชื่อนี้ใต้ repo = ตกที่ tests/tools/private-outside-repo.test.mjs)
 //      และ .local ที่ git ไม่ได้กัน = ตก
 //   6) เครื่องมือไม่กวาดเข้า .local: vitest · playwright · tsc ของชุดทดสอบ · ตัวนับ ratchet (วางไฟล์ปลอมใน .local แล้วต้องไม่ถูกหยิบ)
 //   7) ตัวย้าย scripts/move-local.mjs: ค่าเริ่ม = ดูอย่างเดียว (ไม่แตะอะไร) · --ย้าย ย้าย worktree ด้วย git worktree move + ทางลัดคืน
 //      + ทะเบียนเซสชันชี้ที่ใหม่ + ตัวส่งต่อทะเบียนบทบาท · ไม่ยอมย้ายเมื่อเซสชันมีงานค้าง (โฟลเดอร์จำลองทั้งหมด)
+//      · pms-prod-backups / pms-prod-secrets ไม่ย้ายเข้า .local (26 พ.ย. 69 · อยู่นอก repo)
 //   ตกบนโค้ดเดิม: ไม่มี localPaths/localGuard/move-local · .gitignore ไม่มี /.local/ · commit/push ไฟล์ใน .local ผ่าน
 // รัน: node tests/tools/local-folder.test.mjs   (ไม่ใช้เว็บ/ฐานทดสอบ · โฟลเดอร์จำลองในโฟลเดอร์ชั่วคราว)
 import { execFileSync, spawnSync } from "node:child_process";
@@ -64,16 +66,19 @@ try {
     let โยน = ""; try { lp.ที่ใน("ไม่มีชื่อนี้"); } catch (e) { โยน = e.message; }
     ผล(/ไม่รู้จักชื่อ/.test(โยน), "ชื่อที่ไม่อยู่ในตารางย้าย = หยุด (ไม่เดาที่อยู่)");
     ผล(lp.ห้ามเปิด.includes("prod-backups") && lp.ห้ามเปิด.includes("prod-secrets"), "prod-backups · prod-secrets อยู่ในรายชื่อห้ามเปิด");
+    ผล(!("prod-backups" in lp.ตารางย้าย) && !("prod-secrets" in lp.ตารางย้าย), "prod-backups · prod-secrets ไม่อยู่ในตารางย้าย .local (อยู่นอก repo · 26 พ.ย. 69)");
     for (const [k, v] of Object.entries(ตั้งenv)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
   }
 
   // ── 2) โค้ดไม่เขียนที่อยู่เดิมตรง ๆ ──
-  const ยกเว้นไฟล์ = new Set(["tests/unit/guardCli.test.ts", "tests/unit/guardCliNext.test.ts", "tests/tools/proof-folder.test.mjs", "tests/tools/local-folder.test.mjs"]);
+  // private-outside-repo.test.mjs: ตรวจว่าค่าตั้งต้นรากส่วนตัว = C:/.claude/pms-private (ต้องเขียนค่าที่คาดตรง ๆ · 26 พ.ย. 69)
+const ยกเว้นไฟล์ = new Set(["tests/unit/guardCli.test.ts", "tests/unit/guardCliNext.test.ts", "tests/tools/proof-folder.test.mjs", "tests/tools/local-folder.test.mjs", "tests/tools/private-outside-repo.test.mjs"]);
   const โค้ด = git(ราก, "ls-files", "--", "scripts", "tests", "apps", "packages").split(/\r?\n/).filter(f => /\.(mjs|cjs|js|ts|tsx)$/.test(f) && !ยกเว้นไฟล์.has(f) && existsSync(path.join(ราก, f)));
   const เจอ = [];
   for (const f of โค้ด) {
     readFileSync(path.join(ราก, f), "utf8").split(/\r?\n/).forEach((l, i) => {
       const ไม่รวมคอมเมนต์ = l.replace(/^\s*\/\/.*$/, "").replace(/\s\/\/\s.*$/, "");
+      if (f === "scripts/lib/localPaths.mjs" && /"C:\/\.claude\/pms-private"/.test(ไม่รวมคอมเมนต์)) return;   // ค่าตั้งต้นรากส่วนตัว (นอก repo) ที่เดียว
       if (/C:[\\/]+\.claude[\\/]+pms-/i.test(ไม่รวมคอมเมนต์)) เจอ.push(`${f}:${i + 1}`);
     });
   }
@@ -148,7 +153,7 @@ try {
   const ตรวจกุญแจ = () => spawnSync(process.execPath, [path.join(ราก, "scripts/check-prod-secrets-in-repo.mjs")], { cwd: โฟลเดอร์ตรวจ, encoding: "utf8", env: envลูก });
   r = ตรวจกุญแจ();
   const จำนวนตรวจ = (s) => Number(/ตรวจ (\d+) ไฟล์/.exec(s)?.[1] ?? -1);
-  ผล(r.status === 0, "กุญแจใน .local/prod-secrets · .local/prod-backups = ไม่ตก (ที่เก็บโดยตั้งใจ)", r.stdout + r.stderr);
+  ผล(r.status === 0, "ตัวตรวจกุญแจไม่ตกเพราะไฟล์ใน .local/prod-secrets · .local/prod-backups (ไม่เปิด · ชื่อโฟลเดอร์ใต้ repo ตกที่ check-private-outside-repo)", r.stdout + r.stderr);
   ผล(จำนวนตรวจ(r.stdout) === 2, `ไม่เปิดไฟล์ใน prod-secrets/prod-backups (ตรวจแค่ .gitignore + .local/dev/note.txt = 2 ไฟล์ · ได้ ${จำนวนตรวจ(r.stdout)})`, r.stdout);
   เขียน(path.join(โฟลเดอร์ตรวจ, ".local/wt/s1/apps/hq/.env.local"), `SUPABASE_SERVICE_ROLE_KEY=${กุญแจปลอม}\n`);
   r = ตรวจกุญแจ();
@@ -213,7 +218,7 @@ try {
   // ดูอย่างเดียว = ไม่แตะอะไร
   r = รันตัวย้าย();
   ผล(r.status === 0 && /ดูอย่างเดียว/.test(r.stdout) && existsSync(จwt) && !existsSync(path.join(จหลัก, ".local/wt")), "ค่าเริ่ม = ดูอย่างเดียว: พิมพ์แผน ไม่ย้าย", r.stdout + r.stderr);
-  ผล(/pms-prod-secrets .*ไม่เปิดไฟล์ข้างใน · 4 ไฟล์/.test(r.stdout), "แผนบอกจำนวนไฟล์ prod-secrets จากชื่อ/ขนาด (ไม่เปิดไฟล์)", r.stdout);
+  ผล(!/prod-secrets|prod-backups/.test(r.stdout), "แผนไม่มี prod-secrets · prod-backups (ไม่ย้ายเข้า .local · อยู่นอก repo)", r.stdout);
   // ย้ายจริง
   r = รันตัวย้าย("--ย้าย");
   ผล(r.status === 0, "--ย้าย สำเร็จ · จำนวนไฟล์/ขนาด/ทางลัดก่อนหลังเท่ากันทุกโฟลเดอร์", r.stdout + r.stderr);
@@ -225,7 +230,8 @@ try {
   ผล(git(path.join(ใหม่("wt"), "s1"), "status", "--porcelain") === "", "เซสชันที่ย้ายแล้ว git status สะอาด");
   const ลิงก์ = path.join(ใหม่("wt"), "s1", "node_modules/@pms/shared");
   ผล(existsSync(ลิงก์) && lstatSync(ลิงก์).isSymbolicLink() && เท่า(readlinkSync(ลิงก์), path.join(ใหม่("wt"), "s1", "packages/shared")), "ทางลัดสร้างคืนชี้ที่ใหม่", existsSync(ลิงก์) ? readlinkSync(ลิงก์) : "ไม่มีทางลัด");
-  ผล(existsSync(path.join(ใหม่("prod-secrets"), "s3.env")) && existsSync(path.join(ใหม่("prod-backups"), "ชุด1/db.sql")), "prod-secrets · prod-backups ย้ายทั้งโฟลเดอร์");
+  ผล(!existsSync(ใหม่("prod-secrets")) && !existsSync(ใหม่("prod-backups")) && existsSync(path.join(จเดิม, "pms-prod-secrets/s3.env")) && existsSync(path.join(จเดิม, "pms-prod-backups/ชุด1/db.sql")),
+    "ตัวย้ายไม่แตะ pms-prod-secrets · pms-prod-backups (ไม่ย้ายเข้า .local)");
   ผล(existsSync(ใหม่("migration-reservations.md")), "ไฟล์จองเลขใบย้ายตาม");
   const ทบ = JSON.parse(readFileSync(ทะเบียนเซสชัน, "utf8"));
   ผล(เท่า(ทบ.s1.โฟลเดอร์, path.join(ใหม่("wt"), "s1")), "ทะเบียนเซสชันชี้ที่ใหม่", ทบ.s1.โฟลเดอร์);

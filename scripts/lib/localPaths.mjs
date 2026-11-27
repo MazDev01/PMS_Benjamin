@@ -11,10 +11,11 @@
 // ช่วงก่อนย้ายจริง (scripts/move-local.mjs): ที่ใหม่ยังไม่มี แต่ที่เดิม C:/.claude/pms-<ชื่อ> ยังอยู่ = ใช้ที่เดิม
 //   ตัดสินทีละโฟลเดอร์ · ย้ายแล้วที่ใหม่มีอยู่ = ใช้ที่ใหม่เสมอ · ไม่มีทั้งคู่ = ที่ใหม่ (สร้างที่ใหม่)
 //   PMS_LEGACY_ROOT เปลี่ยนรากที่เดิมได้ (ข้อทดสอบ) · ค่า "-" = ไม่ดูที่เดิมเลย
-// env เดิมเฉพาะโฟลเดอร์ (PMS_WT_ROOT · PMS_TEST_DB_DIR · PMS_DEV_DB_DIR · PMS_PROD_OPS_DIR · PMS_BACKUP_ROOT ·
+// env เดิมเฉพาะโฟลเดอร์ (PMS_WT_ROOT · PMS_TEST_DB_DIR · PMS_DEV_DB_DIR · PMS_PROD_OPS_DIR · PMS_BACKUP_ROOT (ทับรากส่วนตัว) ·
 //   PMS_RESTORE_WORKDIR · PMS_ROUND_DIR ฯลฯ) ยังทับได้ตามเดิม — ผู้เรียกเช็ก env ก่อนแล้วค่อยเรียก ที่ใน()
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 /** ชื่อใน .local → ชื่อเดิมใต้ C:/.claude (ตารางย้าย · ตัวย้าย scripts/move-local.mjs ใช้ตารางเดียวกัน) */
@@ -31,17 +32,45 @@ export const ตารางย้าย = Object.freeze({
   "preview": "pms-preview",
   "prod-ops": "pms-prod-ops",
   "prod-tools": "pms-prod-tools",
-  "prod-backups": "pms-prod-backups",
-  "prod-secrets": "pms-prod-secrets",
   "private-data": "pms-private-data",
   "migration-reservations.md": "pms-migration-reservations.md",
 });
 
-/** โฟลเดอร์ที่ห้ามเปิดอ่านไฟล์ข้างใน (ข้อมูลลูกค้าจริง · กุญแจฐานจริง) — ตัวตรวจที่เดินทั้งโฟลเดอร์ต้องข้าม · ตัวย้ายย้ายทั้งโฟลเดอร์เท่านั้น */
-export const ห้ามเปิด = Object.freeze(["prod-backups", "prod-secrets"]);
+// ── สำรองฐานจริง + กุญแจ อยู่นอก repo (บอสสั่ง 26 พ.ย. 69) ─────────────────────────────────────────────────────────────
+//   เหตุ: repo เป็น public · git clean -fdx ลบของที่ ignore ได้ · AI ค้นไฟล์ทั้งโปรเจกต์แล้วอาจอ่านเจอข้อมูลลูกค้าจริง/กุญแจ
+//   ที่อยู่ = <รากส่วนตัว>/prod-backups · <รากส่วนตัว>/prod-secrets · รากส่วนตัว = PMS_PRIVATE_ROOT หรือ C:/.claude/pms-private
+//   ไม่อยู่ใน ตารางย้าย (ไม่ย้ายเข้า .local อีก) · ไม่มีทางถอยไปที่เดิม (.local/prod-* · C:/.claude/pms-prod-*)
+//   ไม่เจอ = หยุดพร้อมบอกที่อยู่ (ไม่สร้างใหม่) · ตัวตรวจ scripts/check-private-outside-repo.mjs: ชื่อเหล่านี้ใต้ repo = ตก
+
+/** ชื่อในรากส่วนตัว */
+export const ชื่อส่วนตัว = Object.freeze(["prod-backups", "prod-secrets"]);
+/** ชื่อโฟลเดอร์ที่ห้ามมีใต้ repo (รวม .local · โฟลเดอร์เซสชัน) — ชื่อใหม่ + ชื่อเดิม · ตัวตรวจที่เดินทั้งโฟลเดอร์ห้ามเปิดข้างใน */
+export const ห้ามเปิด = Object.freeze([...ชื่อส่วนตัว, "pms-prod-backups", "pms-prod-secrets"]);
 
 const ทับ = (p) => p.replace(/\\/g, "/");
 const โค้ดชุดนี้ = () => process.cwd();
+
+/** รากส่วนตัว (นอก repo) */
+export function รากส่วนตัว() {
+  if (process.env.PMS_PRIVATE_ROOT) return ทับ(path.resolve(process.env.PMS_PRIVATE_ROOT));
+  return process.platform === "win32" ? "C:/.claude/pms-private" : ทับ(path.join(os.homedir(), ".pms-private"));
+}
+
+/** ที่อยู่ของ <ชื่อ> ในรากส่วนตัว — ไม่ตรวจว่ามีอยู่ (ใช้ในข้อความบอกคน) */
+export function ที่อยู่ส่วนตัว(ชื่อ) {
+  if (!ชื่อส่วนตัว.includes(ชื่อ)) throw new Error(`ไม่รู้จักชื่อ "${ชื่อ}" ในรากส่วนตัว (ดู ชื่อส่วนตัว ใน scripts/lib/localPaths.mjs)`);
+  return `${รากส่วนตัว()}/${ชื่อ}`;
+}
+
+const ใต้ = (ลูก, แม่) => { const r = path.relative(path.resolve(แม่), path.resolve(ลูก)); return r === "" || (!r.startsWith("..") && !path.isAbsolute(r)); };
+
+/** ที่อยู่ของ <ชื่อ> ในรากส่วนตัวที่ต้องมีอยู่แล้ว — ไม่มี หรืออยู่ใต้ repo = โยนข้อผิดพลาด (ผู้เรียกหยุด · ไม่สร้างใหม่) */
+export function ที่ส่วนตัว(ชื่อ, { cwd = โค้ดชุดนี้(), มีอยู่ = existsSync } = {}) {
+  const ที่ = ที่อยู่ส่วนตัว(ชื่อ);
+  if (ใต้(ที่, โฟลเดอร์หลัก(cwd))) throw new Error(`⛔ ${ที่} อยู่ใต้ repo — ${ชื่อ} ต้องอยู่นอก repo — ตั้ง PMS_PRIVATE_ROOT ใหม่ หรือเอาออกให้ใช้ค่าตั้งต้น`);
+  if (!มีอยู่(ที่)) throw new Error(`⛔ ไม่เจอโฟลเดอร์ ${ที่} — ${ชื่อ} อยู่นอก repo ตั้งแต่ 26 พ.ย. 69 (ตั้ง PMS_PRIVATE_ROOT ถ้าย้ายที่) · ไม่สร้างใหม่ให้`);
+  return ที่;
+}
 
 /** โฟลเดอร์หลักของ repo (ที่ .git จริงอยู่) จาก cwd · worktree ได้โฟลเดอร์หลักเดียวกัน */
 export function โฟลเดอร์หลัก(cwd = โค้ดชุดนี้()) {
